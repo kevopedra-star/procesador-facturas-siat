@@ -1,0 +1,8 @@
+pymupdf>=1.23.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+pyzbar>=0.1.9
+easyocr>=1.7.0
+supabase>=2.0.0
+selenium>=4.15.0
+webdriver-manager>=4.0.0
