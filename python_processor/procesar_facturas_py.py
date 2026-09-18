@@ -205,7 +205,112 @@ def extraer_doc_aduanero_especifico(texto_completo, tipo):
     if m_gen:
         return m_gen.group(1).upper()
 
+def normalizar_fecha_iso(cadena_fecha):
+    if not cadena_fecha:
+        return ""
+    cadena = str(cadena_fecha).strip()
+    m_dmy = re.search(r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})', cadena)
+    if m_dmy:
+        d, m, y = m_dmy.group(1).zfill(2), m_dmy.group(2).zfill(2), m_dmy.group(3)
+        if int(m) <= 12 and int(d) <= 31:
+            return f"{y}-{m}-{d}"
+    m_ymd = re.search(r'(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})', cadena)
+    if m_ymd:
+        y, m, d = m_ymd.group(1), m_ymd.group(2).zfill(2), m_ymd.group(3).zfill(2)
+        return f"{y}-{m}-{d}"
     return ""
+
+def limpiar_monto_boliviano(val_str):
+    if not val_str:
+        return 0.0
+    s = str(val_str).strip()
+    s = re.sub(r'[^0-9\.,]', '', s)
+    if not s:
+        return 0.0
+    if ',' in s and '.' in s:
+        if s.rfind(',') > s.rfind('.'):
+            s = s.replace('.', '').replace(',', '.')
+        else:
+            s = s.replace(',', '')
+    elif ',' in s:
+        parts = s.split(',')
+        if len(parts) == 2 and len(parts[1]) in (1, 2):
+            s = s.replace(',', '.')
+        else:
+            s = s.replace(',', '')
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+def extraer_monto_pdf(texto_pdf):
+    if not texto_pdf:
+        return 0.0
+    lines = [l.strip() for l in texto_pdf.split('\n') if l.strip()]
+    total_keywords = [
+        'MONTO A PAGAR', 'MONTO TOTAL', 'TOTAL FACTURA', 'TOTAL BS', 
+        'TOTAL BOB', 'TOTAL (BS)', 'TOTAL (BOB)', 'SUBTOTAL BS', 
+        'SUBTOTAL (BS)', 'IMPORTE TOTAL', 'IMPORTE BASE', 'TOTAL'
+    ]
+
+    for i, line in enumerate(lines):
+        upper = line.upper()
+        for kw in total_keywords:
+            if kw in upper:
+                for offset in [0, 1, 2]:
+                    if i + offset < len(lines):
+                        target_line = lines[i + offset]
+                        nums = re.findall(r'([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})', target_line)
+                        if nums:
+                            val = limpiar_monto_boliviano(nums[-1])
+                            if val > 0:
+                                return val
+
+    pats = [
+        r'(?:MONTO|TOTAL|SUBTOTAL|IMPORTE)[^0-9\n\r]*[\r\n\s]*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})',
+        r'Bs\.?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})'
+    ]
+    for pat in pats:
+        m = re.search(pat, texto_pdf, re.IGNORECASE)
+        if m:
+            val = limpiar_monto_boliviano(m.group(1))
+            if val > 0:
+                return val
+
+    prods = extraer_productos_pdf(texto_pdf)
+    if prods:
+        sum_p = sum(p['subtotal'] for p in prods)
+        if sum_p > 0:
+            return sum_p
+
+    return 0.0
+
+def extraer_productos_pdf(texto_pdf):
+    prods = []
+    lineas = [l.strip() for l in texto_pdf.split("\n") if l.strip()]
+    ignorar = [
+        'CÓDIGO', 'CODIGO', 'CANTIDAD', 'UNIDAD DE MEDIDA', 'DESCRIPCIÓN', 'DESCRIPCION', 
+        'PRECIO UNITARIO', 'SUBTOTAL', 'MONTO GIFT CARD', 'MONTO A PAGAR', 'IMPORTE BASE', 
+        'CREDITO FISCAL', 'CRÉDITO FISCAL', 'TOTAL BS', 'DESCUENTO', 'VALOR CIF', 'GRAVAMEN',
+        'RAZÓN SOCIAL', 'RAZON SOCIAL', 'NIT/CI/CEX', 'CLIENTE'
+    ]
+    for line in lineas:
+        upper = line.upper()
+        if any(kw in upper for kw in ignorar):
+            continue
+        m_precio = re.search(r'([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})\s*$', line)
+        if m_precio and any(k in upper for k in ["SERVICIO", "ALMACEN", "SEGURO", "LOGISTIC", "TRANSPORTE", "GASTO", "LIBERAC", "CUSTODIA"]):
+            sub_str = m_precio.group(1).replace('.', '').replace(',', '.')
+            try:
+                sub = float(sub_str)
+                desc = line[:m_precio.start()].strip()
+                desc = re.sub(r'^(?:[I0-9\.\-]+\s+)+', '', desc)
+                desc = re.sub(r'^(?:UNIDAD|\(SERVICIOS\)\s*)+', '', desc, flags=re.IGNORECASE).strip()
+                if len(desc) >= 4 and sub > 0:
+                    prods.append({"descripcion": desc, "cantidad": 1, "subtotal": sub})
+            except ValueError:
+                pass
+    return prods
 
 # =============================================================================
 # CONSULTA SIAT CON REINTENTOS AUTOMÁTICOS
@@ -346,6 +451,16 @@ def guardar_factura_en_supabase(datos_guardar):
         print("❌ Cliente Supabase no disponible. Revisa tus credenciales.")
         return False
 
+    ref_interna = datos_guardar.get("ref_guia")
+    importacion_id = None
+    if ref_interna:
+        try:
+            res_imp = supabase.table("importaciones").select("id").eq("n_referencia", ref_interna).maybe_single().execute()
+            if res_imp and res_imp.data:
+                importacion_id = res_imp.data.get("id")
+        except Exception:
+            pass
+
     payload_factura = {
         "tipo": datos_guardar.get("tipo"),
         "fecha": datos_guardar.get("fecha"),
@@ -355,7 +470,8 @@ def guardar_factura_en_supabase(datos_guardar):
         "monto": datos_guardar.get("monto"),
         "codigo_qr": datos_guardar.get("codigo_qr"),
         "doc_aduanero": datos_guardar.get("doc_aduanero"),
-        "ref_guia": datos_guardar.get("doc_aduanero"),
+        "ref_guia": ref_interna if (ref_interna and re.search(r"\d{3,4}-\d{2}", str(ref_interna))) else None,
+        "importacion_id": importacion_id,
         "registro_aduanero": datos_guardar.get("doc_aduanero"),
         "productos": datos_guardar.get("productos"),
         "cuf": datos_guardar.get("cuf")
@@ -396,8 +512,18 @@ def guardar_factura_en_supabase(datos_guardar):
             return False
     else:
         try:
+            # Auto-calcular el número consecutivo máximo actual para garantizar secuencia estricta sin duplicados
+            try:
+                res_max = supabase.table("facturas").select("consecutivo").not_("consecutivo", "is", "null").order("consecutivo", desc=True).limit(1).execute()
+                if res_max and res_max.data and len(res_max.data) > 0 and res_max.data[0].get("consecutivo"):
+                    payload_factura["consecutivo"] = int(res_max.data[0]["consecutivo"]) + 1
+                else:
+                    payload_factura["consecutivo"] = 1
+            except Exception:
+                payload_factura["consecutivo"] = 1
+
             res_fac = supabase.table("facturas").insert(payload_factura).execute()
-            print(" Factura insertada con éxito.")
+            print(f"✅ Factura insertada con éxito. (Consecutivo N° {payload_factura.get('consecutivo')})")
 
             factura_id = None
             if res_fac.data and len(res_fac.data) > 0:
@@ -421,12 +547,97 @@ def guardar_factura_en_supabase(datos_guardar):
                 print(f"⚠️ [DUPLICADA] La factura N° {datos_guardar.get('n_factura')} ya existe en Supabase (QR duplicado).")
                 return True
             else:
-                print(f"❌ Error al guardar en Supabase la factura {datos_guardar.get('n_factura')}: {e}")
-                return False
+def ventana_verificacion(datos, archivo_actual, total_archivos):
+    try:
+        ventana = tk.Tk()
+        ventana.title(f"Verificación de Factura ({archivo_actual} de {total_archivos})")
+        ventana.geometry("700x760")
+        ventana.attributes("-topmost", True)
+        
+        confirmado = {"accion": "descartar", "datos": {}}
 
-# =============================================================================
-# BUCLE PRINCIPAL DE PROCESAMIENTO CON REINTENTOS
-# =============================================================================
+        tk.Label(
+            ventana, 
+            text=f"Revisión de Datos ({archivo_actual}/{total_archivos})", 
+            font=("Arial", 12, "bold")
+        ).pack(pady=10)
+
+        frame_campos = tk.Frame(ventana)
+        frame_campos.pack(fill="both", expand=True, padx=25, pady=5)
+
+        entradas = {}
+        campos_orden = [
+            ("tipo", "Tipo (ALBO / DAB / GUIA):"),
+            ("ref_guia", "Ref. Interna (XXXX-26):"),
+            ("estado", "Estado SIAT:"),
+            ("fecha", "Fecha Emisión (AAAA-MM-DD):"),
+            ("nit", "NIT Emisor:"),
+            ("nombre", "Razón Social Emisor:"),
+            ("n_factura", "N° Factura:"),
+            ("monto", "Monto Total (Bs.):"),
+            ("cuf", "CUF:"),
+            ("doc_aduanero", "Doc. Aduanero:"),
+            ("codigo_qr", "Enlace QR:")
+        ]
+
+        for idx, (clave, etiqueta) in enumerate(campos_orden):
+            tk.Label(frame_campos, text=etiqueta, anchor="w", font=("Arial", 9, "bold")).grid(row=idx, column=0, sticky="w", pady=4)
+            ent = tk.Entry(frame_campos, font=("Arial", 9))
+            ent.insert(0, str(datos.get(clave, "") or ""))
+            
+            if clave == "estado":
+                if "ANULAD" in ent.get():
+                    ent.config(fg="#c0392b", font=("Arial", 9, "bold"))
+                else:
+                    ent.config(fg="#27ae60", font=("Arial", 9, "bold"))
+
+            if clave == "doc_aduanero" and ent.get() == "ANULADO":
+                ent.config(fg="#c0392b", font=("Arial", 9, "bold"))
+                
+            ent.grid(row=idx, column=1, sticky="ew", padx=(10, 0), pady=4)
+            entradas[clave] = ent
+
+        idx_prod = len(campos_orden)
+        tk.Label(frame_campos, text="Detalle Productos:", anchor="w", font=("Arial", 9, "bold")).grid(row=idx_prod, column=0, sticky="nw", pady=6)
+        txt_productos = tk.Text(frame_campos, font=("Arial", 9), height=7, wrap="word")
+        txt_productos.insert("1.0", str(datos.get("productos", "") or ""))
+        txt_productos.grid(row=idx_prod, column=1, sticky="ew", padx=(10, 0), pady=6)
+
+        frame_campos.columnconfigure(1, weight=1)
+
+        def accion_guardar():
+            actualizados = {}
+            for clave, ent in entradas.items():
+                val = ent.get().strip()
+                if clave == "monto":
+                    val = limpiar_monto_boliviano(val)
+                actualizados[clave] = val
+            actualizados["productos"] = txt_productos.get("1.0", tk.END).strip()
+
+            confirmado["accion"] = "guardar"
+            confirmado["datos"] = actualizados
+            ventana.destroy()
+
+        def accion_saltar():
+            confirmado["accion"] = "saltar"
+            ventana.destroy()
+
+        def accion_cancelar_todo():
+            confirmado["accion"] = "cancelar_todo"
+            ventana.destroy()
+
+        frame_botones = tk.Frame(ventana)
+        frame_botones.pack(fill="x", padx=25, pady=15)
+        
+        tk.Button(frame_botones, text="⏹️ Detener Todo", bg="#7f8c8d", fg="white", font=("Arial", 9, "bold"), command=accion_cancelar_todo, padx=8, pady=6).pack(side="left")
+        tk.Button(frame_botones, text="⏭️ Omitir Factura", bg="#e67e22", fg="white", font=("Arial", 9, "bold"), command=accion_saltar, padx=8, pady=6).pack(side="left", padx=8)
+        tk.Button(frame_botones, text=" Confirmar y Guardar", bg="#27ae60", fg="white", font=("Arial", 9, "bold"), command=accion_guardar, padx=10, pady=6).pack(side="right")
+
+        ventana.mainloop()
+        return confirmado
+    except Exception as e_tk:
+        print(f"💡 GUI no disponible ({e_tk}). Guardando automáticamente datos extraídos...")
+        return {"accion": "guardar", "datos": datos}
 
 def procesar_lote_facturas():
     rutas_pdf = seleccionar_archivos_pdf()
@@ -441,7 +652,7 @@ def procesar_lote_facturas():
         nombre_archivo = os.path.basename(ruta_pdf)
         tipo_detectado = determinar_tipo(nombre_archivo)
         print(f"\n------------------------------------------------------------")
-        print(f"📄 [Recibida #{i}] {nombre_archivo} | Tipo: {tipo_detectado}")
+        print(f"📄 [{i}/{total}] Procesando: {nombre_archivo} | Tipo: {tipo_detectado}")
         print(f"------------------------------------------------------------")
 
         factura_procesada = False
@@ -457,24 +668,35 @@ def procesar_lote_facturas():
                 doc = pymupdf.open(ruta_pdf)
                 img_cv2 = convertir_pagina_a_cv2(doc[0], dpi=300 if intentos_lectura == 1 else 400)
                 
-                # 1. Leer QR con filtros múltiples
-                url_qr = leer_qr_avanzado(img_cv2)
+                # 1. Leer QR
+                url_qr = leer_qr(img_cv2)
                 if not url_qr:
                     print(f"❌ No se detectó código QR en {nombre_archivo} (Intento {intentos_lectura}).")
                     doc.close()
                     time.sleep(1)
                     continue
 
-                # 2. Extracción de Doc Aduanero
+                # 2. Extracción de Doc Aduanero y Ref Interna
                 texto_nativo = doc[0].get_text()
+                raw_text_full = texto_nativo
                 if len(texto_nativo.strip()) > 50:
                     doc_aduanero_extraido = extraer_doc_aduanero_especifico(texto_nativo, tipo_detectado)
                 else:
                     print("⏳ Escaneando texto con EasyOCR...")
                     bloques = lector_ocr.readtext(img_cv2, detail=0, paragraph=True)
-                    doc_aduanero_extraido = extraer_doc_aduanero_especifico("\n".join(bloques), tipo_detectado)
+                    raw_text_full = "\n".join(bloques)
+                    doc_aduanero_extraido = extraer_doc_aduanero_especifico(raw_text_full, tipo_detectado)
 
                 doc.close()
+
+                ref_interna = None
+                m_ref_file = re.search(r"(\d{3,4}-\d{2})", nombre_archivo)
+                if m_ref_file:
+                    ref_interna = m_ref_file.group(1)
+                elif raw_text_full:
+                    m_ref_text = re.search(r"\b(\d{3,4}-\d{2})\b", raw_text_full)
+                    if m_ref_text:
+                        ref_interna = m_ref_text.group(1)
 
                 # 3. Consulta SIAT con reintentos
                 datos_siat = extraer_siat_con_navegador(url_qr, max_retries=3)
@@ -487,18 +709,48 @@ def procesar_lote_facturas():
                 else:
                     doc_aduanero_final = doc_aduanero_extraido
 
+                monto_pdf = extraer_monto_pdf(raw_text_full)
+                monto_final = datos_siat.get("monto", 0.0)
+                if monto_final <= 0 or (monto_pdf > 0 and abs(monto_final - monto_pdf) > 1.0):
+                    monto_final = monto_pdf
+
+                prods_pdf = extraer_productos_pdf(raw_text_full)
+                json_prods = datos_siat.get("productos", "")
+                if prods_pdf:
+                    sum_prods = sum(p["subtotal"] for p in prods_pdf)
+                    if abs(sum_prods - monto_final) <= 1.0 or not json_prods:
+                        json_prods = json.dumps(prods_pdf)
+                        if monto_final <= 0 and sum_prods > 0:
+                            monto_final = sum_prods
+
+                fecha_final = normalizar_fecha_iso(datos_siat.get("fecha", ""))
+                if not fecha_final:
+                    m_f_raw = re.search(r'FECHA\s*[:\.]?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})', raw_text_full, re.IGNORECASE)
+                    if m_f_raw:
+                        fecha_final = normalizar_fecha_iso(m_f_raw.group(0))
+
+                nombre_final = datos_siat.get("nombre", "")
+                if not nombre_final or "NIT" in nombre_final.upper() or "CEX" in nombre_final.upper() or "1020415021" in nombre_final:
+                    if "MINERA SAN CRISTOBAL" in raw_text_full.upper():
+                        nombre_final = "MINERA SAN CRISTOBAL S.A."
+                    elif "ALMACENERA BOLIVIANA" in raw_text_full.upper():
+                        nombre_final = "ALMACENERA BOLIVIANA S.A. ALBO S.A."
+                    elif "DEPOSITOS ADUANEROS" in raw_text_full.upper() or "DAB" in raw_text_full.upper():
+                        nombre_final = "DEPÓSITOS ADUANEROS BOLIVIANOS - DAB"
+
                 factura_data = {
                     "tipo": tipo_detectado,
                     "estado": estado_siat,
-                    "fecha": datos_siat.get("fecha", ""),
+                    "fecha": fecha_final,
                     "nit": datos_siat.get("nit", ""),
-                    "nombre": datos_siat.get("nombre", ""),
+                    "nombre": nombre_final,
                     "n_factura": datos_siat.get("n_factura", ""),
-                    "monto": datos_siat.get("monto", 0.0),
+                    "monto": monto_final,
                     "cuf": datos_siat.get("cuf", ""),
                     "codigo_qr": url_qr,
                     "doc_aduanero": doc_aduanero_final,
-                    "productos": datos_siat.get("productos", "")
+                    "ref_guia": ref_interna,
+                    "productos": json_prods
                 }
 
                 print("\n📊 === DATOS EXTRAÍDOS ===")
@@ -510,14 +762,20 @@ def procesar_lote_facturas():
                 print(f"Estado SIAT   : {estado_siat}")
                 print("==========================\n")
 
-                # Verificar si los datos mínimos requeridos fueron extraídos
-                if factura_data['n_factura'] and factura_data['nit'] and (factura_data['monto'] > 0 or 'ANULAD' in estado_siat):
-                    print("🚀 Guardando automáticamente en la base de datos Supabase...")
-                    guardar_factura_en_supabase(factura_data)
+                # Ventana de verificación interactiva GUI
+                resultado = ventana_verificacion(factura_data, i, total)
+
+                if resultado["accion"] == "guardar":
+                    datos_guardar = resultado["datos"]
+                    print("🚀 Guardando en base de datos Supabase...")
+                    guardar_factura_en_supabase(datos_guardar)
                     factura_procesada = True
-                else:
-                    print(f"⚠️ Faltan datos clave en la lectura de {nombre_archivo}. Reintentando proceso...")
-                    time.sleep(2)
+                elif resultado["accion"] == "saltar":
+                    print(f"⏭️ Factura {nombre_archivo} omitida.")
+                    factura_procesada = True
+                elif resultado["accion"] == "cancelar_todo":
+                    print("⏹️ Proceso en lote detenido por el usuario.")
+                    return
 
             except Exception as err_proc:
                 print(f"❌ Error durante el procesamiento de {nombre_archivo}: {err_proc}")

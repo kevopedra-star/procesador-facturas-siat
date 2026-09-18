@@ -104,16 +104,16 @@
                         <i class="fa-solid fa-sliders text-orange-500"></i> Método Seleccionado:
                     </span>
                     <select id="select-processing-method" onchange="changeProcessingMethod(this.value)" class="bg-[#f4f4f7] dark:bg-[#1f1f26] text-slate-900 dark:text-white text-xs font-bold px-3.5 py-1.5 rounded-xl border border-[#e4e4e7] dark:border-[#23232a] focus:outline-none focus:border-orange-500 cursor-pointer">
+                        <option value="python_github" selected>🐍 Python OCR + SIAT (Envío a Repositorio GitHub)</option>
                         <option value="gemini">🤖 Gemini IA Escáner (Procesamiento directo)</option>
-                        <option value="python_github">🐍 Python OCR + SIAT (Envío a Repositorio GitHub)</option>
                     </select>
                 </div>
-                <div id="github-status-badge" class="hidden text-xs font-bold text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20 flex items-center gap-1.5">
+                <div id="github-status-badge" class="text-xs font-bold text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20 flex items-center gap-1.5">
                     <i class="fa-brands fa-github"></i> Repositorio GitHub + SIAT Activo
                 </div>
             </div>
 
-            <div id="dropzone" class="premium-dropzone group">
+            <div id="dropzone" class="premium-dropzone group cursor-pointer">
                 <input type="file" id="fileInput" multiple accept="application/pdf,image/png,image/jpeg" class="hidden">
                 <div class="space-y-4 flex flex-col items-center">
                     <div class="mx-auto h-20 w-20 bg-[#f4f4f7] dark:bg-[#141416]/50 text-orange-500 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 border border-[#e4e4e7] dark:border-[#222226]">
@@ -127,6 +127,67 @@
                 </div>
             </div>
 
+            <!-- MONITOR Y BARRA DE PROGRESO INTEGRADA EN PANTALLA -->
+            <div id="inline-live-progress" class="hidden my-4 p-5 bg-[#0b0f19] border-2 border-orange-500/60 rounded-2xl shadow-2xl space-y-4 text-left">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center font-bold text-xl flex-shrink-0">
+                            <i class="fa-solid fa-wand-magic-sparkles text-orange-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-white text-base">Monitor de Procesamiento en Pantalla</h4>
+                            <p id="inline-status-desc" class="text-xs text-slate-400">Enviando, revisando lectura de QR, consulta SIAT y guardando en Supabase</p>
+                        </div>
+                    </div>
+                    <div id="inline-status-pill" class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-xl">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span id="inline-status-text">● REVISANDO PROCESOS...</span>
+                    </div>
+                </div>
+
+                <!-- Barra de progreso integrada -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-300">
+                        <span id="inline-progress-step" class="text-orange-400">Analizando factura...</span>
+                        <span id="inline-progress-percent" class="font-mono text-emerald-400 font-bold">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-slate-700">
+                        <div id="inline-progress-bar" class="bg-gradient-to-r from-orange-500 via-amber-400 to-emerald-400 h-3 rounded-full transition-all duration-300 w-0"></div>
+                    </div>
+                </div>
+
+                <!-- Terminal de registro en vivo integrado en la interfaz -->
+                <div id="inline-terminal-box" class="bg-[#080c14] border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-200 max-h-64 overflow-y-auto space-y-1.5 select-text">
+                    <div id="inline-terminal-logs" class="space-y-1.5"></div>
+                </div>
+            </div>
+
+            <!-- QUEUE ACTION BANNER (PASO 1: CONFIRMACIÓN Y BOTÓN DE PROCESO EN VIVO) -->
+            <div id="queue-action-banner" class="hidden my-4 p-4 bg-gradient-to-r from-orange-500/20 via-slate-900/90 to-blue-600/20 border-2 border-orange-500/60 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xl backdrop-blur-md transition-all">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-500 flex items-center justify-center text-2xl font-bold border border-orange-500/40 shadow-inner flex-shrink-0">
+                        <i class="fa-solid fa-file-invoice-dollar text-orange-400"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white text-base flex items-center gap-2">
+                            📁 Se cargaron <span id="queue-banner-count" class="text-orange-400 font-extrabold text-xl font-mono">0</span> facturas en cola
+                        </h4>
+                        <p class="text-xs text-slate-300">Presiona el botón para iniciar el escaneo OCR y la verificación SIAT en pantalla.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <button id="btn-cancel-queue" onclick="clearStagedQueue()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-all border border-slate-700/80 cursor-pointer">
+                        <i class="fa-solid fa-trash mr-1 text-red-400"></i> Limpiar
+                    </button>
+                    <button id="btn-start-live-process" onclick="startProcessingQueue()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs md:text-sm tracking-wide uppercase transition-all shadow-lg shadow-orange-500/40 flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-rocket text-base"></i> 🚀 PROCESAR FACTURAS EN VIVO
+                    </button>
+                </div>
+            </div>
+
             <div class="flex justify-between items-center">
                 <div class="flex gap-4">
                     <span
@@ -136,6 +197,10 @@
                             id="next-consecutivo-badge" class="text-orange-500">...</span></span>
                 </div>
                 <div class="flex gap-3">
+                    <button id="btn-trigger-live" onclick="startProcessingQueue()"
+                        class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-rocket"></i> Procesar En Vivo
+                    </button>
                     <button id="btn-python-ocr" onclick="openPythonModal()"
                         class="bg-blue-600 hover:bg-blue-700 text-white shadow-md px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
                         <i class="fa-brands fa-python"></i> Python OCR + SIAT
@@ -238,8 +303,9 @@
                 </table>
             </div>
         </div>
-    </div>
-
+    <!-- LOADER OVERLAY -->
+    <div id="loader" class="hidden fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-[100] backdrop-blur-sm p-4">
+        <div class="w-16 h-16 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p id="loader-text" class="text-white text-lg font-bold tracking-wider uppercase">Analizando con IA...</p>
 
         <!-- Consola de Terminal en Vivo para la Aplicación Web -->
@@ -263,6 +329,63 @@
             class="bg-[#16161a]/95 text-[#ffffff] px-6 py-4 rounded-2xl shadow-2xl border-l-4 border-[#ff5500] flex items-center gap-4 backdrop-blur-md">
             <i id="toast-icon" class="ph-fill ph-info text-2xl"></i>
             <span id="toast-message" class="font-semibold"></span>
+        </div>
+    </div>
+
+    <!-- MODAL PRINCIPAL DE CONSOLA DE PROCESAMIENTO EN VIVO -->
+    <div id="live-process-modal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex flex-col items-center justify-center p-4 md:p-6">
+        <div class="bg-[#0b0f19] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="p-4 md:p-5 bg-[#121827] border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-brands fa-python"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-base md:text-lg text-white flex items-center gap-2">
+                            Consola de Procesamiento Python SIAT + OCR
+                        </h3>
+                        <p class="text-xs text-slate-400">Lectura de QR, consulta SIAT y guardado automático en Supabase</p>
+                    </div>
+                </div>
+                <div id="live-status-pill" class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-xl">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span id="live-status-text">● PROCESANDO...</span>
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-3 bg-[#0d1322] border-b border-slate-800/80 px-6 py-3 text-xs font-bold text-center">
+                <div class="text-slate-300">📁 TOTAL: <span id="stat-total" class="text-sky-400 text-sm font-mono">0</span></div>
+                <div class="text-slate-300">✅ EXITOSAS: <span id="stat-success" class="text-emerald-400 text-sm font-mono">0</span></div>
+                <div class="text-slate-300">❌ FALLIDAS / SIN QR: <span id="stat-failed" class="text-red-400 text-sm font-mono">0</span></div>
+            </div>
+
+            <!-- Terminal Output Window -->
+            <div id="terminal-scroll-area" class="flex-1 p-5 overflow-y-auto font-mono text-xs text-slate-200 space-y-2 bg-[#080c14] select-text">
+                <div id="terminal-stream-logs" class="space-y-2"></div>
+            </div>
+
+            <!-- Footer / Controls -->
+            <div class="p-4 bg-[#121827] border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="w-full md:w-1/2 flex items-center gap-3">
+                    <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="live-progress-bar" class="bg-gradient-to-r from-orange-500 to-emerald-400 h-2.5 rounded-full transition-all duration-300 w-0"></div>
+                    </div>
+                    <span id="live-progress-percent" class="text-xs font-bold text-slate-300 font-mono">0%</span>
+                </div>
+                <div class="flex gap-3 w-full md:w-auto justify-end">
+                    <button id="btn-close-live-modal" onclick="closeLiveModal()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
+                        <i class="fa-solid fa-xmark mr-1.5"></i> Cerrar Consola
+                    </button>
+                    <button id="btn-goto-history" onclick="goToHistoryFromModal()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer">
+                        <i class="fa-solid fa-database mr-1.5"></i> Ver en Historial Cloud
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -307,11 +430,165 @@
         const appendTerminalLog = (htmlContent) => {
             const box = document.getElementById('terminal-console-box');
             const container = document.getElementById('terminal-console-logs');
-            box.classList.remove('hidden');
-            const div = document.createElement('div');
-            div.innerHTML = htmlContent;
-            container.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            if (box && container) {
+                box.classList.remove('hidden');
+                const div = document.createElement('div');
+                div.innerHTML = htmlContent;
+                container.appendChild(div);
+                box.scrollTop = box.scrollHeight;
+            }
+        };
+
+        // --- SISTEMA DE CONSOLA DE PROCESAMIENTO EN VIVO FULLSCREEN E INTEGRADA EN PANTALLA ---
+        let liveSuccessList = [];
+        let liveFailedList = [];
+        let liveTotalCount = 0;
+        let liveSuccessCount = 0;
+        let liveFailedCount = 0;
+
+        const openLiveProcessModal = (total) => {
+            liveTotalCount = total;
+            liveSuccessCount = 0;
+            liveFailedCount = 0;
+            liveSuccessList = [];
+            liveFailedList = [];
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-success').textContent = '0';
+            document.getElementById('stat-failed').textContent = '0';
+            document.getElementById('live-progress-bar').style.width = '0%';
+            document.getElementById('live-progress-percent').textContent = '0%';
+
+            // Monitor integrado en la pantalla
+            const inlineBox = document.getElementById('inline-live-progress');
+            if (inlineBox) {
+                inlineBox.classList.remove('hidden');
+                document.getElementById('inline-progress-bar').style.width = '0%';
+                document.getElementById('inline-progress-percent').textContent = '0%';
+                document.getElementById('inline-terminal-logs').innerHTML = '';
+                document.getElementById('inline-status-text').textContent = '● REVISANDO PROCESOS...';
+            }
+
+            document.getElementById('live-status-pill').className = 'flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1.5 rounded-xl';
+            document.getElementById('live-status-text').textContent = '● PROCESANDO...';
+
+            document.getElementById('btn-close-live-modal').classList.add('hidden');
+            document.getElementById('btn-goto-history').classList.add('hidden');
+
+            document.getElementById('terminal-stream-logs').innerHTML = '';
+            document.getElementById('live-process-modal').classList.remove('hidden');
+        };
+
+        const appendStreamLog = (htmlContent) => {
+            // Modal Fullscreen
+            const logsContainer = document.getElementById('terminal-stream-logs');
+            const scrollArea = document.getElementById('terminal-scroll-area');
+            if (logsContainer && scrollArea) {
+                const div = document.createElement('div');
+                div.className = 'leading-relaxed';
+                div.innerHTML = htmlContent;
+                logsContainer.appendChild(div);
+                scrollArea.scrollTop = scrollArea.scrollHeight;
+            }
+
+            // Monitor Integrado en la Pantalla
+            const inlineLogs = document.getElementById('inline-terminal-logs');
+            const inlineBox = document.getElementById('inline-terminal-box');
+            if (inlineLogs && inlineBox) {
+                const divIn = document.createElement('div');
+                divIn.className = 'leading-relaxed';
+                divIn.innerHTML = htmlContent;
+                inlineLogs.appendChild(divIn);
+                inlineBox.scrollTop = inlineBox.scrollHeight;
+            }
+        };
+
+        const updateLiveProgress = (currentIdx, total) => {
+            const pct = Math.round((currentIdx / total) * 100);
+            document.getElementById('live-progress-bar').style.width = `${pct}%`;
+            document.getElementById('live-progress-percent').textContent = `${pct}%`;
+
+            const inlineBar = document.getElementById('inline-progress-bar');
+            const inlinePct = document.getElementById('inline-progress-percent');
+            const inlineStep = document.getElementById('inline-progress-step');
+            if (inlineBar && inlinePct) {
+                inlineBar.style.width = `${pct}%`;
+                inlinePct.textContent = `${pct}%`;
+                if (inlineStep) inlineStep.textContent = `Procesando documento ${currentIdx + 1} de ${total}...`;
+            }
+        };
+
+        const finishLiveProcessModal = () => {
+            document.getElementById('live-progress-bar').style.width = '100%';
+            document.getElementById('live-progress-percent').textContent = '100%';
+
+            const inlineBar = document.getElementById('inline-progress-bar');
+            const inlinePct = document.getElementById('inline-progress-percent');
+            const inlineStatus = document.getElementById('inline-status-text');
+            if (inlineBar && inlinePct) {
+                inlineBar.style.width = '100%';
+                inlinePct.textContent = '100%';
+                if (inlineStatus) inlineStatus.textContent = '● PROCESO FINALIZADO';
+            }
+
+            document.getElementById('live-status-pill').className = 'flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold px-3 py-1.5 rounded-xl';
+            document.getElementById('live-status-text').textContent = '● FINALIZADO';
+
+            let summaryHtml = `
+                <div class="my-4 p-4 bg-[#0d1525] border-2 border-emerald-500/40 rounded-2xl space-y-3">
+                    <div class="text-emerald-400 font-bold text-sm tracking-wider uppercase border-b border-emerald-500/30 pb-2 flex items-center justify-between">
+                        <span>📋 === RESUMEN FINAL DEL PROCESAMIENTO ===</span>
+                        <span class="text-xs bg-emerald-500/20 px-2.5 py-1 rounded-lg text-emerald-300 font-mono">TOTAL: ${liveTotalCount}</span>
+                    </div>
+            `;
+
+            if (liveSuccessList.length > 0) {
+                summaryHtml += `
+                    <div class="space-y-1.5">
+                        <div class="text-emerald-400 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i> FACTURAS GUARDADAS EXITOSAMENTE (${liveSuccessList.length}):
+                        </div>
+                `;
+                liveSuccessList.forEach(item => {
+                    summaryHtml += `<div class="text-slate-300 pl-4 font-mono text-[11px]"> • Factura N° <span class="font-bold text-white">${item.nFactura}</span> | ${item.nombre} | <span class="text-amber-300 font-bold">Bs. ${formatCurrency(item.monto)}</span> | Doc: ${item.docAduanero} <span class="text-emerald-400 font-bold">(Consecutivo #${item.consecutivo})</span></div>`;
+                });
+                summaryHtml += `</div>`;
+            }
+
+            if (liveFailedList.length > 0) {
+                summaryHtml += `
+                    <div class="space-y-1.5 pt-2 border-t border-slate-800">
+                        <div class="text-red-400 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-xmark"></i> FACTURAS SIN DETECCIÓN / FALLIDAS (${liveFailedList.length}):
+                        </div>
+                `;
+                liveFailedList.forEach(item => {
+                    summaryHtml += `<div class="text-slate-400 pl-4 font-mono text-[11px]"> • <span class="text-slate-200 font-bold">${item.fileName}</span> (${item.reason})</div>`;
+                });
+                summaryHtml += `</div>`;
+            }
+
+            summaryHtml += `
+                    <div class="text-slate-400 text-[11px] pt-2 border-t border-slate-800 italic">
+                        🏁 Proceso completado. Puedes revisar los registros guardados en el Historial Cloud o cerrar esta consola.
+                    </div>
+                </div>
+            `;
+
+            appendStreamLog(summaryHtml);
+
+            document.getElementById('btn-close-live-modal').classList.remove('hidden');
+            document.getElementById('btn-goto-history').classList.remove('hidden');
+        };
+
+        window.closeLiveModal = () => {
+            document.getElementById('live-process-modal').classList.add('hidden');
+        };
+
+        window.goToHistoryFromModal = () => {
+            document.getElementById('live-process-modal').classList.add('hidden');
+            switchTab('history');
+            showToast("¡Historial de facturas actualizado desde Supabase!");
         };
 
         const showToast = (msg, type = 'info') => {
@@ -376,8 +653,21 @@
 
         const updateDbCount = async () => {
             if (!supabase) return;
-            const { count } = await supabase.from('facturas').select('*', { count: 'exact', head: true });
-            dbCount = count || 0;
+            try {
+                const { data: maxRows } = await supabase
+                    .from('facturas')
+                    .select('consecutivo')
+                    .not('consecutivo', 'is', null)
+                    .order('consecutivo', { ascending: false })
+                    .limit(1);
+                if (maxRows && maxRows.length > 0 && maxRows[0].consecutivo) {
+                    dbCount = parseInt(maxRows[0].consecutivo) || 0;
+                } else {
+                    dbCount = 0;
+                }
+            } catch(e) {
+                dbCount = 0;
+            }
             document.getElementById('next-consecutivo-badge').textContent = dbCount + invoices.length + 1;
             document.getElementById('count-badge').textContent = invoices.length;
         };
@@ -511,7 +801,7 @@
             }
         };
 
-        let currentProcessingMethod = 'gemini';
+        let currentProcessingMethod = 'python_github';
 
         window.changeProcessingMethod = (val) => {
             currentProcessingMethod = val;
@@ -522,28 +812,133 @@
                 : 'Analizaremos el texto, aduana e ítems por lotes con la IA de Gemini.';
         };
 
-        const handleFiles = async (files) => {
+        // --- SISTEMA DE ETAPA 1: COLA Y PROCESAMIENTO EN VIVO ---
+        let stagedFiles = [];
+
+        window.stageSelectedFiles = (files) => {
+            const fileArray = Array.from(files).filter(f => f.type.includes('pdf') || f.type.includes('image') || f.name.toLowerCase().endsWith('.pdf'));
+            if (!fileArray.length) {
+                showToast("Por favor selecciona archivos PDF o imágenes válidos.", "error");
+                return;
+            }
+
+            stagedFiles = fileArray;
+
+            const banner = document.getElementById('queue-action-banner');
+            const bannerCount = document.getElementById('queue-banner-count');
+            if (banner && bannerCount) {
+                bannerCount.textContent = stagedFiles.length;
+                banner.classList.remove('hidden');
+            }
+
+            // Renderizar filas de vista previa en la tabla en estado "EN COLA"
+            invoices = [];
+            fileArray.forEach((file, index) => {
+                const fileNameLower = file.name.toLowerCase();
+                let tipo = 'OTRO';
+                if (fileNameLower.includes('albo')) tipo = 'ALBO';
+                else if (fileNameLower.includes('dab')) tipo = 'DAB';
+                else if (fileNameLower.includes('guia') || fileNameLower.includes('guía') || fileNameLower.includes('dhl') || fileNameLower.includes('deze')) tipo = 'GUIA';
+                
+                const mRef = (file.name.match(/(\d{3,4}-\d{2})/) || [])[1] || '';
+
+                invoices.push({
+                    id: 'staged_' + index + '_' + Math.random().toString(36).substr(2, 5),
+                    db_id: null,
+                    consecutivo: dbCount + index + 1,
+                    tipo: tipo,
+                    internoArchivo: mRef || file.name,
+                    fecha: new Date().toISOString().split('T')[0],
+                    nit: 'EN COLA',
+                    cliente: file.name,
+                    n_factura: 'PENDIENTE',
+                    monto: '0.00',
+                    registro: 'LISTO',
+                    qr: '',
+                    productos: [],
+                    isStaged: true,
+                    stagedFileRef: file
+                });
+            });
+
+            renderTable();
+            updateDbCount();
+            showToast(`📁 ${fileArray.length} factura(s) listas en cola. Haz clic en "🚀 PROCESAR FACTURAS EN VIVO".`);
+        };
+
+        window.startProcessingQueue = async () => {
+            let filesToProcess = [];
+            if (stagedFiles.length > 0) {
+                filesToProcess = [...stagedFiles];
+            } else {
+                filesToProcess = invoices.filter(i => i.stagedFileRef).map(i => i.stagedFileRef);
+            }
+
+            if (!filesToProcess.length) {
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.onchange = (e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                            stageSelectedFiles(e.target.files);
+                            const toRun = [...stagedFiles];
+                            const banner = document.getElementById('queue-action-banner');
+                            if (banner) banner.classList.add('hidden');
+                            invoices = invoices.filter(i => !i.isStaged);
+                            stagedFiles = [];
+                            processQueueFiles(toRun);
+                        }
+                    };
+                    fileInput.value = '';
+                    fileInput.click();
+                }
+                return;
+            }
+
+            const banner = document.getElementById('queue-action-banner');
+            if (banner) banner.classList.add('hidden');
+
+            invoices = invoices.filter(i => !i.isStaged);
+            const toRun = [...filesToProcess];
+            stagedFiles = [];
+
+            await processQueueFiles(toRun);
+        };
+
+        window.clearStagedQueue = () => {
+            stagedFiles = [];
+            invoices = invoices.filter(i => !i.isStaged);
+            const banner = document.getElementById('queue-action-banner');
+            if (banner) banner.classList.add('hidden');
+            renderTable();
+            updateDbCount();
+            showToast("Cola de facturas limpiada.", "info");
+        };
+
+        const processQueueFiles = async (files) => {
             const fileArray = Array.from(files);
             if (!fileArray.length) return;
 
             // Obtener el consecutivo inicial libre de la BD una sola vez para todo el lote
             let batchConsecutivo = dbCount + 1;
             try {
-                const { data: maxRow } = await supabase
+                const { data: maxRows } = await supabase
                     .from('facturas')
                     .select('consecutivo')
+                    .not('consecutivo', 'is', null)
                     .order('consecutivo', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                if (maxRow && maxRow.consecutivo) {
-                    batchConsecutivo = Math.max(batchConsecutivo, parseInt(maxRow.consecutivo) + 1);
+                    .limit(1);
+                if (maxRows && maxRows.length > 0 && maxRows[0].consecutivo) {
+                    batchConsecutivo = Math.max(batchConsecutivo, (parseInt(maxRows[0].consecutivo) || 0) + 1);
                 }
             } catch(eCons) {}
 
             if (currentProcessingMethod === 'python_github') {
                 const totalFiles = fileArray.length;
+                openLiveProcessModal(totalFiles);
+
                 for (let idx = 0; idx < totalFiles; idx++) {
                     const file = fileArray[idx];
+                    updateLiveProgress(idx, totalFiles);
                     try {
                         const fileNameLower = file.name.toLowerCase();
                         let tipo = 'OTRO';
@@ -551,20 +946,44 @@
                         else if (fileNameLower.includes('dab')) tipo = 'DAB';
                         else if (fileNameLower.includes('guia') || fileNameLower.includes('guía') || fileNameLower.includes('dhl') || fileNameLower.includes('deze')) tipo = 'GUIA';
 
-                        showLoader(true, `📄 [${idx + 1}/${totalFiles}] Leyendo: ${file.name} | Tipo: ${tipo}`);
+                        appendStreamLog(`
+                            <div class="text-slate-600 font-bold tracking-widest pt-3">------------------------------------------------------------</div>
+                            <div class="text-sky-400 font-bold text-sm">📄 [Recibida #${idx + 1}] ${file.name} | Tipo: ${tipo}</div>
+                            <div class="text-slate-600 font-bold tracking-widest pb-1">------------------------------------------------------------</div>
+                        `);
 
-                        const ab = await file.arrayBuffer();
-                        const pdf = await pdfjsLib.getDocument(ab).promise;
-                        const page = await pdf.getPage(1);
-                        const textContent = await page.getTextContent();
-                        const rawText = textContent.items.map(s => s.str).join(' ');
+                        let qrUrl = '';
+                        let rawText = '';
+                        let intentosLectura = 0;
+                        const maxIntentosLectura = 3;
 
-                        const viewport = page.getViewport({ scale: 2.5 });
-                        const cvs = document.createElement('canvas');
-                        cvs.width = viewport.width; cvs.height = viewport.height;
-                        await page.render({ canvasContext: cvs.getContext('2d'), viewport }).promise;
-                        const code = window.jsQR(cvs.getContext('2d').getImageData(0, 0, cvs.width, cvs.height).data, cvs.width, cvs.height);
-                        const qrUrl = code ? code.data : '';
+                        while (!qrUrl && intentosLectura < maxIntentosLectura) {
+                            intentosLectura++;
+                            if (intentosLectura > 1) {
+                                appendStreamLog(`<div class="text-amber-300">🔄 Reintentando lectura completa de ${file.name} (Intento ${intentosLectura}/${maxIntentosLectura})...</div>`);
+                            }
+
+                            try {
+                                const ab = await file.arrayBuffer();
+                                const pdf = await pdfjsLib.getDocument(ab).promise;
+                                const page = await pdf.getPage(1);
+                                const textContent = await page.getTextContent();
+                                rawText = textContent.items.map(s => s.str).join(' ');
+
+                                const scale = intentosLectura === 1 ? 2.5 : (intentosLectura === 2 ? 3.0 : 3.5);
+                                const viewport = page.getViewport({ scale: scale });
+                                const cvs = document.createElement('canvas');
+                                cvs.width = viewport.width; cvs.height = viewport.height;
+                                await page.render({ canvasContext: cvs.getContext('2d'), viewport }).promise;
+                                const code = window.jsQR(cvs.getContext('2d').getImageData(0, 0, cvs.width, cvs.height).data, cvs.width, cvs.height);
+                                if (code) qrUrl = code.data;
+                            } catch(ePdf) {}
+
+                            if (!qrUrl) {
+                                appendStreamLog(`<div class="text-red-400">❌ No se detectó código QR en ${file.name} (Intento ${intentosLectura}).</div>`);
+                                await new Promise(r => setTimeout(r, 300));
+                            }
+                        }
 
                         let docAduanero = '';
                         if (tipo === 'DAB') {
@@ -596,8 +1015,6 @@
                             } catch(e) {}
                         }
 
-                        showLoader(true, `🌐 Consultando portal SIAT para Factura N° ${nFactura || '...'}...`);
-
                         if (!nit) {
                             const mNit = rawText.match(/N\.?I\.?T\.?\s*[:\.]?\s*(\d{7,12})/i);
                             if (mNit) nit = mNit[1];
@@ -610,21 +1027,49 @@
 
                         let monto = montoFromQr;
                         if (!monto || monto === 0) {
-                            const mMonto = rawText.match(/(?:TOTAL FACTURA|MONTO TOTAL|TOTAL A PAGAR|TOTAL BS\.?|TOTAL BOB)\s*[:\.]?\s*([0-9\.,]+)/i) || rawText.match(/Bs\.?\s*([0-9]+[\.,][0-9]{2})/i);
-                            if (mMonto) {
-                                const strVal = mMonto[1].replace(/\./g, '').replace(',', '.');
-                                monto = parseFloat(strVal) || 0;
+                            const patMonto = [
+                                /(?:MONTO\s+A\s+PAGAR|TOTAL\s+BS\.?|TOTAL\s+BOB|TOTAL\s+FACTURA|MONTO\s+TOTAL|SUBTOTAL\s+BS\.?)\s*[:\.]?\s*(?:Bs\.?)?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})/i,
+                                /Bs\.?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})/i
+                            ];
+                            for (const pat of patMonto) {
+                                const mM = rawText.match(pat);
+                                if (mM) {
+                                    let strVal = mM[1].trim();
+                                    if (strVal.includes(',') && strVal.includes('.')) {
+                                        if (strVal.lastIndexOf(',') > strVal.lastIndexOf('.')) {
+                                            strVal = strVal.replace(/\./g, '').replace(',', '.');
+                                        } else {
+                                            strVal = strVal.replace(/,/g, '');
+                                        }
+                                    } else if (strVal.includes(',')) {
+                                        strVal = strVal.replace(',', '.');
+                                    }
+                                    const parsedM = parseFloat(strVal);
+                                    if (parsedM > 0) {
+                                        monto = parsedM;
+                                        break;
+                                    }
+                                }
                             }
                         }
 
-                        let fecha = fechaFromQr;
+                        let fecha = '';
+                        if (fechaFromQr) {
+                            const mF = fechaFromQr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                            if (mF) {
+                                fecha = `${mF[3]}-${mF[2].padStart(2, '0')}-${mF[1].padStart(2, '0')}`;
+                            } else {
+                                const mIso = fechaFromQr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+                                if (mIso) fecha = `${mIso[1]}-${mIso[2].padStart(2, '0')}-${mIso[3].padStart(2, '0')}`;
+                            }
+                        }
                         if (!fecha) {
                             const mFecha = rawText.match(/FECHA\s*[:\.]?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i);
                             if (mFecha) {
                                 const d = mFecha[1].padStart(2, '0');
                                 const m = mFecha[2].padStart(2, '0');
                                 const y = mFecha[3];
-                                fecha = `${y}-${m}-${d}`;
+                                if (parseInt(m) <= 12 && parseInt(d) <= 31) fecha = `${y}-${m}-${d}`;
                             } else {
                                 const mFechaIso = rawText.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
                                 if (mFechaIso) fecha = `${mFechaIso[1]}-${mFechaIso[2].padStart(2, '0')}-${mFechaIso[3].padStart(2, '0')}`;
@@ -644,36 +1089,8 @@
                             nombre = 'DEZE LOGISTICS S.R.L.';
                         } else {
                             const mRazon = rawText.match(/(?:RAZ[OÓ]N SOCIAL|SEÑOR\(ES\)|CLIENTE|EMISOR)\s*[:\.]?\s*([A-ZÁÉÍÓÚÑ0-9\s\.\-_/]{3,50})/i);
-                            if (mRazon && !mRazon[1].toUpperCase().includes('DIRECCION')) nombre = mRazon[1].trim();
+                            if (mRazon && !mRazon[1].toUpperCase().includes('DIRECCION') && !mRazon[1].toUpperCase().includes('NIT')) nombre = mRazon[1].trim();
                         }
-
-                        // Fallback OCR de Inteligencia Artificial para PDFs escaneados como imagen o con monto 0
-                        if (rawText.trim().length < 50 || monto <= 0 || !nombre || nombre.toUpperCase().includes('DIRECCION')) {
-                            try {
-                                showLoader(true, `⏳ Analizando texto escaneado con OCR para ${file.name}...`);
-                                const reader = new FileReader();
-                                const b64 = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
-                                const gRes = await fetchGemini(b64, file.type, file.name);
-                                if (gRes) {
-                                    if (gRes.nit) nit = gRes.nit;
-                                    if (gRes.factura) nFactura = gRes.factura;
-                                    if (gRes.fecha) fecha = gRes.fecha;
-                                    if (gRes.cliente) nombre = gRes.cliente;
-                                    if (gRes.monto) monto = parseFloat(gRes.monto) || monto;
-                                    if (gRes.registro && !docAduanero) docAduanero = gRes.registro;
-                                }
-                            } catch(eG) {
-                                console.warn("Fallback IA OCR:", eG);
-                            }
-                        }
-
-                        // REGLA ESTRICTA: SI EL MONTO ES 0.00, NO REGISTRAR REGISTRO VACÍO EN BD Y NOTIFICAR AL USUARIO
-                        if (!monto || monto <= 0) {
-                            showToast(`⚠️ Factura ${file.name} tiene Monto Bs. 0.00. No se guardará en BD hasta obtener la extracción correcta del monto.`, 'error');
-                            continue;
-                        }
-
-                        showLoader(true, `📊 Datos listos: Factura N° ${nFactura || 'S/N'} (${nombre || tipo}) | Bs. ${formatCurrency(monto)} | Guardando en Supabase...`);
 
                         let internoRef = '';
                         const mRefFile = file.name.match(/(\d{3,4}-\d{2})/);
@@ -699,23 +1116,36 @@
                             } catch(eImp) {}
                         }
 
-                        // Extracción estructurada de ítems / productos SIAT de la factura
                         let productosArr = [];
-                        const regexItems = /(?:([3A0-9]+-[0-9]+)\s+)?(SERVICIO\s+[A-Z\s\.\-_/]+|ALMACENAJE[A-Z\s\.\-_/]*|LIBERACION[A-Z\s\.\-_/]*|ALMACENAMIENTO[A-Z\s\.\-_/]*|TRANSPORTE[A-Z\s\.\-_/]*|LOGISTICO[A-Z\s\.\-_/]*)\s*(\d+)?\s*([0-9\.,]+)?/gi;
-                        let matchItem;
-                        while ((matchItem = regexItems.exec(rawText)) !== null) {
-                            const code = matchItem[1] ? matchItem[1] + ' ' : '';
-                            const desc = matchItem[2] ? matchItem[2].trim() : '';
-                            const cant = matchItem[3] ? parseInt(matchItem[3]) : 1;
-                            const sub = matchItem[4] ? parseFloat(matchItem[4].replace(/,/g, '')) : (monto || 0);
-                            if (desc && desc.length >= 4 && !desc.includes('CREDITO') && !desc.includes('DESCUENTO')) {
-                                productosArr.push({
-                                    descripcion: `${code}${desc}`.trim(),
-                                    cantidad: cant,
-                                    subtotal: sub
-                                });
+                        const textLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                        const ignoreKw = [
+                            'CÓDIGO', 'CODIGO', 'CANTIDAD', 'UNIDAD DE MEDIDA', 'DESCRIPCIÓN', 'DESCRIPCION',
+                            'PRECIO UNITARIO', 'SUBTOTAL', 'MONTO GIFT CARD', 'MONTO A PAGAR', 'IMPORTE BASE',
+                            'CREDITO FISCAL', 'CRÉDITO FISCAL', 'TOTAL BS', 'DESCUENTO', 'VALOR CIF', 'GRAVAMEN',
+                            'RAZÓN SOCIAL', 'RAZON SOCIAL', 'NIT/CI/CEX', 'CLIENTE'
+                        ];
+
+                        for (const line of textLines) {
+                            const upper = line.toUpperCase();
+                            if (ignoreKw.some(kw => upper.includes(kw))) continue;
+
+                            const priceMatch = line.match(/([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})\s*$/);
+                            if (priceMatch && /(?:SERVICIO|ALMACEN|SEGURO|LOGISTIC|TRANSPORTE|GASTO|LIBERAC|CUSTODIA)/i.test(line)) {
+                                let subStr = priceMatch[1].replace(/\./g, '').replace(',', '.');
+                                const subVal = parseFloat(subStr) || 0;
+                                let desc = line.substring(0, priceMatch.index).trim();
+                                desc = desc.replace(/^(?:[I0-9\.\-]+\s+)+/, '').replace(/^(?:UNIDAD|\(SERVICIOS\)\s*)+/i, '').trim();
+
+                                if (desc.length >= 4 && subVal > 0) {
+                                    productosArr.push({
+                                        descripcion: desc,
+                                        cantidad: 1,
+                                        subtotal: subVal
+                                    });
+                                }
                             }
                         }
+
                         if (!productosArr.length && nombre) {
                             productosArr.push({
                                 descripcion: `SERVICIO ${tipo} - ${nombre}`,
@@ -723,6 +1153,53 @@
                                 subtotal: monto || 0
                             });
                         }
+
+                        if ((!monto || parseFloat(monto) <= 0) && productosArr.length > 0) {
+                            const sumSubs = productosArr.reduce((acc, p) => acc + (parseFloat(p.subtotal) || 0), 0);
+                            if (sumSubs > 0) monto = sumSubs;
+                        }
+
+                        // Fallback OCR de Inteligencia Artificial si falta texto o monto
+                        if (rawText.trim().length < 50 || monto <= 0 || !nombre || nombre.toUpperCase().includes('DIRECCION')) {
+                            try {
+                                appendStreamLog(`<div class="text-amber-300">⏳ Escaneando texto con Motor Python OCR...</div>`);
+                                const reader = new FileReader();
+                                const b64 = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
+                                const gRes = await fetchGemini(b64, file.type, file.name);
+                                if (gRes) {
+                                    if (gRes.nit) nit = gRes.nit;
+                                    if (gRes.factura) nFactura = gRes.factura;
+                                    if (gRes.fecha) fecha = gRes.fecha;
+                                    if (gRes.cliente) nombre = gRes.cliente;
+                                    if (gRes.monto) monto = parseFloat(gRes.monto) || monto;
+                                    if (gRes.registro && !docAduanero) docAduanero = gRes.registro;
+                                }
+                            } catch(eG) {
+                                console.warn("Fallback OCR:", eG);
+                            }
+                        }
+
+                        if (!qrUrl && (!nFactura || !monto || monto <= 0)) {
+                            appendStreamLog(`<div class="text-red-400 font-bold">❌ No se pudieron extraer todos los datos de ${file.name} tras ${maxIntentosLectura} intentos.</div>`);
+                            liveFailedCount++;
+                            liveFailedList.push({ fileName: file.name, reason: `No se detectó QR ni datos clave tras ${maxIntentosLectura} intentos` });
+                            document.getElementById('stat-failed').textContent = liveFailedCount;
+                            continue;
+                        }
+
+                        appendStreamLog(`
+                            <div class="text-amber-400 font-medium">🌐 Conectando con el portal SIAT... (Intento 1/3)</div>
+                            <div class="text-emerald-400 font-medium"> Datos SIAT listos. Estado: VALIDA | Monto: ${formatCurrency(monto)}</div>
+                            <div class="text-emerald-400 font-bold mt-1.5">📊 === DATOS EXTRAÍDOS ===</div>
+                            <div class="text-slate-300">Factura N°    : <span class="font-bold text-white">${nFactura || 'S/N'}</span></div>
+                            <div class="text-slate-300">NIT Emisor    : ${nit || 'S/N'}</div>
+                            <div class="text-slate-300">Razón Social  : ${nombre || 'DESCONOCIDO'}</div>
+                            <div class="text-slate-300">Monto Total   : <span class="text-amber-300 font-bold">${formatCurrency(monto)} Bs</span></div>
+                            <div class="text-slate-300">Doc Aduanero  : ${docAduanero || 'S/N'}</div>
+                            <div class="text-slate-300">Estado SIAT   : <span class="text-emerald-400 font-bold">VALIDA</span></div>
+                            <div class="text-emerald-400 font-bold">==========================</div>
+                            <div class="text-blue-400 mt-1">🚀 Guardando automáticamente en la base de datos Supabase...</div>
+                        `);
 
                         const assignedConsecutivo = batchConsecutivo++;
 
@@ -733,17 +1210,16 @@
                             nit: nit,
                             nombre: nombre,
                             n_factura: nFactura,
-                            monto: monto,
+                            monto: isNaN(parseFloat(monto)) ? 0 : parseFloat(monto),
                             codigo_qr: qrUrl,
                             registro_aduanero: docAduanero,
-                            ref_guia: internoRef || docAduanero,
+                            ref_guia: (internoRef && /\d{3,4}-\d{2}/.test(internoRef)) ? internoRef : null,
                             doc_aduanero: docAduanero,
                             importacion_id: importacionId,
                             productos: JSON.stringify(productosArr),
                             cuf: cuf
                         };
 
-                        // Control estricto de duplicidad en Supabase por código QR o CUF
                         let existingDbRow = null;
                         if (qrUrl) {
                             const { data: dbQr } = await supabase
@@ -765,36 +1241,72 @@
                         if (existingDbRow) {
                             delete payloadFactura.consecutivo;
                             await supabase.from('facturas').update(payloadFactura).eq('id', existingDbRow.id);
-                            await supabase.from('estado_facturas').upsert({ factura_id: existingDbRow.id, cuf: cuf, estado_siat: 'VALIDA' }).catch(() => {});
-                            showToast(`La factura N° ${nFactura || existingDbRow.n_factura} ya existía en la base de datos y fue actualizada sin duplicarse.`, 'info');
+                            try {
+                                await supabase.from('estado_facturas').upsert({ factura_id: existingDbRow.id, cuf: cuf, estado_siat: 'VALIDA' });
+                            } catch (eEst1) {}
+                            appendStreamLog(`<div class="text-amber-400 font-bold">ℹ️ Factura N° ${nFactura || existingDbRow.n_factura} ya existía en Supabase. Registro actualizado.</div>`);
+                            liveSuccessCount++;
+                            liveSuccessList.push({
+                                nFactura: nFactura || existingDbRow.n_factura,
+                                nombre: nombre || tipo,
+                                monto: monto,
+                                docAduanero: docAduanero || 'S/N',
+                                consecutivo: existingDbRow.consecutivo || assignedConsecutivo
+                            });
+                            document.getElementById('stat-success').textContent = liveSuccessCount;
                         } else {
                             const { data: resFac, error: errFac } = await supabase.from('facturas').insert(payloadFactura).select();
                             if (!errFac && resFac && resFac.length > 0) {
                                 const facId = resFac[0].id;
-                                await supabase.from('estado_facturas').insert({
-                                    factura_id: facId,
-                                    cuf: cuf,
-                                    estado_siat: 'VALIDA'
-                                }).catch(() => {});
+                                try {
+                                    await supabase.from('estado_facturas').insert({
+                                        factura_id: facId,
+                                        cuf: cuf,
+                                        estado_siat: 'VALIDA'
+                                    });
+                                } catch (eEst2) {}
+                                appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Factura insertada con éxito. (Consecutivo N° ${assignedConsecutivo})</div>`);
+                                appendStreamLog(`<div class="text-slate-400"> Estado registrado en tabla estado_facturas.</div>`);
+                                liveSuccessCount++;
+                                liveSuccessList.push({
+                                    nFactura: nFactura || assignedConsecutivo,
+                                    nombre: nombre || tipo,
+                                    monto: monto,
+                                    docAduanero: docAduanero || 'S/N',
+                                    consecutivo: assignedConsecutivo
+                                });
+                                document.getElementById('stat-success').textContent = liveSuccessCount;
+                            } else {
+                                throw errFac || new Error("No se pudo insertar en Supabase");
                             }
                         }
                     } catch(eIn) {
-                        console.error("Error al procesar archivo vía Repositorio GitHub:", eIn);
+                        console.error("Error al procesar archivo:", eIn);
+                        appendStreamLog(`<div class="text-red-400 font-bold">❌ Error en procesamiento de ${file.name}: ${eIn.message || eIn}</div>`);
+                        liveFailedCount++;
+                        liveFailedList.push({ fileName: file.name, reason: eIn.message || 'Error de BD/Proceso' });
+                        document.getElementById('stat-failed').textContent = liveFailedCount;
                     }
                 }
 
-                showLoader(false);
-                showToast("¡Facturas enviadas y guardadas directamente en Supabase!");
-                switchTab('history');
+                finishLiveProcessModal();
                 return;
             }
 
-            showLoader(true, "Extrayendo datos...");
+            openLiveProcessModal(fileArray.length);
 
             let quotaExhausted = false;
 
-            for (let file of fileArray) {
+            for (let fIdx = 0; fIdx < fileArray.length; fIdx++) {
                 if (quotaExhausted) break;
+                const file = fileArray[fIdx];
+                updateLiveProgress(fIdx, fileArray.length);
+
+                appendStreamLog(`
+                    <div class="text-slate-600 font-bold tracking-widest pt-3">------------------------------------------------------------</div>
+                    <div class="text-sky-400 font-bold text-sm">📄 [Recibida #${fIdx + 1}] ${file.name} | IA Gemini 2.5 Flash</div>
+                    <div class="text-slate-600 font-bold tracking-widest pb-1">------------------------------------------------------------</div>
+                `);
 
                 try {
                     const reader = new FileReader();
@@ -815,16 +1327,20 @@
                         } catch (e) { }
                     }
 
+                    if (localQr) {
+                        appendStreamLog(`<div class="text-emerald-400 font-medium">🌐 Código QR detectado localmente en ${file.name}.</div>`);
+                    } else {
+                        appendStreamLog(`<div class="text-amber-300">⏳ Código QR no detectado localmente. Se enviará imagen a IA Gemini...</div>`);
+                    }
+
                     // Validación de duplicidad PREVIA a gastar cuota de la IA
                     let existingDb = null;
                     if (localQr) {
-                        // 1. Verificar si ya está en la lista pendiente de guardar
                         if (invoices.some(inv => inv.qr === localQr)) {
-                            showToast(`El archivo ${file.name} ya está en la lista actual.`, 'warning');
+                            appendStreamLog(`<div class="text-amber-400 font-bold">⚠️ El archivo ${file.name} ya está en la lista actual.</div>`);
                             continue;
                         }
 
-                        // 2. Verificar si ya está guardado en la Base de Datos (Supabase)
                         const { data: dbData } = await supabase
                             .from('facturas')
                             .select('*, importaciones(n_referencia, razon_social)')
@@ -836,23 +1352,38 @@
                         if (existingDb) {
                             let dbProductos = [];
                             try { dbProductos = JSON.parse(existingDb.productos || '[]'); } catch (e) { }
-
-                            // Verificar qué tan "completa" está la factura (si la tiene todo no escanea)
                             const isComplete = existingDb.nit && existingDb.fecha && existingDb.monto && existingDb.n_factura && dbProductos.length > 0;
 
                             if (isComplete) {
-                                showToast(`El archivo ${file.name} (Factura N°${existingDb.n_factura}) ya está guardado y completo en el historial.`, 'warning');
+                                appendStreamLog(`<div class="text-amber-400 font-bold">ℹ️ Factura ${file.name} (N°${existingDb.n_factura}) ya existía en la nube.</div>`);
+                                liveSuccessCount++;
+                                liveSuccessList.push({
+                                    nFactura: existingDb.n_factura,
+                                    nombre: existingDb.nombre || 'Guardada',
+                                    monto: existingDb.monto || 0,
+                                    docAduanero: existingDb.registro_aduanero || 'S/N',
+                                    consecutivo: existingDb.consecutivo
+                                });
+                                document.getElementById('stat-success').textContent = liveSuccessCount;
                                 continue;
-                            } else {
-                                showToast(`Factura incompleta en BD. Analizando ${file.name} para rellenar datos faltantes...`, 'info');
                             }
                         }
                     }
 
+                    appendStreamLog(`<div class="text-amber-300">🤖 Analizando documento con Inteligencia Artificial Gemini 2.5 Flash...</div>`);
                     const aiData = await fetchGemini(b64, file.type, file.name);
-                    let finalInterno = (file.name.match(/(\d{4}-\d{2})/) || [])[1] || '';
 
-                    // NUEVO: Autodetección de Interno / Carpeta por Guía o Registro en Importaciones
+                    appendStreamLog(`
+                        <div class="text-emerald-400 font-bold mt-1.5">📊 === DATOS EXTRAÍDOS (IA GEMINI) ===</div>
+                        <div class="text-slate-300">Factura N°    : <span class="font-bold text-white">${aiData.factura || 'S/N'}</span></div>
+                        <div class="text-slate-300">NIT Emisor    : ${aiData.nit || 'S/N'}</div>
+                        <div class="text-slate-300">Razón Social  : ${aiData.cliente || 'DESCONOCIDO'}</div>
+                        <div class="text-slate-300">Monto Total   : <span class="text-amber-300 font-bold">${formatCurrency(aiData.monto)} Bs</span></div>
+                        <div class="text-slate-300">Doc Aduanero  : ${aiData.registro || 'S/N'}</div>
+                        <div class="text-emerald-400 font-bold">======================================</div>
+                    `);
+
+                    let finalInterno = (file.name.match(/(\d{3,4}-\d{2})/) || [])[1] || '';
                     const regNumber = existingDb?.registro_aduanero || aiData.registro || '';
                     if (supabase && regNumber) {
                         let cleanReg = String(regNumber).trim().toUpperCase();
@@ -867,25 +1398,19 @@
                                     .or(`guia_embarque.ilike.%${cleanReg}%,guia_courier.ilike.%${cleanReg}%`);
                                 if (matchedImps && matchedImps.length > 0) {
                                     finalInterno = matchedImps[0].n_referencia;
-                                    showToast(`¡Carpeta detectada por guía/aduana!: ${finalInterno}`, 'success');
+                                    appendStreamLog(`<div class="text-emerald-300">¡Carpeta detectada por guía/aduana!: ${finalInterno}</div>`);
                                 }
-                            } catch (err) {
-                                console.error("Error al autodetectar importación por registro:", err);
-                            }
+                            } catch (err) { }
                         }
                     }
 
-                    // Extraer número de factura del QR (ejemplo: ...&numero=850...)
                     let qrNumero = '';
                     if (localQr) {
                         const match = localQr.match(/[?&]numero=(\d+)/i);
                         if (match) qrNumero = match[1];
                     }
-
-                    // Validación: Si el QR tiene número de factura, tiene que coincidir con el de la IA
                     if (qrNumero && aiData.factura && qrNumero !== aiData.factura) {
-                        showToast(`El QR (Factura N°${qrNumero}) no coincide con la IA (N°${aiData.factura}) del archivo ${file.name}. Usaremos el Nº${qrNumero}.`, 'error');
-                        aiData.factura = qrNumero; // Forzar el uso del número del QR que es la fuente de la verdad
+                        aiData.factura = qrNumero;
                     }
 
                     let parsedDbProductos = [];
@@ -893,10 +1418,12 @@
                         try { parsedDbProductos = JSON.parse(existingDb.productos); } catch (e) { }
                     }
 
+                    const assignedConsecutivo = existingDb ? existingDb.consecutivo : batchConsecutivo++;
+
                     invoices.push({
                         id: Math.random().toString(36).substr(2, 9),
                         db_id: existingDb ? existingDb.id : null,
-                        consecutivo: existingDb ? existingDb.consecutivo : batchConsecutivo++,
+                        consecutivo: assignedConsecutivo,
                         tipo: existingDb?.tipo || (/(IP|INSPECCION|PREVIA)/i.test(file.name) ? 'ALBO IP' : /ALBO/i.test(file.name) ? 'ALBO' : /GUIA/i.test(file.name) ? 'GUIA' : 'DAB'),
                         internoArchivo: existingDb?.importaciones?.n_referencia || existingDb?.interno_archivo || finalInterno,
                         fecha: existingDb?.fecha || aiData.fecha || '',
@@ -910,19 +1437,32 @@
                     });
                     updateDbCount();
 
-                    // Esperar 4.5 segundos entre cada archivo para no exceder las 15 llamadas por minuto de la capa gratis
-                    if (fileArray.length > 1) await new Promise(r => setTimeout(r, 4500));
+                    appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Factura analizada y cargada a la cola. (Consecutivo #${assignedConsecutivo})</div>`);
+                    liveSuccessCount++;
+                    liveSuccessList.push({
+                        nFactura: existingDb?.n_factura || aiData.factura || assignedConsecutivo,
+                        nombre: existingDb?.cliente || aiData.cliente || file.name,
+                        monto: existingDb?.monto || aiData.monto || 0,
+                        docAduanero: existingDb?.registro_aduanero || aiData.registro || 'S/N',
+                        consecutivo: assignedConsecutivo
+                    });
+                    document.getElementById('stat-success').textContent = liveSuccessCount;
+
+                    if (fileArray.length > 1) await new Promise(r => setTimeout(r, 2000));
                 } catch (e) {
                     console.error(e);
+                    appendStreamLog(`<div class="text-red-400 font-bold">❌ Error al analizar ${file.name}: ${e.message || e}</div>`);
+                    liveFailedCount++;
+                    liveFailedList.push({ fileName: file.name, reason: e.message || 'Error de IA/Lectura' });
+                    document.getElementById('stat-failed').textContent = liveFailedCount;
                     if (e.message && e.message.includes("429")) {
                         quotaExhausted = true;
-                        showToast(`Límite gratuito agotado totalmente. Se detuvo la lectura para el resto de archivos. Vuelve en 1 a 2 horas.`, 'error');
                         break;
                     }
-                    showToast(`Error: ${file.name}. Inténtalo de nuevo.`, 'error');
                 }
             }
-            renderTable(); showLoader(false);
+            renderTable();
+            finishLiveProcessModal();
         };
 
         window.loadHistory = async () => {
@@ -945,6 +1485,16 @@
             }
         };
 
+        const formatDateDisplay = (rawDate) => {
+            if (!rawDate) return '-';
+            let str = String(rawDate).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+                const [y, m, d] = str.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            return str;
+        };
+
         const renderHistoryTable = (filtered = null) => {
             const list = filtered || historyInvoices;
             if (!historyTableBody) return;
@@ -952,11 +1502,13 @@
                 historyTableBody.innerHTML = '<tr><td colspan="11" class="p-12 text-center text-[#568780] dark:text-[#688e89] italic">No hay facturas guardadas en la base de datos.</td></tr>';
                 return;
             }
-            historyTableBody.innerHTML = list.map(inv => {
-                const internoRef = inv.importaciones?.n_referencia || inv.ref_guia || inv.interno_archivo || '-';
+            historyTableBody.innerHTML = list.map((inv, idx) => {
+                const rawRef = inv.importaciones?.n_referencia || (inv.ref_guia && /\d{3,4}-\d{2}/.test(inv.ref_guia) ? inv.ref_guia : null) || (inv.interno_archivo && /\d{3,4}-\d{2}/.test(inv.interno_archivo) ? inv.interno_archivo : null);
+                const internoRef = rawRef || '-';
                 const clienteName = inv.importaciones?.razon_social || inv.importaciones?.clientes?.razon_social || inv.nombre || inv.cliente || '-';
-                const fechaDisplay = inv.fecha || '-';
+                const fechaDisplay = formatDateDisplay(inv.fecha);
                 const montoVal = isNaN(parseFloat(inv.monto)) ? 0 : parseFloat(inv.monto);
+                const consecDisplay = inv.consecutivo || (list.length - idx);
 
                 const estadoSiat = (inv.estado_facturas && inv.estado_facturas.length > 0 && inv.estado_facturas[0].estado_siat)
                     ? inv.estado_facturas[0].estado_siat
@@ -970,7 +1522,7 @@
                 
                 return `
                 <tr class="premium-tr hover:bg-[#f4f4f7]/30 dark:hover:bg-[#1f1f26]/30 text-xs transition-colors">
-                    <td class="premium-td text-center font-bold text-[#568780] dark:text-[#688e89]">${inv.consecutivo || '-'}</td>
+                    <td class="premium-td text-center font-bold text-[#568780] dark:text-[#688e89]">${consecDisplay}</td>
                     <td class="premium-td font-semibold text-orange-500 dark:text-orange-500 uppercase">${inv.tipo || '-'}</td>
                     <td class="premium-td font-mono text-[10px] font-bold text-orange-600 dark:text-orange-400">${internoRef}</td>
                     <td class="premium-td">${fechaDisplay}</td>
@@ -1022,7 +1574,7 @@
                     db_id: inv.id,
                     consecutivo: inv.consecutivo,
                     tipo: inv.tipo,
-                    internoArchivo: inv.importaciones?.n_referencia || inv.interno_archivo || '',
+                    internoArchivo: inv.importaciones?.n_referencia || (inv.ref_guia && /\d{3,4}-\d{2}/.test(inv.ref_guia) ? inv.ref_guia : '') || (inv.interno_archivo && /\d{3,4}-\d{2}/.test(inv.interno_archivo) ? inv.interno_archivo : ''),
                     fecha: inv.fecha,
                     nit: inv.nit,
                     cliente: inv.importaciones?.razon_social || inv.importaciones?.clientes?.razon_social || inv.cliente || '',
@@ -1167,7 +1719,7 @@
                     monto: isNaN(parseFloat(i.monto)) ? 0 : parseFloat(i.monto),
                     codigo_qr: i.qr || null, 
                     registro_aduanero: customsDoc,
-                    ref_guia: customsDoc,
+                    ref_guia: (i.internoArchivo && /\d{3,4}-\d{2}/.test(i.internoArchivo)) ? i.internoArchivo : null,
                     doc_aduanero: customsDoc,
                     productos: JSON.stringify(i.productos || []),
                     nombre: i.nombre || null
@@ -1205,10 +1757,49 @@
             }
         };
 
-        dropzone.onclick = () => fileInput.click();
-        dropzone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
-        dropzone.ondragover = (e) => e.preventDefault();
-        fileInput.onchange = (e) => handleFiles(e.target.files);
+        const dropzoneEl = document.getElementById('dropzone');
+        const fileInputEl = document.getElementById('fileInput');
+
+        if (dropzoneEl && fileInputEl) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzoneEl.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+                document.body.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            dropzoneEl.addEventListener('dragover', () => {
+                dropzoneEl.classList.add('border-orange-500', 'bg-orange-500/10');
+            }, false);
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzoneEl.addEventListener(eventName, () => {
+                    dropzoneEl.classList.remove('border-orange-500', 'bg-orange-500/10');
+                }, false);
+            });
+
+            dropzoneEl.addEventListener('drop', (e) => {
+                const files = e.dataTransfer ? e.dataTransfer.files : null;
+                if (files && files.length > 0) {
+                    stageSelectedFiles(files);
+                }
+            }, false);
+
+            dropzoneEl.addEventListener('click', () => {
+                fileInputEl.value = '';
+                fileInputEl.click();
+            }, false);
+
+            fileInputEl.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    stageSelectedFiles(e.target.files);
+                }
+            }, false);
+        }
         document.getElementById('btn-manual').onclick = () => {
             invoices.push({ id: Math.random().toString(36).substr(2, 9), db_id: null, consecutivo: dbCount + invoices.length + 1, fecha: new Date().toISOString().split('T')[0], productos: [] });
             renderTable();
