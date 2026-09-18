@@ -23,7 +23,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 # CONFIGURACIÓN SUPABASE
 # ==========================================
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://sfqpptquojlsbeheguff.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDk3ODMsImV4cCI6MjA1NjgyNTc4M30.4qFstq4_k24kQyqNfS_b6QcM_G4S_Q0S1J3-2_S0t0t")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTIzODM3MCwiZXhwIjoyMTA0ODE0MzcwfQ.maArbTuOgcm2cfv6HG3WqZmbGjgUQRBOfP9zVFUZNac")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 print("Iniciando motor OCR...", flush=True)
