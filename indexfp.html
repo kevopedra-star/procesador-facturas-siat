@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo de Planillas y Gastos | Sistema Aduanero</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Configuración de Tailwind
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.5s ease-out',
+                        'float': 'float 6s ease-in-out infinite',
+                        'blob': 'blob 10s infinite',
+                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(15px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '1', boxShadow: '0 0 15px rgba(16, 185, 129, 0.5)' },
+                            '50%': { opacity: '.5', boxShadow: '0 0 5px rgba(16, 185, 129, 0.2)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- SheetJS (Excel Parsing) -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin para las etiquetas tipo badge encima de las gráficas -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script>
+        // Registrar el plugin globalmente — sin esto las labels no aparecen
+        // Lo desactivamos por defecto y lo activamos solo donde lo necesitamos
+        if (typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+            Chart.defaults.plugins.datalabels.display = false;
+        }
+    </script>
+
+    <!-- Íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* Variables dinámicas para el Scrollbar según el tema */
+        :root { --sb-track: transparent; --sb-thumb: #cbd5e1; --sb-thumb-hover: #94a3b8; }
+        .dark { --sb-track: transparent; --sb-thumb: #334155; --sb-thumb-hover: #475569; }
+        
+        body { font-family: 'Inter', sans-serif; overflow: hidden; }
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--sb-track); }
+        ::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); }
+        
+        /* Efectos base Glassmorphism */
+        .glass-panel { 
+            background: rgba(255, 255, 255, 0.65); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8); 
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .drop-zone { border: 2px dashed rgba(99, 102, 241, 0.5); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .drop-zone.dragover { background: rgba(99, 102, 241, 0.15); border-color: #8b5cf6; transform: scale(1.03); box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
+        
+        /* Botones tipo pestaña (Filtros) */
+        .tab-btn { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+        .tab-active { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; box-shadow: 0 4px 15px -3px rgba(124, 58, 237, 0.5); font-weight: 600; transform: translateY(-2px); }
+        .tab-inactive-dark { color: #94a3b8; }
+        .tab-inactive-light { color: #64748b; }
+
+        /* Botones Pestaña Principal (Tabla vs Dashboard) */
+        .main-tab-active { background: linear-gradient(135deg, #2563eb, #8b5cf6); color: white; box-shadow: 0 4px 20px -3px rgba(139, 92, 246, 0.5); font-weight: 800; transform: translateY(-2px); letter-spacing: 0.5px;}
+        .main-tab-inactive { background-color: transparent; color: #64748b; font-weight: 600; transition: all 0.3s ease; }
+        .dark .main-tab-inactive { color: #94a3b8; }
+        .main-tab-inactive:hover { background-color: rgba(139, 92, 246, 0.1); color: #8b5cf6; transform: translateY(-1px);}
+
+        /* Hover de filas en la tabla (Magia visual súper pro) */
+        .table-row-hover { transition: all 0.25s ease; cursor: default; }
+        .table-row-hover:hover { 
+            transform: translateY(-2px) scale(1.002); 
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.15); 
+            z-index: 10; 
+            position: relative; 
+            background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%);
+        }
+        .dark .table-row-hover:hover { 
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); 
+            background: linear-gradient(90deg, rgba(30,41,59,1) 0%, rgba(15,23,42,1) 100%);
+        }
+        
+        /* Efecto destello al actualizar en tiempo real */
+        .flash-update { animation: flashGreen 1.5s ease-out; }
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0.4); }
+            100% { background-color: transparent; }
+        }
+
+        .ring-loader { width: 60px; height: 60px; border-radius: 50%; border: 4px solid rgba(139,92,246,0.1); border-top-color: #8b5cf6; animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Estilos para Pantalla Completa */
+        .custom-fullscreen {
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 100vh !important; 
+            z-index: 99999 !important; border-radius: 0 !important;
+            padding: 2rem !important; display: flex !important; flex-direction: column !important;
+        }
+        .fullscreen-canvas-wrapper { height: 100% !important; flex-grow: 1 !important; min-height: 80vh !important; }
+
+        /* ===== MEJORAS RESPONSIVAS ===== */
+        @media (max-width: 768px) {
+            body { overflow-y: auto !important; height: auto !important; min-height: 100vh; }
+            #viewDashboard { max-height: none !important; }
+            .kpi-card-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        
+        /* Paginación */
+        .page-btn { min-width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; font-weight: 700; font-size: 13px; transition: all 0.2s; cursor: pointer; border: 1px solid transparent; }
+        .page-btn:hover:not(.page-active) { background: rgba(99,102,241,0.1); color: #6366f1; }
+        .page-active { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; box-shadow: 0 4px 12px -2px rgba(124,58,237,0.4); }
+        .page-btn-disabled { opacity: 0.35; cursor: not-allowed; }
+        /* Selector de filas por página */
+        #rowsPerPageSelect { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236366f1'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+        /* Ocultar cabecera - Quitado el overflow: hidden de base para que los dropdowns fluyan chido */
+        #headerPanel, #filtersPanel { transition: all 0.3s ease; overflow: visible; }
+        #headerPanel.collapsed, #filtersPanel.collapsed { max-height: 0 !important; padding: 0 !important; margin: 0 !important; opacity: 0; pointer-events: none; overflow: hidden; }
+        #toggleHeaderBtn { position: fixed; left: 0; top: 50%; transform: translateY(-50%); z-index: 9000; }
+    </style>
+</head>
+<body class="min-h-screen h-screen p-2 md:p-3 flex flex-col bg-slate-50 dark:bg-[#0b0f19] text-gray-900 dark:text-slate-100 transition-colors duration-500 relative overflow-auto lg:overflow-hidden">
+
+    <!-- Fondos animados -->
+    <div class="absolute top-0 -left-4 w-72 h-72 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob dark:bg-purple-900 dark:mix-blend-screen pointer-events-none z-0"></div>
+    <div class="absolute top-0 -right-4 w-72 h-72 bg-blue-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 dark:bg-blue-900 dark:mix-blend-screen pointer-events-none z-0"></div>
+    <div class="absolute -bottom-8 left-20 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000 dark:bg-emerald-900 dark:mix-blend-screen pointer-events-none z-0"></div>
+
+    <!-- Botón ocultar/mostrar cabecera -->
+    <button id="toggleHeaderBtn" onclick="toggleHeader()" title="Ocultar/Mostrar controles"
+        class="w-5 bg-indigo-500 hover:bg-indigo-600 text-white flex flex-col items-center justify-center gap-1 py-3 rounded-r-xl shadow-lg transition-all hover:w-6"
+        style="position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:9000;">
+        <i id="toggleHeaderIcon" class="fas fa-chevron-up text-[9px]"></i>
+        <div class="w-px h-4 bg-white/40"></div>
+        <i class="fas fa-chevron-down text-[9px]"></i>
+    </button>
+
+    <!-- Notificaciones -->
+    <div id="toast" class="fixed top-5 right-5 z-[9999] transform transition-all duration-500 translate-x-[120%] opacity-0 flex items-center gap-4 px-6 py-4 rounded-2xl shadow-[0_15px_50px_-10px_rgba(0,0,0,0.3)] font-bold border-l-4 backdrop-blur-2xl">
+        <i id="toastIcon" class="fas fa-check-circle text-2xl"></i>
+        <div class="flex flex-col">
+            <span id="toastTitle" class="text-xs uppercase tracking-widest opacity-80 mb-0.5">Notificación</span>
+            <span id="toastMsg" class="text-sm md:text-base">Mensaje aquí</span>
+        </div>
+    </div>
+
+    <!-- Pantalla de carga -->
+    <div id="loading" class="fixed inset-0 bg-white/40 dark:bg-[#0b0f19]/60 backdrop-blur-xl z-[9999] hidden flex-col justify-center items-center transition-all duration-300">
+        <div class="glass-panel p-10 rounded-[2rem] flex flex-col items-center shadow-2xl animate-fade-in-up border border-white/50 dark:border-white/10 relative overflow-hidden group">
+            <div class="absolute inset-0 bg-gradient-to-tr from-purple-500/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div class="ring-loader mb-8 shadow-[0_0_25px_rgba(139,92,246,0.6)] relative z-10"></div>
+            <p id="loadingText" class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 relative z-10">Conectando la magia...</p>
+            <p class="text-xs text-gray-500 dark:text-slate-400 mt-3 font-bold tracking-[0.2em] uppercase relative z-10">Por favor espera</p>
+        </div>
+    </div>
+
+    <!-- Modal de Error RLS -->
+    <div id="rlsModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[9999] hidden justify-center items-center p-4 transition-all duration-300">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl max-w-2xl w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] relative border border-red-500/30 animate-fade-in-up">
+            <button onclick="closeRlsModal()" class="absolute top-5 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all hover:rotate-90">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-900/40 dark:to-rose-900/40 flex items-center justify-center mb-6 shadow-inner relative overflow-hidden">
+                <div class="absolute inset-0 bg-red-500/20 animate-ping rounded-2xl"></div>
+                <i class="fas fa-shield-alt text-4xl text-red-500 dark:text-red-400 relative z-10"></i>
+            </div>
+            <h2 class="text-3xl font-black mb-3 text-gray-900 dark:text-white tracking-tight">¡Ojo aquí! Aviso de Supabase</h2>
+            <p class="text-gray-600 dark:text-slate-300 mb-8 leading-relaxed text-lg">Tu tabla <strong class="text-red-500 dark:text-red-400">gastos_importacion</strong> rechazó los datos. Esto puede ser por la Seguridad a Nivel de Fila (RLS) o porque te falta agregar la columna <strong class="bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded text-gray-800 dark:text-white text-sm">fecha_factura</strong> en tu BD.</p>
+            <div class="flex justify-end">
+                <button onclick="closeRlsModal()" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-lg hover:shadow-red-500/40 hover:-translate-y-1">
+                    Entendido, revisaré mi BD
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full h-full flex flex-col space-y-2 max-w-[100vw] overflow-x-hidden relative z-10">
+        
+        <!-- HEADER COMPACTO Y ELEGANTE -->
+        <div id="headerPanel" class="glass-panel px-4 py-2.5 rounded-2xl flex flex-col xl:flex-row justify-between items-center gap-2 shrink-0 animate-fade-in-up relative z-50">
+            <!-- Izquierda: Títulos -->
+            <div class="flex items-center gap-3 w-full xl:w-auto">
+                <!-- Botón Modo Claro/Oscuro -->
+                <button onclick="toggleTheme()" class="w-9 h-9 rounded-xl bg-white/80 dark:bg-slate-800/80 flex items-center justify-center hover:bg-white dark:hover:bg-slate-700 transition-all border border-gray-200/50 dark:border-slate-600/50 shadow-sm hover:shadow-md shrink-0 group relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <i id="themeIcon" class="fas fa-moon text-indigo-500 dark:text-indigo-400 text-base group-hover:rotate-12 group-hover:scale-110 transition-all relative z-10"></i>
+                </button>
+                <div>
+                    <div class="flex items-center gap-2 mb-0">
+                        <h1 class="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-indigo-600 dark:from-violet-400 dark:to-indigo-400 whitespace-nowrap tracking-tight">
+                            Gastos de Importación
+                        </h1>
+                        <!-- INDICADOR REALTIME (MAGIA WEBSOCKET) -->
+                        <div id="liveIndicator" class="hidden items-center gap-1 px-2 py-0.5 bg-emerald-100/50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-full shadow-sm" title="Conectado a Supabase Realtime">
+                            <span id="liveDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-glow"></span>
+                            <span id="liveText" class="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">En vivo</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-[0.12em]"><i class="fas fa-shield-check text-indigo-400 mr-1"></i> Sistema Aduanero Premium</p>
+                </div>
+            </div>
+            
+            <!-- Derecha: Controles (Pestañas + DropZone) -->
+            <div class="flex flex-row items-center gap-2 w-full xl:w-auto">
+                <!-- Pestañas Principales (Tabla vs Dashboard) -->
+                <div class="flex bg-gray-200/60 dark:bg-slate-900/60 p-1 rounded-xl border border-white/60 dark:border-slate-700/60 shadow-inner w-full lg:w-auto shrink-0">
+                    <button onclick="switchMainView('table')" id="btnViewTable" class="flex-1 lg:flex-none px-4 py-1.5 rounded-lg text-xs transition-all main-tab-active flex items-center justify-center">
+                        <i class="fas fa-table mr-1.5 opacity-90"></i>Tabla de Datos
+                    </button>
+                    <button onclick="switchMainView('dashboard')" id="btnViewDash" class="flex-1 lg:flex-none px-4 py-1.5 rounded-lg text-xs transition-all main-tab-inactive flex items-center justify-center">
+                        <i class="fas fa-chart-pie mr-1.5 opacity-90"></i>Dashboard
+                    </button>
+                </div>
+                
+                <!-- Zona Drop (Compacta) -->
+                <div id="uploadZoneContainer" class="flex items-center gap-2 w-full lg:w-auto">
+                    <div id="dropZone" class="drop-zone px-4 h-[36px] rounded-xl flex justify-center items-center cursor-pointer relative overflow-hidden bg-white/40 dark:bg-slate-800/40 group backdrop-blur-sm w-full lg:w-auto shrink-0">
+                        <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                        <div class="flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            <i class="fas fa-file-excel text-emerald-500 group-hover:scale-110 group-hover:rotate-6 transition-transform"></i>
+                            <span id="dropText" class="font-bold truncate max-w-[120px] tracking-wide">Cargar Excel</span>
+                        </div>
+                    </div>
+                    <button onclick="saveToCloud()" id="btnSave" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white px-4 h-[36px] rounded-xl text-xs font-black transition-all shadow-[0_4px_12px_-4px_rgba(16,185,129,0.5)] hover:shadow-[0_6px_16px_-4px_rgba(16,185,129,0.7)] hover:-translate-y-0.5 hidden whitespace-nowrap tracking-wide shrink-0">
+                        <i class="fas fa-cloud-upload-alt mr-1.5 text-sm"></i>Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTROS Y CONTROLES -->
+        <div id="filtersPanel" class="glass-panel px-4 py-2.5 rounded-2xl flex flex-col xl:flex-row gap-2 items-center justify-between shrink-0 animate-fade-in-up relative z-40" style="animation-delay: 0.1s;">
+            
+            <div class="flex flex-wrap lg:flex-nowrap gap-2 w-full xl:w-auto">
+                <!-- Buscador -->
+                <div class="relative w-full md:w-48 group">
+                    <div class="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-0 group-focus-within:opacity-20 transition-opacity duration-500"></div>
+                    <input type="text" id="searchInput" placeholder="Buscar ref. o decl..." class="bg-white/80 dark:bg-slate-800/80 backdrop-blur border border-gray-200 dark:border-slate-600/80 text-xs rounded-xl pl-9 pr-3 py-2.5 text-gray-900 dark:text-white outline-none focus:border-indigo-500 dark:focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 w-full transition-all shadow-sm font-medium relative z-10">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400 dark:text-slate-500 text-xs group-focus-within:text-indigo-500 transition-colors z-20"></i>
+                </div>
+
+                <!-- SELECT NATIVOS OCULTOS -->
+                <select id="clientFilter" class="hidden"><option value="ALL">Todos los clientes</option></select>
+                <select id="monthAceptacionFilter" class="hidden"><option value="ALL">Mes Aceptación</option></select>
+                <select id="monthFacturaFilter" class="hidden"><option value="ALL">Mes Factura</option></select>
+
+                <!-- CONTENEDORES PARA SELECTS PERSONALIZADOS -->
+                <div id="custom-clientFilter" class="relative w-full md:w-52 z-[60]"></div>
+                <div id="custom-monthAceptacionFilter" class="relative w-full md:w-40 z-[50]"></div>
+                <div id="custom-monthFacturaFilter" class="relative w-full md:w-40 z-[40]"></div>
+            </div>
+
+            <div class="flex flex-row gap-2 w-full xl:w-auto shrink-0">
+                <!-- Botón Desglose -->
+                <button onclick="toggleDetails()" id="btnToggleDetails" class="bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600/80 text-gray-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition-all w-full md:w-auto shrink-0 shadow-sm hover:shadow-md flex items-center justify-center group">
+                    <i class="fas fa-eye mr-1.5 text-indigo-500 group-hover:scale-110 transition-transform"></i>Ver Desglose
+                </button>
+
+                <!-- Botones de Estado tipo pastilla -->
+                <div class="flex bg-gray-200/50 dark:bg-slate-900/50 p-1 rounded-xl border border-white/50 dark:border-slate-700/50 w-full md:w-auto shadow-inner">
+                    <button onclick="setStatusFilter('ALL')" id="btnFilterAll" class="tab-btn tab-active flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs">Todos</button>
+                    <button onclick="setStatusFilter('PENDIENTE')" id="btnFilterPend" class="tab-btn tab-inactive-light dark:tab-inactive-dark hover:text-gray-900 dark:hover:text-white flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-center font-semibold"><i class="fas fa-clock mr-1 opacity-80 text-amber-500"></i>Faltan</button>
+                    <button onclick="setStatusFilter('COMPLETO')" id="btnFilterComp" class="tab-btn tab-inactive-light dark:tab-inactive-dark hover:text-gray-900 dark:hover:text-white flex-1 md:flex-none px-4 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-center font-semibold"><i class="fas fa-check-circle mr-1 opacity-80 text-emerald-500"></i>Listos</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA 1: TABLA MASIVA -->
+        <!-- ============================================== -->
+        <div id="viewTable" class="flex flex-col flex-1 overflow-hidden relative transition-all duration-300 animate-fade-in-up z-20 min-h-0" style="animation-delay: 0.2s;">
+            <div class="glass-panel rounded-[2rem] flex flex-col flex-1 overflow-hidden relative border-t border-white/80 dark:border-white/10 min-h-0">
+                <div class="overflow-auto flex-1 h-full scroll-smooth custom-scrollbar" id="tableContainer">
+                    <table class="text-sm text-left whitespace-nowrap min-w-max w-full border-collapse">
+                        <thead class="text-xs text-indigo-900 dark:text-indigo-200 uppercase bg-indigo-50/90 dark:bg-slate-800/90 backdrop-blur-xl sticky top-0 z-30 border-b border-indigo-100 dark:border-slate-700 shadow-sm">
+                            <tr id="dynamicHeaders">
+                                <!-- JS inyectará los headers aquí -->
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-gray-100/50 dark:divide-slate-700/30 bg-white/30 dark:bg-slate-900/20">
+                            <tr>
+                                <td colspan="10" class="px-6 py-24 text-center text-gray-500 dark:text-slate-400">
+                                    <div class="ring-loader mx-auto mb-6"></div>
+                                    <p class="font-bold text-lg tracking-wide">Despertando a la base de datos...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- FOOTER DE SUMATORIAS TABLA -->
+                <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border-t border-gray-200 dark:border-slate-700 px-4 py-2 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 transition-colors shadow-[0_-8px_20px_-10px_rgba(0,0,0,0.1)] relative z-40">
+                    <!-- Izquierda: stats + filas por página + paginación -->
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-filter text-indigo-400 text-xs"></i>
+                            <p id="footerStats" class="font-black text-gray-900 dark:text-white text-xs">Cargando...</p>
+                        </div>
+                        <div class="w-px h-4 bg-gray-200 dark:bg-slate-700"></div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500 whitespace-nowrap">Filas:</span>
+                            <select id="rowsPerPageSelect" onchange="changeRowsPerPage(this.value)" class="bg-white/90 dark:bg-slate-800/90 border border-gray-200 dark:border-slate-600 text-xs rounded-lg px-2 py-1 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/30 font-bold transition-all cursor-pointer">
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <div id="paginationControls" class="flex items-center gap-1"></div>
+                    </div>
+                    <!-- Derecha: totales -->
+                    <div class="flex items-center gap-2 text-xs font-black tracking-wide">
+                        <div class="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-slate-700">
+                            <i class="fas fa-file-invoice-dollar text-indigo-500 text-[11px]"></i>
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[9px] uppercase text-gray-400 dark:text-slate-500">Suma Facturas</span>
+                                <span id="footSumFac" class="text-indigo-600 dark:text-indigo-400 text-xs">Bs 0.00</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-slate-700">
+                            <i class="fas fa-money-check-alt text-emerald-500 text-[11px]"></i>
+                            <div class="flex flex-col leading-tight">
+                                <span class="text-[9px] uppercase text-gray-400 dark:text-slate-500">Suma Planillas</span>
+                                <span id="footSumPlan" class="text-emerald-600 dark:text-emerald-400 text-xs">Bs 0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA 2: DASHBOARD ANALYTICS -->
+        <!-- ============================================== -->
+        <div id="viewDashboard" class="hidden flex-col flex-1 overflow-y-auto space-y-4 pb-2 transition-all duration-300 pt-2 custom-scrollbar z-20 relative min-h-0">
+            <!-- TARJETAS KPI -->
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+                <div class="glass-panel rounded-[2rem] p-5 relative overflow-hidden group hover:-translate-y-2 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(99,102,241,0.3)]">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-all"></div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div>
+                            <p class="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-1">Total Facturado</p>
+                            <h3 id="kpiFactura" class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">Bs 0.00</h3>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-3xl shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-all border border-indigo-200/50 dark:border-indigo-700/50">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- LÍQUIDO -->
+                <div class="glass-panel rounded-[2rem] p-5 relative overflow-hidden group hover:-translate-y-2 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(245,158,11,0.3)]">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl group-hover:bg-amber-500/30 transition-all"></div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div>
+                            <p class="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-1">Líquido (87%)</p>
+                            <h3 id="kpiLiquido" class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500 dark:from-amber-400 dark:to-orange-400">Bs 0.00</h3>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/50 dark:to-orange-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 text-3xl shadow-inner group-hover:scale-110 group-hover:-rotate-6 transition-all border border-amber-200/50 dark:border-amber-700/50">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- PLANILLAS -->
+                <div class="glass-panel rounded-[2rem] p-5 relative overflow-hidden group hover:-translate-y-2 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.3)]">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl group-hover:bg-emerald-500/30 transition-all"></div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div>
+                            <p class="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-1">Total Planillas</p>
+                            <h3 id="kpiPlanilla" class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-teal-500 dark:from-emerald-400 dark:to-teal-400">Bs 0.00</h3>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-teal-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-3xl shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-all border border-emerald-200/50 dark:border-emerald-700/50">
+                            <i class="fas fa-money-check-alt"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- TRÁMITES -->
+                <div class="glass-panel rounded-[2rem] p-5 relative overflow-hidden group hover:-translate-y-2 transition-all duration-300 hover:shadow-[0_20px_40px_-15px_rgba(236,72,153,0.3)]">
+                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl group-hover:bg-pink-500/30 transition-all"></div>
+                    <div class="flex items-center justify-between relative z-10">
+                        <div>
+                            <p class="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-1">Trámites Listos</p>
+                            <h3 id="kpiTramites" class="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-rose-500 dark:from-pink-400 dark:to-rose-400">0</h3>
+                        </div>
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-100 to-rose-100 dark:from-pink-900/50 dark:to-rose-900/50 flex items-center justify-center text-pink-600 dark:text-pink-400 text-3xl shadow-inner group-hover:scale-110 group-hover:-rotate-6 transition-all border border-pink-200/50 dark:border-pink-700/50">
+                            <i class="fas fa-folder-open"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN GRÁFICAS -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div id="cardClientes" class="lg:col-span-2 glass-panel rounded-[2rem] p-4 relative group transition-all">
+                    <button onclick="toggleFullScreen('cardClientes')" class="absolute top-3 right-3 w-8 h-8 bg-white/80 dark:bg-slate-700/80 text-gray-500 dark:text-slate-300 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg backdrop-blur z-20 hover:scale-110" title="Ver Pantalla Completa"><i class="fas fa-expand text-sm"></i></button>
+                    <div class="relative h-[220px] md:h-[340px] w-full chart-wrapper mt-2">
+                        <canvas id="chartClientes"></canvas>
+                    </div>
+                </div>
+                
+                <!-- NUEVO WIDGET DE DISTRIBUCIÓN ESTILO BARRAS DE PROGRESO -->
+                <div id="cardDona" class="lg:col-span-1 glass-panel rounded-[2rem] p-5 relative group transition-all flex flex-col">
+                    <button onclick="toggleFullScreen('cardDona')" class="absolute top-3 right-3 w-8 h-8 bg-white/80 dark:bg-slate-700/80 text-gray-500 dark:text-slate-300 hover:text-emerald-600 hover:bg-white dark:hover:bg-slate-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg backdrop-blur z-20 hover:scale-110" title="Ver Pantalla Completa"><i class="fas fa-expand text-sm"></i></button>
+                    <div id="distribucionBars" class="flex flex-col gap-5 flex-grow justify-center w-full chart-wrapper mt-2">
+                        <!-- Aquí se inyectan las barras dinámicamente con JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN GRÁFICAS DE EVOLUCIÓN Y DESGLOSE -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div id="cardEvolucion" class="glass-panel rounded-[2rem] p-4 w-full relative group transition-all">
+                    <button onclick="toggleFullScreen('cardEvolucion')" class="absolute top-3 right-3 w-8 h-8 bg-white/80 dark:bg-slate-700/80 text-gray-500 dark:text-slate-300 hover:text-rose-600 hover:bg-white dark:hover:bg-slate-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg backdrop-blur z-20 hover:scale-110" title="Ver Pantalla Completa"><i class="fas fa-expand text-sm"></i></button>
+                    <div class="relative h-[220px] md:h-[340px] w-full chart-wrapper mt-2">
+                        <canvas id="chartEvolucion"></canvas>
+                    </div>
+                </div>
+                
+                <div id="cardDesglose" class="glass-panel rounded-[2rem] p-4 w-full relative group transition-all">
+                    <button onclick="toggleFullScreen('cardDesglose')" class="absolute top-3 right-3 w-8 h-8 bg-white/80 dark:bg-slate-700/80 text-gray-500 dark:text-slate-300 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg backdrop-blur z-20 hover:scale-110" title="Ver Pantalla Completa"><i class="fas fa-expand text-sm"></i></button>
+                    <div class="relative h-[220px] md:h-[340px] w-full chart-wrapper mt-2">
+                        <canvas id="chartDesglose"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN RANKING -->
+            <div id="cardRanking" class="glass-panel rounded-[2rem] p-4 w-full relative group transition-all">
+                <button onclick="toggleFullScreen('cardRanking')" class="absolute top-3 right-3 w-8 h-8 bg-white/80 dark:bg-slate-700/80 text-gray-500 dark:text-slate-300 hover:text-purple-600 hover:bg-white dark:hover:bg-slate-600 rounded-xl opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center shadow-lg backdrop-blur z-20 hover:scale-110" title="Ver Pantalla Completa"><i class="fas fa-expand text-sm"></i></button>
+                <div class="relative h-[280px] md:h-[400px] w-full overflow-x-auto chart-wrapper mt-2">
+                    <canvas id="chartClientesFactura"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // UI CUSTOM SELECTS (LA MAGIA VISUAL CONTINÚA)
+        // ==========================================
+        function initOrUpdateCustomSelect(selectId, iconClass) {
+            const nativeSelect = document.getElementById(selectId);
+            const containerId = 'custom-' + selectId;
+            const container = document.getElementById(containerId);
+            
+            if(!nativeSelect || !container) return;
+            container.innerHTML = '';
+            
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'w-full bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 border border-gray-200/80 dark:border-slate-600/80 text-xs rounded-xl px-3 py-2.5 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all shadow-sm flex items-center justify-between group cursor-pointer backdrop-blur-xl relative overflow-hidden';
+            
+            const selectedText = nativeSelect.options[nativeSelect.selectedIndex] ? nativeSelect.options[nativeSelect.selectedIndex].text : 'Seleccionar...';
+            
+            btn.innerHTML = `
+                <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="flex items-center gap-2 overflow-hidden relative z-10">
+                    <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 flex items-center justify-center shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-transform border border-indigo-200/50 dark:border-indigo-700/50">
+                        <i class="${iconClass} text-indigo-600 dark:text-indigo-400 text-[10px]"></i>
+                    </div>
+                    <span class="truncate font-bold text-left tracking-wide">${selectedText}</span>
+                </div>
+                <div class="relative z-10 w-5 h-5 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 transition-colors shadow-inner">
+                    <i class="fas fa-chevron-down text-gray-500 dark:text-slate-400 text-[9px] transition-transform duration-300 group-focus:rotate-180"></i>
+                </div>
+            `;
+
+            const menu = document.createElement('div');
+            // Quitamos pointer-events-none inicialmente para que no nos gane y le ponemos stopPropagation al clic para no cerrarlo
+            menu.className = 'absolute top-full left-0 right-0 mt-3 bg-white/95 dark:bg-slate-800/95 backdrop-blur-3xl border-t-4 border-t-indigo-500 border border-gray-200 dark:border-slate-700 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden transition-all duration-300 opacity-0 translate-y-4 pointer-events-none z-[99] transform origin-top max-h-[350px] flex flex-col';
+            
+            // MAGIA: Evitar que al dar click adentro se cierre por culpa del document.onclick
+            menu.addEventListener('click', (e) => e.stopPropagation());
+            menu.addEventListener('mousedown', (e) => e.stopPropagation());
+
+            const searchBoxWrap = document.createElement('div');
+            searchBoxWrap.className = 'shrink-0 bg-gray-50/50 dark:bg-slate-900/50 backdrop-blur-xl p-4 border-b border-gray-100 dark:border-slate-700 z-10';
+            searchBoxWrap.innerHTML = `
+                <div class="relative group/search">
+                    <div class="absolute inset-0 bg-indigo-500/5 rounded-xl blur opacity-0 group-focus-within/search:opacity-100 transition-opacity"></div>
+                    <i class="fas fa-search absolute left-4 top-3.5 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors z-10"></i>
+                    <input type="text" placeholder="Buscar aquí..." class="w-full bg-white dark:bg-slate-800 text-sm font-semibold rounded-xl pl-11 pr-4 py-3 outline-none border border-gray-200 dark:border-slate-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 text-gray-800 dark:text-white transition-all shadow-sm relative z-10">
+                </div>
+            `;
+            const searchBox = searchBoxWrap.querySelector('input');
+            
+            if(nativeSelect.options.length > 5) menu.appendChild(searchBoxWrap);
+
+            const scrollableArea = document.createElement('div');
+            scrollableArea.className = 'overflow-y-auto custom-scrollbar flex-grow p-2';
+
+            const optionsList = document.createElement('ul');
+            optionsList.className = 'flex flex-col gap-1.5';
+
+            Array.from(nativeSelect.options).forEach((opt, idx) => {
+                const li = document.createElement('li');
+                const isSelected = nativeSelect.selectedIndex === idx;
+                
+                li.className = `px-5 py-3 text-sm cursor-pointer transition-all duration-300 rounded-2xl flex items-center justify-between group/item ${isSelected ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-black shadow-lg shadow-indigo-500/30 transform scale-[1.02]' : 'text-gray-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-700/80 hover:pl-6 hover:text-indigo-600 dark:hover:text-indigo-300 font-semibold'}`;
+                
+                li.innerHTML = `
+                    <span class="truncate pr-4">${opt.text}</span>
+                    ${isSelected ? '<i class="fas fa-check-circle text-white text-lg shadow-sm rounded-full animate-pulse"></i>' : '<i class="fas fa-chevron-right text-[10px] opacity-0 group-hover/item:opacity-100 transition-all transform -translate-x-3 group-hover/item:translate-x-0"></i>'}
+                `;
+
+                li.onclick = (e) => {
+                    e.stopPropagation();
+                    nativeSelect.selectedIndex = idx;
+                    nativeSelect.dispatchEvent(new Event('change'));
+                    cerrarTodosCustomSelects();
+                    initOrUpdateCustomSelect(selectId, iconClass); 
+                };
+                optionsList.appendChild(li);
+            });
+
+            searchBox.oninput = (e) => {
+                const val = e.target.value.toLowerCase();
+                Array.from(optionsList.children).forEach(li => {
+                    const text = li.innerText.toLowerCase();
+                    li.style.display = text.includes(val) ? 'flex' : 'none';
+                });
+            };
+
+            scrollableArea.appendChild(optionsList);
+            menu.appendChild(scrollableArea);
+
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const isOpen = !menu.classList.contains('opacity-0');
+                cerrarTodosCustomSelects();
+                if (!isOpen) {
+                    menu.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+                    btn.querySelector('.fa-chevron-down').classList.add('rotate-180');
+                    btn.classList.add('ring-4', 'ring-indigo-500/30', 'border-indigo-400');
+                    if(nativeSelect.options.length > 5) setTimeout(() => searchBox.focus(), 100);
+                }
+            };
+
+            container.appendChild(btn);
+            container.appendChild(menu);
+        }
+
+        function cerrarTodosCustomSelects() {
+            document.querySelectorAll('[id^="custom-"] > div').forEach(menu => {
+                menu.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+            });
+            document.querySelectorAll('[id^="custom-"] button').forEach(btn => {
+                btn.classList.remove('ring-4', 'ring-indigo-500/30', 'border-indigo-400');
+                const icon = btn.querySelector('.fa-chevron-down');
+                if(icon) icon.classList.remove('rotate-180');
+            });
+        }
+        document.addEventListener('click', cerrarTodosCustomSelects);
+
+        // ==========================================
+        // VARIABLES GLOBALES
+        // ==========================================
+        let currentMainView = 'table'; 
+        let chartInstClientes = null;
+        let chartInstEvolucion = null;
+        let chartInstDesglose = null;
+        let chartInstClientesFactura = null; 
+        let lastFilteredData = []; 
+
+        function switchMainView(view) {
+            currentMainView = view;
+            const btnTable = document.getElementById('btnViewTable');
+            const btnDash = document.getElementById('btnViewDash');
+            const viewTable = document.getElementById('viewTable');
+            const viewDash = document.getElementById('viewDashboard');
+            const btnToggleDet = document.getElementById('btnToggleDetails');
+
+            if (view === 'table') {
+                btnTable.className = "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm transition-all main-tab-active flex items-center justify-center";
+                btnDash.className = "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm transition-all main-tab-inactive flex items-center justify-center";
+                viewTable.classList.remove('hidden');
+                viewTable.classList.add('flex');
+                viewDash.classList.add('hidden');
+                viewDash.classList.remove('flex');
+                btnToggleDet.classList.remove('hidden');
+            } else {
+                btnDash.className = "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm transition-all main-tab-active flex items-center justify-center";
+                btnTable.className = "flex-1 md:flex-none px-6 py-2.5 rounded-xl text-sm transition-all main-tab-inactive flex items-center justify-center";
+                viewDash.classList.remove('hidden');
+                viewDash.classList.add('flex');
+                viewTable.classList.add('hidden');
+                viewTable.classList.remove('flex');
+                btnToggleDet.classList.add('hidden');
+                
+                // Aseguramos de darle un segundito a la UI antes de renderizar la gráfica para que los canvas existan visualmente
+                setTimeout(() => renderDashboard(), 50); 
+            }
+        }
+
+        // ==========================================
+        // MODO CLARO / OSCURO LOGICA
+        // ==========================================
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            const isDark = html.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateThemeIcon(isDark);
+            if(currentMainView === 'dashboard') renderDashboard(); 
+        }
+
+        let _headerCollapsed = false;
+        function toggleHeader() {
+            _headerCollapsed = !_headerCollapsed;
+            const hp = document.getElementById('headerPanel');
+            const fp = document.getElementById('filtersPanel');
+            const icon = document.getElementById('toggleHeaderIcon');
+            if (_headerCollapsed) {
+                hp.classList.add('collapsed');
+                fp.classList.add('collapsed');
+                icon.className = 'fas fa-chevron-down text-[9px]';
+            } else {
+                hp.classList.remove('collapsed');
+                fp.classList.remove('collapsed');
+                icon.className = 'fas fa-chevron-up text-[9px]';
+            }
+        }
+
+        function updateThemeIcon(isDark) {
+            const icon = document.getElementById('themeIcon');
+            if(isDark) {
+                icon.className = 'fas fa-moon text-indigo-400 text-2xl group-hover:rotate-12 group-hover:scale-110 transition-all relative z-10';
+            } else {
+                icon.className = 'fas fa-sun text-amber-500 text-2xl group-hover:rotate-90 group-hover:scale-110 transition-all relative z-10';
+            }
+        }
+
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            updateThemeIcon(true);
+        } else {
+            document.documentElement.classList.remove('dark');
+            updateThemeIcon(false);
+        }
+
+        // ==========================================
+        // FORMATEO DE FECHAS
+        // ==========================================
+        function formatToYYYYMMDD(dateVal) {
+            if (dateVal === null || dateVal === undefined || String(dateVal).trim() === '' || dateVal === '0') return null;
+            if (dateVal instanceof Date) {
+                if (isNaN(dateVal.getTime())) return null;
+                const y = dateVal.getUTCFullYear();
+                const m = String(dateVal.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(dateVal.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            if (typeof dateVal === 'number' || (!isNaN(dateVal) && Number(dateVal) > 20000)) {
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const jsDate = new Date(excelEpoch.getTime() + Number(dateVal) * 86400000);
+                const y = jsDate.getUTCFullYear();
+                const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(jsDate.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            let str = String(dateVal).trim().split(' ')[0];
+            let parts = str.split(/[\/\-]/);
+            if (parts.length === 3) {
+                let p1 = parseInt(parts[0]), p2 = parseInt(parts[1]), p3 = parseInt(parts[2]);
+                let y, m, d;
+                if (p3 >= 1000) { y = p3; if (p1 > 12) { d = p1; m = p2; } else if (p2 > 12) { m = p1; d = p2; } else { d = p1; m = p2; }
+                } else if (p1 >= 1000) { y = p1; if (p2 > 12) { d = p2; m = p3; } else { m = p2; d = p3; } 
+                } else if (p3 < 100) { y = p3 + 2000; if (p1 > 12) { d = p1; m = p2; } else if (p2 > 12) { m = p1; d = p2; } else { d = p1; m = p2; } }
+                if (y && m && d) return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+            return str; 
+        }
+
+        function extractYYYYMM(dateVal) {
+            const fullDate = formatToYYYYMMDD(dateVal);
+            if (fullDate && /^\d{4}-\d{2}/.test(fullDate)) return fullDate.substring(0, 7);
+            return null;
+        }
+
+        function formatToMonthText(yyyy_mm) {
+            if (!yyyy_mm) return '<span class="text-gray-300 dark:text-slate-600">-</span>';
+            const [y, m] = yyyy_mm.split('-');
+            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return `<span class="font-black text-gray-800 dark:text-gray-200 tracking-wide">${meses[parseInt(m)-1]} <span class="text-indigo-500">${y}</span></span>`;
+        }
+        function getMonthNameShort(yyyy_mm) {
+            if(!yyyy_mm) return 'Sin Fecha';
+            const [y, m] = yyyy_mm.split('-');
+            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return `${meses[parseInt(m)-1]} ${y}`;
+        }
+
+        // ==========================================
+        // PARSEO ROBUSTO A PRUEBA DE BALAS LATAM
+        // ==========================================
+        function robustParseFloat(val) {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return val;
+            
+            let str = String(val).trim();
+            // Quitar todo lo que no sea número, coma, punto o signo negativo
+            str = str.replace(/[^\d.,-]/g, '');
+            
+            // Si el texto trae punto Y coma (Ej: 1.234,56 o 1,234.56)
+            if (str.includes('.') && str.includes(',')) {
+                if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+                    // La coma va al último (formato 1.234,56)
+                    str = str.replace(/\./g, '').replace(',', '.');
+                } else {
+                    // El punto va al último (formato 1,234.56)
+                    str = str.replace(/,/g, '');
+                }
+            } 
+            // Si solo trae comas (Ej: 1234,56 o 1,234)
+            else if (str.includes(',')) {
+                if (str.match(/,\d{1,2}$/)) {
+                    // Termina en 1 o 2 dígitos, asumimos que son decimales
+                    str = str.replace(',', '.');
+                } else {
+                    // Es un separador de miles
+                    str = str.replace(/,/g, '');
+                }
+            } 
+            // Si solo trae puntos (Ej: 1.234 o 1234.56)
+            else if (str.includes('.')) {
+                // Si termina exactamente en 3 dígitos (Ej: 1.000) lo más seguro es que en LATAM sean miles
+                if (str.match(/\.\d{3}$/)) {
+                    str = str.replace(/\./g, '');
+                }
+            }
+            
+            let parsed = parseFloat(str);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+
+        // ==========================================
+        // CONFIGURACIÓN SUPABASE
+        // ==========================================
+        const supabaseUrl = 'https://sfqpptquojlsbeheguff.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+        
+        let supabaseClient = null;
+        if(supabaseUrl && supabaseKey){
+            supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+        }
+
+        const COLUMNAS_EXCEL = [
+            "HONORARIOS AGENCIA", "CARPETA P/ ARCHIVO", "GASTOS EN DESPACHO", "FOTOCOPIAS LEGALIZADAS",
+            "VERIFICACION Y ETIQUETADO", "REGULARIZACION DESP. ANTICIPAD", "ITEMS DECLARADOS EN DIM Y DAV",
+            "DESPACHO ADUANA FRONTERA", "SERVICIO LOGISTICO", "FORMULARIO DAM", "OTROS SERVICIOS",
+            "FORMULARIO RITEX", "SERV. DE TRAM. SENASAG/UNALAB", "INGRESO Y RECOJO TRAM. SENASAG",
+            "TOTAL FACTURA", "GRAVAMEN ARANCELARIO", "IMPUESTO AL VALOR AGREGADO", "IMP. AL CONSUMO. ESPCIFICO",
+            "IMP.  ESP. A LOS HIDROCARBUROS", "FORMULARIO DIGITAL", "IMP. AL CON. ESPEC. AL DEPORTE",
+            "LEVANTAMIENTO DE ABANDONO", "CAM. IND. Y COM..", "RECOJO GUIA", "EMISION CERTIFICADO",
+            "TRANSPORTE LOCAL", "ALMACENAJE DAB", "GASTOS PUERTO", "SENASAG", "AGEMED",
+            "ALMACENAJE ALBO VILLAZON", "PERMISO E INSPECCION SENASAG", "IBNORCA/IBMETRO", "INSPECCION PREVIA",
+            "ESCANEO DE FACTURAS", "CONTRAVENCIONES", "ALMACENAJE ALBO", "PAGO PRIMA DE SEGURO",
+            "SERV. TRANSPORTE", "REINTERGO GA", "REINTEGRO IVA", "REINTEGRO ICE", "CARGUIO Y DESCARGUIO",
+            "TRAMITE SENASAG VILLAZON", "LIBERACION CONTENEDOR", "TRAMITE SENASAG", "FLETE MARITIMO",
+            "EMISION DE B/L", "SOBREESTADÍAS", "DEPOSITO ESPECIAL", "TRAMITES ADUANA", "ANALISIS LABORATORIO",
+            "GTO PUERTO - ASPB", "GTOS DE LOGISTICA", "COMISION BANCO-LIBERACION", "SERV CARGUIO Y DESCARGUIO",
+            "SEGURO()", "PROLECHE", "INSPECCION SENASAG", "TOTAL PLANILLA"
+        ];
+
+        function sanitizarColumna(nombre) {
+            if(!nombre) return "";
+            return nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                         .replace(/[\/\(\)\.\-]/g, ' ').trim().replace(/\s+/g, '_');
+        }
+
+        const mapColumnas = COLUMNAS_EXCEL.map(col => ({ excel: col, db: sanitizarColumna(col) }));
+
+        let tramitesDB = []; 
+        let gastosGuardados = []; 
+        let reporteUnificadoDB = []; 
+        let datosExcel = []; 
+        let dataAInsertar = []; 
+        let currentStatusFilter = 'ALL';
+        let showDetails = false;
+        let currentPage = 1;
+        let rowsPerPage = 20;
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            dibujarCabeceras();
+            setupDragAndDrop();
+            
+            // Debounce en búsqueda: espera 250ms después de dejar de escribir
+            let _searchDebounce = null;
+            document.getElementById('searchInput').addEventListener('input', () => {
+                clearTimeout(_searchDebounce);
+                _searchDebounce = setTimeout(() => { currentPage = 1; renderTable(); }, 250);
+            });
+            document.getElementById('clientFilter').addEventListener('change', () => { currentPage = 1; renderTable(); });
+            document.getElementById('monthAceptacionFilter').addEventListener('change', () => { currentPage = 1; renderTable(); });
+            document.getElementById('monthFacturaFilter').addEventListener('change', () => { currentPage = 1; renderTable(); });
+            
+            await cargarDatosBD();
+            suscribirTiempoReal();
+        });
+
+        // ==========================================
+        // MAGIA WEBSOCKET: TIEMPO REAL CON SUPABASE
+        // ==========================================
+        function suscribirTiempoReal() {
+            if(!supabaseClient) return;
+
+            // Mostramos el indicador de conexión
+            const liveIndicator = document.getElementById('liveIndicator');
+            liveIndicator.classList.remove('hidden');
+            liveIndicator.classList.add('flex');
+
+            supabaseClient.channel('mexican-realtime-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'gastos_importacion' }, payload => {
+                    manejarCambioRealtime(payload, gastosGuardados, 'n_referencia', 'Gastos');
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'importaciones' }, payload => {
+                    manejarCambioRealtime(payload, tramitesDB, 'n_referencia', 'Importaciones');
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'reporte_unificado_data' }, payload => {
+                    manejarCambioRealtime(payload, reporteUnificadoDB, 'n_referencia', 'Reporte Unificado');
+                })
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log("¡Conectada al websocket perra!");
+                        document.getElementById('liveDot').classList.add('bg-emerald-500', 'animate-pulse-glow');
+                        document.getElementById('liveDot').classList.remove('bg-gray-400');
+                        document.getElementById('liveText').innerText = 'EN VIVO';
+                        document.getElementById('liveText').classList.add('text-emerald-700', 'dark:text-emerald-400');
+                    } else {
+                        document.getElementById('liveDot').classList.remove('bg-emerald-500', 'animate-pulse-glow');
+                        document.getElementById('liveDot').classList.add('bg-gray-400');
+                        document.getElementById('liveText').innerText = 'DESCONECTADO';
+                        document.getElementById('liveText').classList.remove('text-emerald-700', 'dark:text-emerald-400');
+                    }
+                });
+        }
+
+        function manejarCambioRealtime(payload, arrayRef, keyName, tableName) {
+            const { eventType, new: newRec, old: oldRec } = payload;
+            let refActualizada = '';
+
+            if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                const idx = arrayRef.findIndex(item => item[keyName] === newRec[keyName]);
+                if (idx >= 0) arrayRef[idx] = newRec;
+                else arrayRef.push(newRec);
+                refActualizada = newRec[keyName] || 'Nuevo Registro';
+            } else if (eventType === 'DELETE') {
+                const idx = arrayRef.findIndex(item => item[keyName] === oldRec[keyName]);
+                if (idx >= 0) arrayRef.splice(idx, 1);
+                refActualizada = oldRec[keyName] || 'Registro Eliminado';
+            }
+
+            // Reconstruir hashmaps para mantener lookups O(1) actualizados
+            _reconstruirHashmaps();
+            poblarFiltros();
+            renderTable();
+
+            // Destello visual en la tabla para que se note el cambio
+            const tableContainer = document.getElementById('viewTable');
+            tableContainer.classList.add('flash-update');
+            setTimeout(() => tableContainer.classList.remove('flash-update'), 1500);
+
+            // Toast de notificación
+            showToast(`Datos actualizados: <strong>${tableName}</strong><br><span class="text-xs opacity-75">Ref: ${refActualizada}</span>`, false, 'DATOS EN VIVO');
+        }
+
+        // ==========================================
+        // DIBUJADO DE CABECERAS Y TABLA
+        // ==========================================
+        function dibujarCabeceras() {
+            let html = `
+                <th scope="col" class="px-6 py-4 sticky left-0 z-20 bg-indigo-50/90 dark:bg-slate-800/90 backdrop-blur font-black tracking-widest text-indigo-700 dark:text-indigo-300">No. Referencia</th>
+                <th scope="col" class="px-6 py-4 font-bold tracking-widest">Mes Aceptación</th>
+                <th scope="col" class="px-6 py-4 font-bold tracking-widest">Mes Factura</th>
+                <th scope="col" class="px-6 py-4 font-bold tracking-widest">Declaración</th>
+                <th scope="col" class="px-6 py-4 max-w-[200px] font-bold tracking-widest">Cliente</th>
+                <th scope="col" class="px-6 py-4 text-center font-bold tracking-widest">Estado</th>
+            `;
+            COLUMNAS_EXCEL.forEach(col => {
+                const isTotal = (col === "TOTAL FACTURA" || col === "TOTAL PLANILLA");
+                if (!showDetails && !isTotal) return; 
+                
+                let extraClass = isTotal ? "text-indigo-700 dark:text-indigo-400 font-black bg-indigo-100/50 dark:bg-indigo-900/40 tracking-wider shadow-inner" : "font-bold tracking-wide";
+                html += `<th scope="col" class="px-6 py-4 text-right ${extraClass}">${col}</th>`;
+            });
+            document.getElementById('dynamicHeaders').innerHTML = html;
+        }
+
+        function toggleDetails() {
+            showDetails = !showDetails;
+            const btn = document.getElementById('btnToggleDetails');
+            if (showDetails) {
+                btn.innerHTML = '<i class="fas fa-eye-slash mr-2 text-white"></i>Ocultar Desglose';
+                btn.className = "bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl text-sm font-black transition-all w-full md:w-auto shadow-[0_8px_20px_-5px_rgba(99,102,241,0.5)] hover:-translate-y-1 shrink-0 flex items-center justify-center tracking-wide";
+            } else {
+                btn.innerHTML = '<i class="fas fa-eye mr-2 text-indigo-500 group-hover:scale-110 transition-transform"></i>Ver Desglose';
+                btn.className = "bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-600/80 text-gray-700 dark:text-slate-300 px-6 py-3 rounded-xl text-sm font-bold transition-all w-full md:w-auto shrink-0 shadow-sm hover:shadow-lg flex items-center justify-center group tracking-wide";
+            }
+            dibujarCabeceras();
+            renderTable();      
+        }
+
+        // ==========================================
+        // HASHMAPS PARA LOOKUPS O(1) EN LUGAR DE O(n)
+        // ==========================================
+        let _gastosMap = {};       // n_referencia -> gasto row
+        let _reporteMap = {};      // n_referencia -> reporte row
+        let _datosExcelMap = {};   // tramite -> excel row
+        let _mesAcepCache = {};    // fecha_aceptacion -> YYYY-MM
+        let _mesFacCache = {};     // fecha_factura -> YYYY-MM
+
+        function _reconstruirHashmaps() {
+            _gastosMap = {};
+            gastosGuardados.forEach(g => { _gastosMap[g.n_referencia] = g; });
+            _reporteMap = {};
+            reporteUnificadoDB.forEach(r => { _reporteMap[r.n_referencia] = r; });
+            _datosExcelMap = {};
+            datosExcel.forEach(e => { _datosExcelMap[String(e["TRAMITE"]).trim()] = e; });
+            _mesAcepCache = {};
+            _mesFacCache = {};
+        }
+
+        // Wrapper extractYYYYMM con caché para evitar recalcular 707 veces
+        const _origExtractYYYYMM = extractYYYYMM;
+        function extractYYYYMMCached(val) {
+            if (!val) return null;
+            const key = String(val);
+            if (_mesAcepCache[key] !== undefined) return _mesAcepCache[key];
+            const result = _origExtractYYYYMM(val);
+            _mesAcepCache[key] = result;
+            return result;
+        }
+
+        async function cargarDatosBD() {
+            if(!supabaseClient) return;
+            try {
+                // Cargar importaciones primero para mostrar tabla vacía rápido
+                const impResponse = await supabaseClient
+                    .from('importaciones')
+                    .select('n_declaracion, n_referencia, razon_social, fecha_aceptacion, modalidad')
+                    .order('id', { ascending: false });
+
+                if (impResponse.error) throw impResponse.error;
+                tramitesDB = impResponse.data || [];
+
+                // Poblar filtros y mostrar tabla sin gastos (aparece rápido)
+                poblarFiltros();
+                renderTable();
+
+                // Luego cargar el resto en paralelo (no bloquea la UI inicial)
+                const [gasResponse, repResponse] = await Promise.all([
+                    supabaseClient.from('gastos_importacion').select('*'),
+                    supabaseClient.from('reporte_unificado_data').select('*')
+                ]);
+
+                if (gasResponse.error) throw gasResponse.error;
+                gastosGuardados = gasResponse.data || [];
+                reporteUnificadoDB = repResponse?.data || [];
+
+                // Reconstruir hashmaps y re-renderizar con datos completos
+                _reconstruirHashmaps();
+                poblarFiltros();
+                renderTable();
+
+            } catch (err) {
+                console.error("Error de carga:", err);
+                showToast("Error de conexión a la BD.", true);
+            }
+        }
+
+        function poblarFiltros() {
+            const selectCli = document.getElementById('clientFilter');
+            const currentCli = selectCli.value;
+            const clientes = [...new Set(tramitesDB.map(t => t.razon_social).filter(Boolean))].sort();
+            // Usar join en vez de += innerHTML (10x más rápido)
+            selectCli.innerHTML = '<option value="ALL">Todos los clientes</option>' +
+                clientes.map(c => `<option value="${c}">${c}</option>`).join('');
+            selectCli.value = currentCli; 
+
+            const selectMesAcep = document.getElementById('monthAceptacionFilter');
+            const currentAcep = selectMesAcep.value;
+            const mesesAcep = [...new Set(tramitesDB.map(t => extractYYYYMMCached(t.fecha_aceptacion)).filter(Boolean))].sort().reverse();
+            selectMesAcep.innerHTML = '<option value="ALL">Mes Aceptación (Todos)</option>' +
+                mesesAcep.map(m => `<option value="${m}">${getMonthNameShort(m)}</option>`).join('');
+            selectMesAcep.value = currentAcep;
+
+            const selectMesFact = document.getElementById('monthFacturaFilter');
+            const currentFact = selectMesFact.value;
+            const facturasBD = gastosGuardados.map(g => extractYYYYMMCached(g.fecha_factura));
+            const facturasEx = datosExcel.map(e => extractYYYYMMCached(e["FECHA FACTURA"]));
+            const mesesFact = [...new Set([...facturasBD, ...facturasEx].filter(Boolean))].sort().reverse();
+            
+            selectMesFact.innerHTML = '<option value="ALL">Mes Factura (Todos)</option>' +
+                mesesFact.map(m => `<option value="${m}">${getMonthNameShort(m)}</option>`).join('');
+            selectMesFact.value = currentFact;
+
+            initOrUpdateCustomSelect('clientFilter', 'fas fa-user-tie');
+            initOrUpdateCustomSelect('monthAceptacionFilter', 'fas fa-calendar-check');
+            initOrUpdateCustomSelect('monthFacturaFilter', 'fas fa-file-invoice');
+        }
+
+        function setStatusFilter(status) {
+            currentStatusFilter = status;
+            ['btnFilterAll', 'btnFilterPend', 'btnFilterComp'].forEach(id => {
+                document.getElementById(id).className = 'tab-btn tab-inactive-light dark:tab-inactive-dark hover:text-gray-900 dark:hover:text-white flex-1 md:flex-none px-6 py-2 rounded-lg text-sm transition-colors flex items-center justify-center font-bold';
+            });
+            let activeId = status === 'ALL' ? 'btnFilterAll' : (status === 'PENDIENTE' ? 'btnFilterPend' : 'btnFilterComp');
+            document.getElementById(activeId).className = 'tab-btn tab-active flex-1 md:flex-none px-6 py-2 rounded-lg text-sm flex items-center justify-center font-bold tracking-wide';
+            currentPage = 1;
+            renderTable();
+        }
+
+        function changeRowsPerPage(val) {
+            rowsPerPage = parseInt(val);
+            currentPage = 1;
+            renderTable();
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            renderTable();
+        }
+
+        // ==========================================
+        // DEBOUNCE: evita re-renderizar en cada tecla
+        // ==========================================
+        let _renderTimer = null;
+        function renderTable() {
+            if (_renderTimer) cancelAnimationFrame(_renderTimer);
+            _renderTimer = requestAnimationFrame(_renderTableCore);
+        }
+
+        function _renderTableCore() {
+            const tbody = document.getElementById('tableBody');
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const clientVal = document.getElementById('clientFilter').value;
+            const monthAcepVal = document.getElementById('monthAceptacionFilter').value;
+            const monthFactVal = document.getElementById('monthFacturaFilter').value;
+            
+            let rows = [];
+            let countMatches = 0;
+            let totalPlanillaGeneral = 0;
+            let totalFacturaGeneral = 0;
+            
+            lastFilteredData = [];
+
+            tramitesDB.forEach(tramite => {
+                if (term && !`${tramite.n_declaracion} ${tramite.n_referencia} ${tramite.razon_social}`.toLowerCase().includes(term)) return;
+                if (clientVal !== 'ALL' && tramite.razon_social !== clientVal) return;
+                
+                // Usar caché para extractYYYYMM
+                const rowMesAcep = extractYYYYMMCached(tramite.fecha_aceptacion);
+                if (monthAcepVal !== 'ALL' && rowMesAcep !== monthAcepVal) return;
+
+                // LOOKUP O(1) con hashmap en vez de .find() O(n)
+                const statusInfo = _gastosMap[tramite.n_referencia] || null;
+                const excelInfo = _datosExcelMap[tramite.n_referencia] || null;
+                
+                const rowFechaFacturaRaw = excelInfo ? excelInfo["FECHA FACTURA"] : (statusInfo ? statusInfo.fecha_factura : null);
+                const rowMesFact = extractYYYYMMCached(rowFechaFacturaRaw);
+                if (monthFactVal !== 'ALL' && rowMesFact !== monthFactVal) return;
+
+                const isMinera = tramite.razon_social && tramite.razon_social.toUpperCase().includes("MINERA SAN CRISTOBAL");
+                const isAnticipado = tramite.modalidad && tramite.modalidad.toUpperCase().includes("ANTICIPAD");
+                
+                let isComplete = false;
+                let isNewFromExcel = !!excelInfo;
+                let isAnticipadoEspecial = false;
+
+                if (excelInfo || statusInfo) {
+                    isComplete = true; 
+                } else if (isMinera && isAnticipado) {
+                    isComplete = true; 
+                    isAnticipadoEspecial = true;
+                }
+
+                if (currentStatusFilter === 'PENDIENTE' && isComplete) return;
+                if (currentStatusFilter === 'COMPLETO' && !isComplete) return;
+
+                countMatches++;
+
+                let trClass = 'table-row-hover hover:bg-white dark:hover:bg-slate-800/80 group';
+                if(isNewFromExcel) trClass += ' bg-blue-50/60 dark:bg-blue-900/30';
+                else if(isAnticipadoEspecial) trClass += ' bg-indigo-50/60 dark:bg-indigo-900/20 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40';
+
+                let badge = '';
+                if(isNewFromExcel || statusInfo) {
+                    badge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-black ring-1 ring-inset ring-emerald-500/30 shadow-sm"><i class="fas fa-check-circle"></i> LISTO</span>`;
+                } else if(isAnticipadoEspecial) {
+                    badge = `<span class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 rounded-full text-xs font-black ring-1 ring-inset ring-indigo-500/30 shadow-sm"><i class="fas fa-bolt"></i> ANTICIPADO</span>`;
+                } else {
+                    badge = `
+                    <div class="relative group/badge inline-block">
+                        <button onclick="marcarComoListoManual('${tramite.n_referencia}')" class="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full text-xs font-black ring-1 ring-inset ring-amber-500/30 shadow-sm transition-all cursor-pointer" title="Clic para marcar como LISTO manualmente">
+                            <i class="fas fa-clock"></i> FALTAN
+                            <i class="fas fa-edit ml-1 opacity-0 group-hover/badge:opacity-100 transition-opacity"></i>
+                        </button>
+                    </div>`;
+                }
+
+                // Texto de mes pre-renderizado O(1)
+                const mesAcepTxt = formatToMonthText(rowMesAcep);
+                const mesFactTxt = formatToMonthText(rowMesFact);
+
+                let row = `<tr class="transition-colors border-b border-gray-100/50 dark:border-slate-700/30 ${trClass}">
+                        <td class="px-6 py-4 sticky left-0 z-20 font-black text-indigo-600 dark:text-indigo-400 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl group-hover:bg-transparent transition-colors border-r border-gray-100/50 dark:border-slate-700/30 shadow-[4px_0_15px_-5px_rgba(0,0,0,0.08)]">${tramite.n_referencia}</td>
+                        <td class="px-6 py-4 text-gray-700 dark:text-slate-300">${mesAcepTxt}</td>
+                        <td class="px-6 py-4 text-gray-700 dark:text-slate-300">${mesFactTxt}</td>
+                        <td class="px-6 py-4 text-gray-700 dark:text-slate-300 font-bold">${tramite.n_declaracion || '<span class="text-gray-400">S/D</span>'}</td>
+                        <td class="px-6 py-4 text-gray-800 dark:text-slate-200 truncate max-w-[200px] font-bold" title="${tramite.razon_social || ''}">${tramite.razon_social || '-'}</td>
+                        <td class="px-6 py-4 text-center">${badge}</td>`;
+
+                let totPlanillaFila = 0;
+                let totFacturaFila = 0;
+                let desgloseFila = {}; 
+                
+                // LOOKUP O(1) para Minera
+                let comisionExtraParaMinera = 0;
+                if (isMinera) {
+                    const reporteInfo = _reporteMap[tramite.n_referencia];
+                    if (reporteInfo) {
+                        comisionExtraParaMinera = parseFloat(reporteInfo.comision || reporteInfo.comisiones || reporteInfo.comision_banco || reporteInfo.comision_agencia || 0) || 0;
+                    }
+                }
+
+                mapColumnas.forEach(map => {
+                    let val = 0;
+                    if (isNewFromExcel) val = parseFloat(excelInfo[map.excel]) || 0;
+                    else if (statusInfo) val = parseFloat(statusInfo[map.db]) || 0;
+                    
+                    if (isMinera && map.excel === "TOTAL FACTURA" && comisionExtraParaMinera > 0) {
+                        val += comisionExtraParaMinera;
+                        desgloseFila['COMISIÓN (MINERA SAN CRISTOBAL)'] = comisionExtraParaMinera; 
+                    } else if (map.excel !== "TOTAL FACTURA" && map.excel !== "TOTAL PLANILLA") {
+                        desgloseFila[map.excel] = val; 
+                    }
+
+                    if(map.excel === "TOTAL PLANILLA") totPlanillaFila = val;
+                    else if(map.excel === "TOTAL FACTURA") totFacturaFila = val;
+                    
+                    const isTotal = (map.excel === "TOTAL FACTURA" || map.excel === "TOTAL PLANILLA");
+                    if (!showDetails && !isTotal) return; 
+                    
+                    let extraClass = isTotal ? "font-black text-gray-900 dark:text-white bg-indigo-50/40 dark:bg-indigo-900/20" : "text-gray-500 dark:text-slate-400 font-medium";
+                    let valFormatted = val > 0 ? val.toLocaleString('es-BO', {minimumFractionDigits:2}) : '<span class="text-gray-300 dark:text-slate-600">-</span>';
+                    row += `<td class="px-6 py-4 text-right tabular-nums ${extraClass}">${valFormatted}</td>`;
+                });
+
+                row += `</tr>`;
+                rows.push(row);
+                totalPlanillaGeneral += totPlanillaFila;
+                totalFacturaGeneral += totFacturaFila;
+
+                if(totPlanillaFila > 0 || totFacturaFila > 0) {
+                    lastFilteredData.push({
+                        cliente: tramite.razon_social || 'Sin Cliente',
+                        mesAcep: rowMesAcep,
+                        mesFact: rowMesFact,
+                        totPlanilla: totPlanillaFila,
+                        totFactura: totFacturaFila,
+                        desglose: desgloseFila 
+                    });
+                }
+            });
+
+            // Paginación: calcular página actual y filas a mostrar
+            const totalPages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+            if (currentPage > totalPages) currentPage = 1;
+            const pageStart = (currentPage - 1) * rowsPerPage;
+            const pageRows = rows.slice(pageStart, pageStart + rowsPerPage);
+
+            // Un solo innerHTML con todo el HTML construido (más rápido que múltiples inserts)
+            if(countMatches === 0) {
+                tbody.innerHTML = `<tr><td colspan="100" class="px-6 py-24 text-center text-gray-400 dark:text-slate-500 text-xl font-bold"><i class="fas fa-ghost text-5xl mb-5 opacity-40 block"></i> No hay trámites que mostrar.</td></tr>`;
+            } else {
+                tbody.innerHTML = pageRows.join('');
+            }
+
+            // Footer stats: mostrando X-Y de Z
+            const showFrom = countMatches === 0 ? 0 : pageStart + 1;
+            const showTo = Math.min(pageStart + rowsPerPage, countMatches);
+            document.getElementById('footerStats').innerText = countMatches === 0 ? '0 Registros' : `${showFrom}–${showTo} de ${countMatches} Registros`;
+            document.getElementById('footSumFac').innerText = `Bs ${totalFacturaGeneral.toLocaleString('es-BO', {minimumFractionDigits:2})}`;
+            document.getElementById('footSumPlan').innerText = `Bs ${totalPlanillaGeneral.toLocaleString('es-BO', {minimumFractionDigits:2})}`;
+
+            // Render controles de paginación
+            const pc = document.getElementById('paginationControls');
+            if (totalPages <= 1) {
+                pc.innerHTML = '';
+            } else {
+                const isDark = document.documentElement.classList.contains('dark');
+                const inactiveBase = isDark ? 'color:#94a3b8;background:rgba(30,41,59,0.8);border-color:rgba(71,85,105,0.5)' : 'color:#64748b;background:rgba(255,255,255,0.8);border-color:#e2e8f0';
+                let pgHtml = '';
+
+                // Botón anterior
+                pgHtml += `<button onclick="goToPage(${currentPage-1})" class="page-btn ${currentPage===1?'page-btn-disabled':''}" ${currentPage===1?'disabled':''}><i class="fas fa-chevron-left text-xs"></i></button>`;
+
+                // Números de página con elipsis
+                let pages = [];
+                if (totalPages <= 7) {
+                    for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                    pages.push(1);
+                    if (currentPage > 3) pages.push('...');
+                    for (let i = Math.max(2, currentPage-1); i <= Math.min(totalPages-1, currentPage+1); i++) pages.push(i);
+                    if (currentPage < totalPages - 2) pages.push('...');
+                    pages.push(totalPages);
+                }
+
+                pages.forEach(p => {
+                    if (p === '...') {
+                        pgHtml += `<span class="page-btn" style="cursor:default;opacity:0.5">…</span>`;
+                    } else {
+                        pgHtml += `<button onclick="goToPage(${p})" class="page-btn ${p===currentPage?'page-active':''}">${p}</button>`;
+                    }
+                });
+
+                // Botón siguiente
+                pgHtml += `<button onclick="goToPage(${currentPage+1})" class="page-btn ${currentPage===totalPages?'page-btn-disabled':''}" ${currentPage===totalPages?'disabled':''}><i class="fas fa-chevron-right text-xs"></i></button>`;
+                pc.innerHTML = pgHtml;
+            }
+
+            if (currentMainView === 'dashboard') renderDashboard();
+        }
+
+        // Función para cambiar el estado manualmente (Modo Visual)
+        function marcarComoListoManual(referencia) {
+            let tramiteOriginal = tramitesDB.find(t => t.n_referencia === referencia);
+            if(tramiteOriginal) {
+                // Simulamos que ya se guardó para que en lo visual aparezca como LISTO
+                gastosGuardados.push({
+                    n_referencia: referencia,
+                    fecha_factura: formatToYYYYMMDD(new Date()), // Fecha de hoy simulada
+                    "TOTAL FACTURA": 0, 
+                    "TOTAL PLANILLA": 0
+                });
+                showToast(`Trámite ${referencia} marcado como LISTO.`, false, '¡Edición Manual!');
+                poblarFiltros();
+                renderTable();
+            }
+        }
+
+        // ==========================================
+        // RENDER DEL DASHBOARD
+        // ==========================================
+        function renderDashboard() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+            const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+            // CONCEPTOS ESPECÍFICOS PARA LA GRÁFICA APILADA
+            const conceptosAgencia = [
+                "HONORARIOS AGENCIA", "CARPETA P/ ARCHIVO", "GASTOS EN DESPACHO", "FOTOCOPIAS LEGALIZADAS",
+                "VERIFICACION Y ETIQUETADO", "REGULARIZACION DESP. ANTICIPAD", "ITEMS DECLARADOS EN DIM Y DAV",
+                "DESPACHO ADUANA FRONTERA", "SERVICIO LOGISTICO", "FORMULARIO DAM", "OTROS SERVICIOS",
+                "FORMULARIO RITEX", "SERV. DE TRAM. SENASAG/UNALAB", "INGRESO Y RECOJO TRAM. SENASAG"
+            ];
+
+            let totalFac = 0, totalPlan = 0;
+            const cliMap = {};
+            const monthMap = {};
+            const globalDesgloseMap = {}; 
+
+            lastFilteredData.forEach(d => {
+                totalFac += d.totFactura;
+                totalPlan += d.totPlanilla;
+
+                if(!cliMap[d.cliente]) cliMap[d.cliente] = { fac: 0, plan: 0 };
+                cliMap[d.cliente].fac += d.totFactura;
+                cliMap[d.cliente].plan += d.totPlanilla;
+
+                let m = d.mesFact || d.mesAcep || '1900-01'; 
+                if(!monthMap[m]) {
+                    monthMap[m] = { fac: 0, plan: 0, conceptos: {} };
+                    conceptosAgencia.forEach(c => monthMap[m].conceptos[c] = 0);
+                }
+                monthMap[m].fac += d.totFactura;
+                monthMap[m].plan += d.totPlanilla;
+                
+                // Sumamos los conceptos específicos mes a mes
+                conceptosAgencia.forEach(c => {
+                    monthMap[m].conceptos[c] += (d.desglose[c] || 0);
+                });
+
+            });
+
+            // 1. Actualizar KPIs (Incluyendo el LÍQUIDO MAMALÓN)
+            document.getElementById('kpiFactura').innerText = 'Bs ' + totalFac.toLocaleString('es-BO', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('kpiLiquido').innerText = 'Bs ' + (totalFac * 0.87).toLocaleString('es-BO', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('kpiPlanilla').innerText = 'Bs ' + totalPlan.toLocaleString('es-BO', {minimumFractionDigits:2, maximumFractionDigits:2});
+            document.getElementById('kpiTramites').innerText = lastFilteredData.length;
+
+            // 2. Gráfica Clientes (ESTILO LIMPIO Y PLANO, CERO SOMBRAS)
+            const topClientes = Object.keys(cliMap).sort((a,b) => cliMap[b].plan - cliMap[a].plan).slice(0, 10);
+            if(chartInstClientes) chartInstClientes.destroy();
+
+            const ctxClientes = document.getElementById('chartClientes').getContext('2d');
+            
+            let gradFacturaFlat = ctxClientes.createLinearGradient(0, 300, 0, 0);
+            gradFacturaFlat.addColorStop(0, '#4f46e5');
+            gradFacturaFlat.addColorStop(1, '#818cf8');
+
+            let gradPlanillaFlat = ctxClientes.createLinearGradient(0, 300, 0, 0);
+            gradPlanillaFlat.addColorStop(0, '#059669');
+            gradPlanillaFlat.addColorStop(1, '#34d399');
+
+            chartInstClientes = new Chart(ctxClientes, {
+                type: 'bar',
+                data: {
+                    labels: topClientes.map(c => c.length > 20 ? c.substring(0,20)+'...' : c),
+                    datasets: [
+                        { 
+                            label: 'Total Factura', 
+                            data: topClientes.map(c => cliMap[c].fac), 
+                            backgroundColor: gradFacturaFlat, 
+                            borderRadius: 6,
+                            borderWidth: 0
+                        },
+                        { 
+                            label: 'Total Planilla', 
+                            data: topClientes.map(c => cliMap[c].plan), 
+                            backgroundColor: gradPlanillaFlat, 
+                            borderRadius: 6,
+                            borderWidth: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: textColor } } },
+                    scales: {
+                        x: { ticks: { color: textColor }, grid: { display: false } },
+                        y: { ticks: { color: textColor }, grid: { color: gridColor } }
+                    }
+                }
+            });
+
+            // 3. Gráfica Dona -> AHORA ES PANEL DE DISTRIBUCIÓN ESTILO BARRAS HTML
+            // Se calcula el máximo para que la barra más grande ocupe el 100% de la caja
+            const maxDist = Math.max(totalFac, totalPlan) || 1;
+            const formatMoney = (val) => 'Bs ' + val.toLocaleString('es-BO', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+            // Usamos colores que combinen con la app y se sientan súper pro
+            document.getElementById('distribucionBars').innerHTML = `
+                <div class="flex flex-col w-full group/bar">
+                    <div class="flex justify-between items-end mb-2.5">
+                        <div>
+                            <h4 class="text-gray-900 dark:text-white font-black text-sm tracking-tight">TOTAL FACTURADO</h4>
+                            <p class="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">Monto Bruto Global</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm transition-all group-hover/bar:border-indigo-300 dark:group-hover/bar:border-indigo-700">
+                            <span class="text-gray-900 dark:text-white font-black text-xs">${formatMoney(totalFac)}</span>
+                        </div>
+                    </div>
+                    <div class="h-3 w-full bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                        <div class="h-full bg-[#6366f1] rounded-full transition-all duration-1000 ease-out" style="width: ${(totalFac / maxDist) * 100}%;"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col w-full group/bar">
+                    <div class="flex justify-between items-end mb-2.5">
+                        <div>
+                            <h4 class="text-gray-900 dark:text-white font-black text-sm tracking-tight">LÍQUIDO (87%)</h4>
+                            <p class="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">Después de Impuestos</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm transition-all group-hover/bar:border-amber-300 dark:group-hover/bar:border-amber-700">
+                            <span class="text-gray-900 dark:text-white font-black text-xs">${formatMoney(totalFac * 0.87)}</span>
+                        </div>
+                    </div>
+                    <div class="h-3 w-full bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                        <div class="h-full bg-[#f59e0b] rounded-full transition-all duration-1000 ease-out" style="width: ${(totalFac * 0.87 / maxDist) * 100}%;"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col w-full group/bar">
+                    <div class="flex justify-between items-end mb-2.5">
+                        <div>
+                            <h4 class="text-gray-900 dark:text-white font-black text-sm tracking-tight">PLANILLAS</h4>
+                            <p class="text-[10px] text-gray-500 dark:text-slate-400 font-bold uppercase tracking-wider">Gastos Operativos</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-3 py-1.5 rounded-xl shadow-sm transition-all group-hover/bar:border-emerald-300 dark:group-hover/bar:border-emerald-700">
+                            <span class="text-gray-900 dark:text-white font-black text-xs">${formatMoney(totalPlan)}</span>
+                        </div>
+                    </div>
+                    <div class="h-3 w-full bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                        <div class="h-full bg-[#10b981] rounded-full transition-all duration-1000 ease-out" style="width: ${(totalPlan / maxDist) * 100}%;"></div>
+                    </div>
+                </div>
+            `;
+
+            // 4. Gráfica Evolución — Barras con colores de UI + línea azul (Meta)
+            const sortedMonths = Object.keys(monthMap).filter(m => m !== '1900-01').sort();
+            const last5 = sortedMonths.slice(-5);
+            const facValues = last5.map(m => monthMap[m].fac);
+            const avgFac = facValues.length ? facValues.reduce((a,b) => a+b, 0) / facValues.length : 0;
+            const metaValues = last5.map(() => Math.round(avgFac));
+
+            if(chartInstEvolucion) chartInstEvolucion.destroy();
+            chartInstEvolucion = new Chart(document.getElementById('chartEvolucion'), {
+                type: 'bar',
+                data: {
+                    labels: last5.map(m => getMonthNameShort(m).toUpperCase()),
+                    datasets: [
+                        {
+                            type: 'bar',
+                            label: 'Facturación Real',
+                            data: facValues,
+                            backgroundColor: ['#60a5fa', '#34d399', '#f472b6', '#a78bfa', '#fbbf24'], // Colores diferentes para cada mes
+                            hoverBackgroundColor: '#93c5fd',
+                            borderRadius: {topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0},
+                            borderSkipped: false,
+                            borderWidth: 0,
+                            barPercentage: 0.5 // Hace la barra un poco más estética
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 25 } },
+                    plugins: {
+                        legend: { display: false }, 
+                        datalabels: {
+                            display: true,
+                            anchor: 'end',
+                            align: 'top', 
+                            offset: 4,
+                            color: '#4f46e5',
+                            font: { family: 'Inter', weight: '800', size: 11 },
+                            formatter: (val) => val > 0 ? 'Bs. ' + val.toLocaleString('es-BO', {minimumFractionDigits:2}) : ''
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: textColor, font: { family: 'Inter', weight: '800', size: 10 } },
+                            grid: { display: false },
+                            border: { display: false }
+                        },
+                        y: {
+                            ticks: { color: textColor, font: { family: 'Inter', weight: '700', size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(1).replace('.0','')+'k' : v },
+                            grid: { color: gridColor, borderDash: [5, 5] },
+                            border: { display: false },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 5. NUEVA GRÁFICA: EVOLUCIÓN DE CONCEPTOS DE AGENCIA (APILADA / STACKED)
+            const sortedMonthsFactura = Object.keys(monthMap).filter(m => m !== '1900-01').sort();
+            const coloresGrafica = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6', '#06b6d4', '#f43f5e', '#84cc16', '#3b82f6', '#d946ef', '#14b8a6', '#f97316', '#64748b', '#0ea5e9'];
+            
+            // Filtramos solo los conceptos que traen dinero para no ensuciar la gráfica
+            const activeConceptos = conceptosAgencia.filter(c => sortedMonthsFactura.some(m => monthMap[m].conceptos[c] > 0));
+
+            const datasetsFactura = activeConceptos.map((c, i) => ({
+                label: c,
+                data: sortedMonthsFactura.map(m => monthMap[m].conceptos[c]),
+                backgroundColor: coloresGrafica[i % coloresGrafica.length],
+                borderRadius: 0, // Al ser apiladas (stacked) quedan mejor sin borde redondeado al centro
+                borderWidth: 1,
+                borderColor: isDark ? 'rgba(15,23,42,0.3)' : 'rgba(255,255,255,0.5)'
+            }));
+
+            if(chartInstDesglose) chartInstDesglose.destroy();
+            chartInstDesglose = new Chart(document.getElementById('chartDesglose'), {
+                type: 'bar',
+                data: {
+                    labels: sortedMonthsFactura.map(m => getMonthNameShort(m)),
+                    datasets: datasetsFactura
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            display: true, 
+                            position: 'right', 
+                            labels: { color: textColor, boxWidth: 10, font: {family: 'Inter', size: 10} } 
+                        }, 
+                        tooltip: {
+                            backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)',
+                            titleColor: isDark ? '#fff' : '#000',
+                            bodyColor: isDark ? '#cbd5e1' : '#475569',
+                            borderColor: isDark ? '#334155' : '#e2e8f0',
+                            borderWidth: 1, padding: 14, boxPadding: 8,
+                            callbacks: {
+                                label: function(context) { return ' ' + context.dataset.label + ': Bs ' + context.raw.toLocaleString('es-BO', {minimumFractionDigits:2}); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            stacked: true, 
+                            ticks: { color: textColor, font: {family: 'Inter', weight: 500} }, 
+                            grid: { display: false } 
+                        },
+                        y: { 
+                            stacked: true, 
+                            ticks: { color: textColor, font: {family: 'Inter', weight: 500} }, 
+                            grid: { color: gridColor, borderDash: [5, 5], drawBorder: false }, 
+                            beginAtZero: true 
+                        }
+                    }
+                }
+            });
+
+            // 6. RANKING CLIENTES
+            const clientesOrdenadosPorFactura = Object.keys(cliMap)
+                .map(k => ({ nombre: k, factura: cliMap[k].fac }))
+                .filter(c => c.factura > 0)
+                .sort((a,b) => b.factura - a.factura);
+
+            if(chartInstClientesFactura) chartInstClientesFactura.destroy();
+
+            const ctxRanking = document.getElementById('chartClientesFactura').getContext('2d');
+            let gradRanking = ctxRanking.createLinearGradient(0, 400, 0, 0);
+            gradRanking.addColorStop(0, '#2563eb');
+            gradRanking.addColorStop(1, '#60a5fa');
+
+            chartInstClientesFactura = new Chart(ctxRanking, {
+                type: 'bar',
+                data: {
+                    labels: clientesOrdenadosPorFactura.map(c => c.nombre.length > 25 ? c.nombre.substring(0,25)+'...' : c.nombre),
+                    datasets: [{
+                        label: 'Total Facturado',
+                        data: clientesOrdenadosPorFactura.map(c => c.factura),
+                        backgroundColor: '#f97316', // Naranja sólido para todas las barras como pediste
+                        hoverBackgroundColor: '#fb923c',
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { callbacks: { label: function(context) { return ' Bs ' + context.raw.toLocaleString('es-BO', {minimumFractionDigits:2}); } } }
+                    },
+                    scales: {
+                        x: { ticks: { color: textColor, maxRotation: 45, minRotation: 45, font: {family: 'Inter', weight: 500} }, grid: { display: false } },
+                        y: { ticks: { color: textColor, font: {family: 'Inter', weight: 500} }, grid: { color: gridColor, drawBorder: false }, beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        // LÓGICA EXCEL
+        // ==========================================
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); }));
+            ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.add('dragover')));
+            ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, () => dropZone.classList.remove('dragover')));
+
+            dropZone.addEventListener('drop', e => { if(e.dataTransfer.files.length) procesarArchivo(e.dataTransfer.files[0]); });
+            fileInput.addEventListener('change', function() { if(this.files.length) procesarArchivo(this.files[0]); });
+        }
+
+        function procesarArchivo(file) {
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loading').classList.add('flex');
+            document.getElementById('dropText').innerText = file.name;
+            document.getElementById('dropText').classList.add('text-indigo-600', 'dark:text-indigo-400');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    const rawArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    let headerRowIndex = 0;
+                    for (let i = 0; i < rawArray.length; i++) {
+                        if (rawArray[i] && rawArray[i].some(cell => String(cell).trim().toUpperCase() === "TRAMITE")) {
+                            headerRowIndex = i; break;
+                        }
+                    }
+
+                    const rawJson = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: 0, raw: true });
+                    datosExcel = rawJson.map(row => {
+                        let newRow = {};
+                        for(let key in row) newRow[key.trim()] = row[key];
+                        return newRow;
+                    });
+
+                    prepararDatosParaInsertar();
+                } catch (error) {
+                    showToast("El archivo Excel está corrupto.", true);
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('loading').classList.remove('flex');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function prepararDatosParaInsertar() {
+            dataAInsertar = [];
+            let matchCount = 0;
+
+            // Reconstruir hashmap de excel para lookups O(1)
+            _datosExcelMap = {};
+            datosExcel.forEach(e => { _datosExcelMap[String(e["TRAMITE"]).trim()] = e; });
+
+            datosExcel.forEach(row => {
+                const tramiteExcel = String(row["TRAMITE"] || "").trim();
+                if(!tramiteExcel) return;
+
+                const existeEnDB = tramitesDB.find(t => t.n_referencia === tramiteExcel);
+                if(existeEnDB) {
+                    matchCount++;
+                    let filaLimpia = { 
+                        n_referencia: tramiteExcel, 
+                        n_declaracion: existeEnDB.n_declaracion,
+                        fecha_factura: formatToYYYYMMDD(row["FECHA FACTURA"]) 
+                    };
+                    mapColumnas.forEach(map => filaLimpia[map.db] = parseFloat(row[map.excel]) || 0);
+                    dataAInsertar.push(filaLimpia);
+                }
+            });
+
+            if(matchCount > 0) {
+                document.getElementById('btnSave').classList.remove('hidden');
+                switchMainView('table');
+                showToast(`Se detectaron ${matchCount} gastos en el Excel.`);
+            } else {
+                document.getElementById('btnSave').classList.add('hidden');
+                showToast("Ningún TRAMITE cruzó con la BD.", true);
+            }
+
+            poblarFiltros(); 
+            setStatusFilter('ALL');
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('loading').classList.remove('flex');
+        }
+
+        async function saveToCloud() {
+            if(!dataAInsertar.length) return;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loading').classList.add('flex');
+            
+            try {
+                const { error } = await supabaseClient.from('gastos_importacion').upsert(dataAInsertar, { onConflict: 'n_referencia' });
+                if (error) {
+                    document.getElementById('rlsModal').classList.remove('hidden');
+                    document.getElementById('rlsModal').classList.add('flex');
+                    throw new Error("Rechazado por Supabase.");
+                }
+
+                dataAInsertar.forEach(d => {
+                    const existIdx = gastosGuardados.findIndex(g => g.n_referencia === d.n_referencia);
+                    if(existIdx >= 0) gastosGuardados[existIdx] = d;
+                    else gastosGuardados.push(d);
+                });
+                
+                document.getElementById('btnSave').classList.add('hidden');
+                datosExcel = []; 
+                document.getElementById('fileInput').value = '';
+                document.getElementById('dropText').innerText = "Cargar Excel";
+                document.getElementById('dropText').classList.remove('text-indigo-600', 'dark:text-indigo-400');
+                
+                poblarFiltros(); 
+                renderTable(); 
+                showToast(`¡Chingón! Guardados / Actualizados ${dataAInsertar.length} registros.`);
+            } catch (err) {
+                if (err.message !== "Rechazado por Supabase.") showToast("Fallo la subida.", true);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('loading').classList.remove('flex');
+            }
+        }
+
+        // ==========================================
+        // UTILIDADES Y MODALES
+        // ==========================================
+        function showToast(msg, isError = false, customTitle = null) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerHTML = msg;
+            
+            if (customTitle) {
+                document.getElementById('toastTitle').innerText = customTitle;
+                document.getElementById('toastTitle').classList.remove('hidden');
+            } else {
+                document.getElementById('toastTitle').classList.add('hidden');
+            }
+            
+            toast.className = `fixed top-5 right-5 z-[9999] transform transition-all duration-500 flex items-center gap-4 px-6 py-4 rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.4)] border-l-4 backdrop-blur-3xl translate-x-0 opacity-100 ${
+                isError ? 'bg-white/95 dark:bg-slate-800/95 border-red-500 text-gray-800 dark:text-white' : 'bg-white/95 dark:bg-slate-800/95 border-emerald-500 text-gray-800 dark:text-white'
+            }`;
+            
+            document.getElementById('toastIcon').className = isError ? 'fas fa-exclamation-circle text-3xl text-red-500 animate-pulse' : 'fas fa-check-circle text-3xl text-emerald-500';
+            if(customTitle === 'DATOS EN VIVO') document.getElementById('toastIcon').className = 'fas fa-satellite-dish text-3xl text-emerald-500 animate-pulse';
+            
+            setTimeout(() => {
+                toast.classList.add('translate-x-[120%]', 'opacity-0');
+                toast.classList.remove('translate-x-0', 'opacity-100');
+            }, 5000);
+        }
+
+        function closeRlsModal() {
+            document.getElementById('rlsModal').classList.add('hidden');
+            document.getElementById('rlsModal').classList.remove('flex');
+        }
+
+        function toggleFullScreen(elemId) {
+            let elem = document.getElementById(elemId);
+            if (elem.classList.contains('custom-fullscreen')) {
+                elem.classList.remove('custom-fullscreen');
+                elem.querySelector('.chart-wrapper').classList.remove('fullscreen-canvas-wrapper');
+                document.body.style.overflow = ''; 
+            } else {
+                document.querySelectorAll('.custom-fullscreen').forEach(el => {
+                    el.classList.remove('custom-fullscreen');
+                    el.querySelector('.chart-wrapper').classList.remove('fullscreen-canvas-wrapper');
+                });
+                elem.classList.add('custom-fullscreen');
+                elem.querySelector('.chart-wrapper').classList.add('fullscreen-canvas-wrapper');
+                document.body.style.overflow = 'hidden'; 
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.custom-fullscreen').forEach(el => {
+                    el.classList.remove('custom-fullscreen');
+                    el.querySelector('.chart-wrapper').classList.remove('fullscreen-canvas-wrapper');
+                });
+                document.body.style.overflow = '';
+            }
+        });
+
+        // === AJUSTE DINÁMICO DE ALTURA DE TABLA ===
+        function adjustTableHeight() {
+            // ¡Pura magia de Flexbox ahora! Se quitó el cálculo manual matemático 
+            // que forzaba dejar ese hueco muerto abajo en la tabla.
+        }
+        window.addEventListener('resize', adjustTableHeight);
+        document.addEventListener('DOMContentLoaded', adjustTableHeight);
+        setTimeout(adjustTableHeight, 500);
+    </script>
+</body>
+</html>

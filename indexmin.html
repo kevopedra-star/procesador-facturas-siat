@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Cliente 3.9 | Clipboard Fix</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS para Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <!-- Iconos -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .mono-font { font-family: 'Roboto Mono', monospace; }
+        
+        /* TABLA TIPO EXCEL */
+        .excel-grid {
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%;
+            font-size: 11px;
+            color: #334155;
+            background: white;
+            table-layout: auto;
+        }
+        
+        .excel-grid th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 6px 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            border-bottom: 2px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: default;
+        }
+
+        .excel-grid th:hover { background-color: #e2e8f0; }
+
+        .excel-grid td {
+            padding: 4px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f1f5f9;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .excel-grid tr:nth-child(even) { background-color: #f8fafc; }
+        .excel-grid tr:hover td { background-color: #e0f2fe; }
+
+        /* Estilos de Totales (Footer) */
+        .total-row td {
+            background-color: #1e293b !important;
+            color: white;
+            font-weight: bold;
+            font-family: 'Roboto Mono', monospace;
+            border-top: 2px solid #0f172a;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+
+        /* Botón Copiar Columna */
+        .col-copy-btn {
+            float: right;
+            margin-left: 8px;
+            opacity: 0.2;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .excel-grid th:hover .col-copy-btn { opacity: 1; color: #2563eb; }
+
+        .num-cell { text-align: right; font-family: 'Roboto Mono', monospace; }
+        .text-cell { text-align: left; }
+        
+        /* Links en tabla */
+        .link-cell a {
+            color: #2563eb;
+            text-decoration: underline;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .link-cell a:hover { color: #1d4ed8; }
+
+        #sidebar { transition: margin-left 0.3s ease-in-out; }
+        .sidebar-hidden { margin-left: -20rem; }
+        
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Scrollbar especial para las áreas de texto */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 h-14 flex items-center px-4 justify-between shadow-sm z-20 shrink-0">
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar()" class="text-gray-500 hover:text-pink-600 focus:outline-none transition-colors" title="Menú">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-r from-pink-600 to-rose-500 text-white p-1.5 rounded shadow-sm text-xs">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-gray-800 leading-tight">Generador <span class="text-pink-600">Cliente 3.9</span></h1>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+             <div id="loader-mini" class="hidden flex items-center gap-2 text-pink-600 font-bold text-[10px] bg-pink-50 px-3 py-1 rounded-full border border-pink-100">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...
+            </div>
+            <div class="text-right hidden sm:block">
+                <div class="flex items-center justify-end gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-sm"></span>
+                    <span class="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Conectado</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl z-30 shrink-0 h-full">
+            <div class="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-5">
+                
+                <!-- Input DIMS -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-inner">
+                    <label class="text-[10px] font-bold text-slate-700 uppercase flex items-center gap-1 mb-2">
+                        <i class="fa-solid fa-paste text-pink-500"></i> Pegar DIMS (H1DOC)
+                    </label>
+                    <textarea id="inputInternos" class="w-full h-32 p-2 text-[11px] mono-font border border-slate-300 rounded focus:ring-1 focus:ring-pink-500 outline-none resize-y bg-white placeholder-slate-400 custom-scrollbar" placeholder="2000138&#10;2000474..."></textarea>
+                </div>
+
+                <!-- Configuración Regional -->
+                <div class="bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                    <label class="block text-[10px] font-bold text-blue-800 uppercase mb-3 border-b border-blue-200 pb-1">
+                        <i class="fa-solid fa-globe mr-1"></i> Configuración Regional
+                    </label>
+                    
+                    <!-- Decimales -->
+                    <div class="mb-3">
+                        <span class="text-[10px] text-slate-500 font-bold block mb-1">Decimales:</span>
+                        <div class="flex bg-white rounded border border-slate-200 overflow-hidden">
+                            <button onclick="setDecimalSeparator('.')" id="btnDecDot" class="flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors">Punto (1.00)</button>
+                            <button onclick="setDecimalSeparator(',')" id="btnDecComma" class="flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">Coma (1,00)</button>
+                        </div>
+                    </div>
+
+                    <!-- Fechas -->
+                    <div>
+                        <span class="text-[10px] text-slate-500 font-bold block mb-1">Fechas:</span>
+                        <div class="flex bg-white rounded border border-slate-200 overflow-hidden">
+                            <button onclick="setDateFormat('DD/MM/YYYY')" id="btnDateDMY" class="flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors">DD/MM/AAAA</button>
+                            <button onclick="setDateFormat('MM/DD/YYYY')" id="btnDateMDY" class="flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">MM/DD/AAAA</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Contrato -->
+                <div class="flex items-center gap-2 bg-white border border-slate-200 p-2 rounded shadow-sm">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase w-16">Contrato:</span>
+                    <input type="text" id="inputMesAnio" value="012026" class="flex-1 bg-transparent text-xs mono-font text-center font-bold text-slate-800 outline-none placeholder-slate-300" placeholder="MMYYYY">
+                </div>
+
+                <!-- Botón Acción -->
+                <button onclick="processData()" class="group w-full bg-slate-900 hover:bg-pink-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 text-xs">
+                    <i class="fa-solid fa-bolt text-yellow-400 group-hover:animate-pulse"></i> 
+                    <span>GENERAR TABLA</span>
+                </button>
+                
+                <!-- Stats -->
+                <div id="statsBox" class="hidden grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                    <div class="bg-emerald-50 p-2 rounded border border-emerald-100 text-center">
+                        <span class="block text-lg font-black text-emerald-600 leading-none" id="statFound">0</span>
+                        <span class="text-[9px] font-bold text-emerald-700">Encontrados</span>
+                    </div>
+                    <div class="bg-rose-50 p-2 rounded border border-rose-100 text-center">
+                        <span class="block text-lg font-black text-rose-600 leading-none" id="statMissing">0</span>
+                        <span class="text-[9px] font-bold text-rose-700">Faltantes</span>
+                    </div>
+                </div>
+
+                <!-- NUEVO: Contenedor para mostrar la lista de los que no están -->
+                <div id="missingBox" class="hidden mt-2 bg-rose-50 border border-rose-200 p-2 rounded-lg shadow-inner">
+                    <label class="text-[10px] font-bold text-rose-700 uppercase flex items-center gap-1 mb-1">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Datos no encontrados
+                    </label>
+                    <textarea id="missingList" readonly class="w-full h-24 p-2 text-[10px] mono-font border border-rose-300 rounded bg-white text-rose-600 outline-none resize-y custom-scrollbar" placeholder="Aquí saldrán los que faltan..."></textarea>
+                    <button onclick="copyMissing()" class="mt-2 w-full bg-white border border-rose-300 text-rose-600 hover:bg-rose-100 hover:border-rose-400 text-[10px] font-bold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-copy"></i> Copiar Faltantes
+                    </button>
+                </div>
+
+            </div>
+            
+            <div class="p-2 bg-slate-50 border-t border-slate-200 text-center">
+                 <button onclick="window.location.reload()" class="text-[10px] text-slate-400 hover:text-slate-600 font-medium flex items-center justify-center gap-1 mx-auto">
+                    <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                </button>
+            </div>
+        </aside>
+
+        <!-- Area Principal -->
+        <main class="flex-1 flex flex-col bg-slate-50 relative min-w-0 overflow-hidden">
+            
+            <!-- TARJETAS DE SUMATORIAS (Top) -->
+            <div id="summaryCards" class="hidden bg-white border-b border-gray-200 p-4 shrink-0 overflow-x-auto">
+                <div class="flex gap-4 min-w-max">
+                    
+                    <!-- Tarjeta: Logística Total -->
+                    <div class="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-lg border border-indigo-100 shadow-sm flex items-center gap-4 min-w-[200px]">
+                        <div class="bg-indigo-100 p-2 rounded-full text-indigo-600">
+                            <i class="fa-solid fa-truck-fast text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Total Logística</p>
+                            <p class="text-xl font-black text-indigo-700 mono-font" id="cardTotalLogistica">0.00</p>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta: Total CIF BS -->
+                    <div class="bg-gradient-to-br from-emerald-50 to-white p-3 rounded-lg border border-emerald-100 shadow-sm flex items-center gap-4 min-w-[200px]">
+                        <div class="bg-emerald-100 p-2 rounded-full text-emerald-600">
+                            <i class="fa-solid fa-money-bill-wave text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">Total CIF BS</p>
+                            <p class="text-xl font-black text-emerald-700 mono-font" id="cardTotalCIF">0.00</p>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta: Total CAV -->
+                    <div class="bg-gradient-to-br from-amber-50 to-white p-3 rounded-lg border border-amber-100 shadow-sm flex items-center gap-4 min-w-[200px]">
+                        <div class="bg-amber-100 p-2 rounded-full text-amber-600">
+                            <i class="fa-solid fa-file-invoice-dollar text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-bold text-amber-400 uppercase tracking-wide">Total CAV</p>
+                            <p class="text-xl font-black text-amber-700 mono-font" id="cardTotalCAV">0.00</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Toolbar Tabla -->
+            <div class="h-10 bg-white border-b border-gray-200 flex items-center px-4 justify-between shrink-0">
+                <span id="rowCountBadge" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">0 Filas</span>
+                <div class="flex gap-2">
+                    <button onclick="copyTable()" id="btnCopy" class="hidden px-3 py-1 bg-white hover:bg-slate-50 text-slate-700 text-[10px] font-bold rounded border border-slate-300 shadow-sm flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-copy text-blue-500"></i> Copiar Tabla
+                    </button>
+                    <button onclick="downloadExcel()" id="btnExcel" class="hidden px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded shadow-sm flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-file-excel"></i> Descargar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor Tabla -->
+            <div class="flex-1 overflow-auto bg-white relative" id="tableContainer">
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none">
+                    <i class="fa-solid fa-table-cells text-4xl mb-2 opacity-50"></i>
+                    <p class="text-xs font-medium">Configura y genera tu reporte</p>
+                </div>
+                <table id="resultTable" class="excel-grid hidden">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot id="tableFoot" class="total-row"></tfoot>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Lógica -->
+    <script>
+        const SUPABASE_URL = 'https://sfqpptquojlsbeheguff.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let globalDB = [];
+        let processedResults = [];
+        let isSidebarOpen = true;
+        let globalNitMap = {}; 
+        
+        // Configuración Regional
+        let currentDecimalSeparator = '.'; 
+        let currentDateFormat = 'DD/MM/YYYY';
+
+        const sumColumns = ['H1IVA', 'H1GA', 'H1CIFBS', 'H1CIFUSD', 'H1CAV', 'ALM', 'ALM2', 'COUR', 'TRANS', 'PUERT'];
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            isSidebarOpen ? sidebar.classList.add('sidebar-hidden') : sidebar.classList.remove('sidebar-hidden');
+            isSidebarOpen = !isSidebarOpen;
+        }
+
+        // --- CONFIG REGIONAL ---
+        function setDecimalSeparator(sep) {
+            currentDecimalSeparator = sep;
+            document.getElementById('btnDecDot').className = sep === '.' ? 'flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors' : 'flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors';
+            document.getElementById('btnDecComma').className = sep === ',' ? 'flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors' : 'flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors';
+            if (processedResults.length > 0) renderTable(processedResults);
+        }
+
+        function setDateFormat(fmt) {
+            currentDateFormat = fmt;
+            document.getElementById('btnDateDMY').className = fmt === 'DD/MM/YYYY' ? 'flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors' : 'flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors';
+            document.getElementById('btnDateMDY').className = fmt === 'MM/DD/YYYY' ? 'flex-1 py-1 text-[10px] font-bold bg-blue-600 text-white transition-colors' : 'flex-1 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-colors';
+            if (processedResults.length > 0) renderTable(processedResults);
+        }
+
+        function formatMoneyCustom(amount) {
+            const num = parseFloat(amount) || 0;
+            if (currentDecimalSeparator === ',') {
+                return num.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else {
+                return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+        }
+
+        function formatDateCustom(dateString) {
+            if (!dateString || dateString === '-') return '';
+            let year, month, day;
+            if (dateString.includes('-')) {
+                [year, month, day] = dateString.split('-');
+            } else if (dateString.includes('/')) {
+                [day, month, year] = dateString.split('/');
+            }
+            if (!year || !month || !day) return dateString;
+            return currentDateFormat === 'DD/MM/YYYY' ? `${day}/${month}/${year}` : `${month}/${day}/${year}`;
+        }
+
+        function extractNitFromUrl(url) {
+            if(!url) return null;
+            try {
+                if (url.includes('nit=')) {
+                    const match = url.match(/nit=([^&]+)/);
+                    if(match && match[1]) return match[1];
+                }
+                const urlObj = new URL(url);
+                return urlObj.searchParams.get('nit');
+            } catch (e) { return null; }
+        }
+
+        function getInvoiceCode(f) {
+            const nit = extractNitFromUrl(f.codigo_qr);
+            if (nit && globalNitMap[nit]) {
+                return globalNitMap[nit];
+            }
+            if (f.interno_archivo && f.interno_archivo.trim().length > 0) {
+                return f.interno_archivo;
+            }
+            return '-'; 
+        }
+
+        window.onload = async () => {
+            document.getElementById('loader-mini').classList.remove('hidden');
+            await loadAllData();
+            document.getElementById('loader-mini').classList.add('hidden');
+        };
+
+        async function loadAllData() {
+            try {
+                const [resDims, resFacturas, resSaved, resNits] = await Promise.all([
+                    supabaseClient.from('importaciones').select('*'),
+                    supabaseClient.from('facturas').select('*'),
+                    supabaseClient.from('reporte_unificado_data').select('*'),
+                    supabaseClient.from('config_nits').select('*')
+                ]);
+
+                if (resDims.error) throw resDims.error;
+
+                const dims = resDims.data;
+                const facturas = resFacturas.data;
+                const savedData = resSaved.data || [];
+                const savedMap = {};
+                savedData.forEach(s => savedMap[s.dim_id] = s);
+                
+                globalNitMap = {};
+                if(resNits.data) resNits.data.forEach(n => globalNitMap[n.nit] = n.codigo);
+
+                globalDB = dims.map(dim => {
+                    const saved = savedMap[dim.id] || {};
+                    const cleanNum = (str) => (str || '').replace(/[^0-9]/g, '');
+                    const dimRefInterna = (dim.n_referencia || '').trim();
+                    const dimClean = cleanNum(dim.n_declaracion);
+                    const dimSuffix = dimClean.length > 7 ? dimClean.slice(-7) : dimClean;
+
+                    let misFacturas = facturas.filter(f => {
+                        const fDoc = cleanNum(f.doc_aduanero || '');
+                        const fInterno = (f.interno_archivo || '').trim().toUpperCase();
+                        const matchDim = fDoc.includes(dimSuffix) && dimSuffix.length > 4;
+                        const matchInterno = dimRefInterna.length > 3 && fInterno.length > 3 && 
+                                            (fInterno === dimRefInterna.toUpperCase() || fInterno.includes(dimRefInterna.toUpperCase()));
+                        return matchDim || matchInterno;
+                    });
+
+                    const fAlbo = misFacturas.filter(f => f.tipo === 'ALBO' || f.tipo === 'DAB');
+                    
+                    const guiaDim = cleanNum(dim.guia_courier);
+                    const listGuia = facturas.filter(f => {
+                        if (f.tipo !== 'GUIA') return false;
+                        
+                        if (guiaDim.length > 4) {
+                            const fRef = cleanNum(f.ref_guia || '') + cleanNum(f.interno_archivo || '');
+                            if (fRef.includes(guiaDim)) return true;
+                        }
+                        
+                        if (dimRefInterna.length > 3) {
+                            const fInterno = (f.interno_archivo || '').trim().toUpperCase();
+                            const dInterno = dimRefInterna.toUpperCase();
+                            if (fInterno.includes(dInterno) || dInterno.includes(fInterno)) return true;
+                        }
+                        return false;
+                    });
+                    
+                    const totalTrib = parseFloat(dim.total_tributos || 0);
+                    const cifBs = parseFloat(dim.total_cif || 0);
+                    const ga = parseFloat(dim.gravamen || 0);
+                    const iva = parseFloat(dim.iva || 0);
+                    
+                    const totalAlboCalc = fAlbo.reduce((a,b)=>a+b.monto,0);
+                    const totalGuiaCalc = listGuia.reduce((a,b)=>a+b.monto,0); 
+
+                    return {
+                        id: dim.id,
+                        referencia: dimRefInterna,
+                        n_declaracion: dim.n_declaracion,
+                        dim_clean: dimClean,
+                        fecha_aceptacion: dim.fecha_aceptacion,
+                        oi: dim.oi,
+                        cif_bs: cifBs,
+                        total_tributos: totalTrib,
+                        ga: ga,
+                        iva: iva,
+                        gastos_puerto: saved.gastos_puerto !== undefined ? saved.gastos_puerto : (dim.gastos_puerto || 0),
+                        otros_gastos: saved.otros_gastos !== undefined ? saved.otros_gastos : (dim.otros_gastos || 0),
+                        json_puerto: saved.gastos_puerto_json || {},
+                        json_otros: saved.otros_gastos_json || {},
+                        list_albo: fAlbo,
+                        list_guia: listGuia, 
+                        monto_albo: saved.total_facturas_albo !== undefined ? saved.total_facturas_albo : totalAlboCalc,
+                        monto_ip: saved.total_facturas_ip || 0,
+                        monto_guia: saved.total_facturas_guia !== undefined ? saved.total_facturas_guia : totalGuiaCalc,
+                        guia_courier: dim.guia_courier
+                    };
+                });
+                console.log("DB Loaded:", globalDB.length);
+            } catch (e) { console.error(e); Swal.fire('Error', 'Falla carga DB', 'error'); }
+        }
+
+        function processData() {
+            const rawInput = document.getElementById('inputInternos').value;
+            const mesAnio = document.getElementById('inputMesAnio').value || '012026';
+
+            if (!rawInput.trim()) { Swal.fire('Ojo', 'Faltan DIMS', 'warning'); return; }
+
+            const inputs = rawInput.split(/\r?\n/).map(s => s.trim()).filter(s => s !== "");
+            let encontrados = 0;
+            let faltantes = 0;
+            let arrayFaltantes = []; // Arreglo para guardar a los pelados que no se encontraron
+            
+            processedResults = inputs.map(input => {
+                const searchClean = input.replace(/[^0-9]/g, '');
+                const item = globalDB.find(d => (d.dim_clean && d.dim_clean.endsWith(searchClean)) || d.referencia == input);
+                
+                if (!item) { 
+                    faltantes++; 
+                    arrayFaltantes.push(input); // Guardamos al compa que faltó
+                    return { INTERNO: input, ERROR: true }; 
+                }
+                encontrados++;
+
+                const dimNumberOnly = (item.n_declaracion || '').replace(/[^0-9]/g, '').slice(-7);
+                let aduanaCode = "211";
+                const declRaw = item.n_declaracion || '';
+                const declParts = declRaw.split(/[^a-zA-Z0-9]/);
+                const foundCode = declParts.find(p => p.length === 3 && /^\d+$/.test(p));
+                if (foundCode) aduanaCode = foundCode;
+
+                const dimYear = mesAnio.length >= 4 ? mesAnio.slice(-4) : "2026";
+                const h1ndim = `${dimYear}${aduanaCode}${dimNumberOnly}`;
+                const h1bs = ((item.total_tributos || 0) + 100) * -1;
+                const isExp = (item.oi || '').toUpperCase() === 'EXP';
+                const h1sist = isExp ? 0 : 100;
+                const control = h1bs + (item.iva||0) + (item.ga||0) + h1sist;
+                const cifUsd = (item.cif_bs || 0) / 6.96;
+                
+                let h1cav = 0;
+                if (isExp) h1cav = 700;
+                else if (cifUsd === 0) h1cav = 100;
+                else if (cifUsd <= 35000) h1cav = 600;
+                else if (cifUsd <= 500000) h1cav = cifUsd * 0.003 * 6.96;
+                else if (cifUsd <= 1000000) h1cav = cifUsd * 0.0025 * 6.96;
+                else h1cav = 0;
+
+                const joinCodes = (l) => l ? l.map(f => getInvoiceCode(f)).join(' / ') : '';
+                const joinF = (l, k) => l ? l.map(x => x[k]||'').join(' / ') : '';
+                const fechaClean = (item.fecha_aceptacion || '').split(' ')[0];
+
+                return {
+                    H1NDIM: h1ndim,
+                    H1BAN: "BUN",
+                    H1DOC: dimNumberOnly,
+                    H1BS: h1bs,
+                    H1FECHA: fechaClean,
+                    CONTRATO: `CN1900006${mesAnio}`,
+                    H1CODAD: aduanaCode,
+                    H1IVA: item.iva,
+                    H1GA: item.ga,
+                    H1SIST: h1sist,
+                    CONTROL: control,
+                    H1CIFBS: item.cif_bs,
+                    INTERNO: item.referencia, 
+                    H1OI: item.oi || '',
+                    H1CIFUSD: cifUsd,
+                    H1CAV: h1cav,
+                    ALM: item.monto_albo, 
+                    AB: joinCodes(item.list_albo), 
+                    FAC: joinF(item.list_albo, 'n_factura'),
+                    FECH: joinF(item.list_albo, 'fecha'),
+                    QR: joinF(item.list_albo, 'codigo_qr'),
+                    ALM2: item.monto_ip,
+                    AB2: "", FAC_IP: "", FECH_IP: "", QR_IP: "",
+                    
+                    // COURIER (GUÍAS)
+                    COUR: item.monto_guia,
+                    AB3: joinCodes(item.list_guia), // USA joinCodes (NIT) PARA AB3
+                    FAC3: joinF(item.list_guia, 'n_factura'), // AÑADIDO: Numero Factura
+                    FECH32: joinF(item.list_guia, 'fecha'), // AÑADIDO: Fecha Factura
+                    QR3: joinF(item.list_guia, 'codigo_qr'), // AÑADIDO: QR Guia (QR3)
+
+                    TRANS: item.otros_gastos,
+                    AB_OTROS: item.json_otros.cod || '',
+                    FAC_OTROS: item.json_otros.nfact || '',
+                    FECH_OTROS: item.json_otros.fecha || '',
+                    QR_OTROS: item.json_otros.link || '',
+                    PUERT: item.gastos_puerto,
+                    AB42: item.json_puerto.cod || '',
+                    FAC43: item.json_puerto.nfact || '',
+                    FECH44: item.json_puerto.fecha || ''
+                };
+            }).filter(row => !row.ERROR);
+
+            // Actualizamos la UI chida
+            document.getElementById('statFound').innerText = encontrados;
+            document.getElementById('statMissing').innerText = faltantes;
+            document.getElementById('statsBox').classList.remove('hidden');
+            
+            // Mostrar los que faltaron en el cuadro nuevo
+            const missingBox = document.getElementById('missingBox');
+            const missingList = document.getElementById('missingList');
+            if (faltantes > 0) {
+                missingList.value = arrayFaltantes.join('\n');
+                missingBox.classList.remove('hidden');
+            } else {
+                missingBox.classList.add('hidden');
+                missingList.value = '';
+            }
+
+            if (processedResults.length > 0) {
+                renderTable(processedResults);
+                if(window.innerWidth < 1024) toggleSidebar();
+            } else {
+                Swal.fire('¡Híjole!', 'No hubo suerte con la búsqueda, mano. No se encontró ni uno.', 'info');
+            }
+        }
+
+        // Función nueva pa' copiar la lista de los que faltan
+        function copyMissing() {
+            const text = document.getElementById('missingList').value;
+            if (!text) return;
+            
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+                Toast.fire({ icon: 'success', title: '¡Lista copiada!' });
+            } catch (err) {
+                console.error('Error al copiar', err);
+                Swal.fire('Error', 'No se pudo copiar, compa.', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function renderTable(data) {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            const tfoot = document.getElementById('tableFoot');
+            const table = document.getElementById('resultTable');
+            const empty = document.getElementById('emptyState');
+            const btnCopy = document.getElementById('btnCopy');
+            const btnExcel = document.getElementById('btnExcel');
+            const cards = document.getElementById('summaryCards');
+
+            // 1. Columnas y Headers
+            // AÑADIDO FAC3, FECH32, QR3 a las listas correspondientes
+            const numericCols = ['H1BS', 'H1IVA', 'H1GA', 'H1SIST', 'CONTROL', 'H1CIFBS', 'H1CIFUSD', 'H1CAV', 'ALM', 'ALM2', 'COUR', 'TRANS', 'PUERT'];
+            const dateCols = ['H1FECHA', 'FECH', 'FECH_IP', 'FECH32', 'FECH_OTROS', 'FECH44'];
+            const textCols = ['H1NDIM', 'H1DOC', 'CONTRATO', 'H1CODAD', 'AB', 'AB2', 'AB3', 'FAC', 'FAC_IP', 'FAC3', 'AB_OTROS', 'FAC_OTROS', 'AB42', 'FAC43'];
+            const qrCols = ['QR', 'QR_IP', 'QR3', 'QR_OTROS'];
+
+            const headers = Object.keys(data[0]);
+            thead.innerHTML = "<tr>" + headers.map(h => `
+                <th onclick="copyColumn('${h}')" title="Copiar columna">
+                    ${h} <i class="fa-solid fa-copy col-copy-btn"></i>
+                </th>
+            `).join('') + "</tr>";
+
+            // 2. Totales
+            const totals = {};
+            sumColumns.forEach(col => totals[col] = 0);
+            
+            // 3. Body
+            let bodyHtml = '';
+            data.forEach(row => {
+                bodyHtml += "<tr class='hover:bg-blue-50'>";
+                headers.forEach(key => {
+                    let val = row[key];
+                    let cellHtml = "";
+                    
+                    if (numericCols.includes(key)) {
+                        const valNum = parseFloat(val) || 0;
+                        if (sumColumns.includes(key)) totals[key] += valNum;
+                        cellHtml = `<td class="num-cell">${formatMoneyCustom(valNum)}</td>`;
+                    } else if (dateCols.includes(key)) {
+                        cellHtml = `<td class="text-cell">${formatDateCustom(val)}</td>`;
+                    } else if (qrCols.includes(key)) {
+                        if (!val || val === '' || val === ' / ') {
+                            cellHtml = `<td class="text-center text-gray-300">-</td>`;
+                        } else {
+                            const links = val.split(' / ');
+                            let label = 'Ver';
+                            if (key === 'QR' && row['FAC']) label = row['FAC'].split(' / ')[0]; 
+                            else if (key === 'QR3' && row['FAC3']) label = row['FAC3'].split(' / ')[0]; // Etiqueta para QR3
+                            else if (key === 'QR_OTROS' && row['FAC_OTROS']) label = row['FAC_OTROS'];
+                            
+                            cellHtml = `<td class="link-cell text-center"><a href="${links[0]}" target="_blank">${label}</a></td>`;
+                        }
+                    } else {
+                        cellHtml = `<td class="text-cell">${val}</td>`;
+                    }
+                    bodyHtml += cellHtml;
+                });
+                bodyHtml += "</tr>";
+            });
+            tbody.innerHTML = bodyHtml;
+
+            // 4. Footer (Totales)
+            let footHtml = "<tr>";
+            headers.forEach((key, index) => {
+                if (index === 0) {
+                    footHtml += `<td>TOTALES</td>`;
+                } else if (sumColumns.includes(key)) {
+                    footHtml += `<td class="num-cell text-yellow-400 bg-slate-800">${formatMoneyCustom(totals[key])}</td>`;
+                } else {
+                    footHtml += `<td></td>`;
+                }
+            });
+            footHtml += "</tr>";
+            tfoot.innerHTML = footHtml;
+
+            // 5. Update Cards
+            const totalLogistica = totals['ALM'] + totals['ALM2'] + totals['COUR'] + totals['TRANS'] + totals['PUERT'];
+            
+            document.getElementById('cardTotalLogistica').innerText = formatMoneyCustom(totalLogistica);
+            document.getElementById('cardTotalCIF').innerText = formatMoneyCustom(totals['H1CIFBS']);
+            document.getElementById('cardTotalCAV').innerText = formatMoneyCustom(totals['H1CAV']);
+
+            table.classList.remove('hidden');
+            empty.classList.add('hidden');
+            cards.classList.remove('hidden');
+            document.getElementById('rowCountBadge').classList.remove('hidden');
+            document.getElementById('rowCountBadge').innerText = `${data.length} Filas`;
+            btnCopy.classList.remove('hidden');
+            btnExcel.classList.remove('hidden');
+        }
+
+        // COPIAR COLUMNA INDIVIDUAL (Con formato raw para links)
+        function copyColumn(key) {
+            const numericCols = ['H1BS', 'H1IVA', 'H1GA', 'H1SIST', 'CONTROL', 'H1CIFBS', 'H1CIFUSD', 'H1CAV', 'ALM', 'ALM2', 'COUR', 'TRANS', 'PUERT'];
+            const dateCols = ['H1FECHA', 'FECH', 'FECH_IP', 'FECH32', 'FECH_OTROS', 'FECH44'];
+
+            const textData = processedResults.map(row => {
+                let val = row[key];
+                if (numericCols.includes(key)) return formatMoneyCustom(val);
+                if (dateCols.includes(key)) return formatDateCustom(val);
+                return val;
+            }).join('\n');
+
+            // NEW (Fix):
+            const textarea = document.createElement("textarea");
+            textarea.value = textData;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+                Toast.fire({ icon: 'success', title: `Columna "${key}" copiada` });
+            } catch (err) {
+                console.error('Error al copiar', err);
+                Swal.fire('Error', 'No se pudo copiar.', 'error');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function copyTable() {
+            const table = document.getElementById('resultTable');
+            if (!table) return;
+            const range = document.createRange();
+            range.selectNode(table);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand('copy');
+            selection.removeAllRanges();
+            Swal.fire({ icon: 'success', title: 'Tabla Copiada', text: 'Pégala en Excel con confianza, compa.', timer: 1500, showConfirmButton: false });
+        }
+
+        function downloadExcel() {
+            if (processedResults.length === 0) return;
+            const ws = XLSX.utils.json_to_sheet(processedResults);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Reporte Cliente");
+            XLSX.writeFile(wb, "Reporte_Cliente_Final.xlsx");
+        }
+    </script>
+</body>
+</html>

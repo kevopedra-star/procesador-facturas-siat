@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "sistemaki2",
+    "sistemki2": "sistemaki2",
+    "sistemaki2": "sistemaki2",
+    "firebase deploy": "sistemaki2"
+  },
+  "targets": {
+    "sistemaki2": {
+      "hosting": {
+        "mi-sistema": [
+          "TU_PROJECT_ID"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

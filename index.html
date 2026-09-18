@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centro de Control | Portal Privado</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;550;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Iconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Estilos Globales -->
+  <link rel="stylesheet" href="/src/css/style.css">
+  <style>
+    /* Neumorfismo Oscuro Cyber Tech para Login */
+    .neumorphic-card {
+      background: #0d111a !important;
+      border-radius: 28px !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(249, 115, 22, 0.08) !important;
+      border: 1px solid rgba(249, 115, 22, 0.15) !important;
+      padding: 45px 35px !important;
+      transition: all 0.3s ease;
+    }
+    .neumorphic-input {
+      background: #070a0f !important;
+      border: 1px solid #1e2638 !important;
+      box-shadow: inset 2px 2px 6px rgba(0, 0, 0, 0.8) !important;
+      transition: all 0.3s ease;
+    }
+    .neumorphic-input:focus {
+      border-color: #f97316 !important;
+      box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.8), 0 0 16px rgba(249, 115, 22, 0.25) !important;
+    }
+    .neumorphic-btn {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+      border: 1px solid rgba(249, 115, 22, 0.4) !important;
+      color: #ffffff !important;
+      box-shadow: 0 8px 24px rgba(249, 115, 22, 0.25) !important;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .neumorphic-btn:hover {
+      background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+      box-shadow: 0 12px 30px rgba(249, 115, 22, 0.4) !important;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body class="bg-[#0a0d14] text-slate-100 h-screen w-screen overflow-hidden flex selection:bg-orange-500/30 font-sans">
+
+  <!-- ========================================== -->
+  <!-- 🔐 PANTALLA DE LOGIN OVERLAY -->
+  <!-- ========================================== -->
+  <div id="loginOverlay" class="fixed inset-0 bg-[#0a0d14] z-[9999] flex transition-opacity duration-700 hidden">
+    
+    <!-- MITAD IZQUIERDA: ÁREA DEL LOGO (Desktop) -->
+    <div class="hidden lg:flex w-1/2 bg-[#070a0f] relative items-center justify-center border-r border-[#1e2638] overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-br from-[#0a0d14]/40 to-[#070a0f]/95"></div>
+      <div class="relative w-full h-full flex items-center justify-center transition-transform hover:scale-105 duration-700">
+        <img src="/logo.png" 
+             alt="Logo Principal" 
+             class="w-[50%] max-w-none h-auto object-contain scale-125 lg:scale-150 xl:scale-[1.8] drop-shadow-[0_20px_50px_rgba(249,115,22,0.2)] opacity-95 hover:opacity-100 transition-all">
+      </div>
+    </div>
+
+    <!-- MITAD DERECHA: ÁREA DEL FORMULARIO -->
+    <div class="w-full lg:w-1/2 flex items-center justify-center bg-[#0a0d14] p-6 sm:p-12">
+      <div class="w-full max-w-md neumorphic-card space-y-8">
+        
+        <!-- Logo para móviles -->
+        <div class="lg:hidden flex justify-center mb-8 overflow-visible">
+          <div class="w-full h-64 flex items-center justify-center">
+            <img src="/logo.png" 
+                 alt="Logo Móvil" 
+                 class="w-[130%] max-w-none h-full object-contain drop-shadow-2xl scale-125">
+          </div>
+        </div>
+        
+        <!-- MENSAJES DE ALERTA -->
+        <div id="timeoutMessage" class="hidden bg-rose-950/40 border border-rose-500/30 text-rose-400 text-sm font-semibold p-4 rounded-xl text-center animate-pulse mb-4">
+          <i class="fa-solid fa-clock mr-1"></i> Tu sesión expiró por inactividad. Vuelve a ingresar.
+        </div>
+
+        <div id="errorMessage" class="hidden bg-rose-950/40 border border-rose-500/30 text-rose-400 text-sm font-semibold p-4 rounded-xl text-center mb-4 transition-all">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i> Correo o contraseña incorrectos.
+        </div>
+        
+        <!-- Formulario -->
+        <form id="loginForm" class="space-y-6 mt-8">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Correo de Usuario</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="fa-solid fa-envelope text-slate-500"></i>
+              </div>
+              <input type="email" id="usernameInput" required 
+                     class="neumorphic-input bg-[#121722] border border-[#1e2638] text-white rounded-xl block w-full pl-12 p-3.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner outline-none text-sm placeholder-slate-600" 
+                     placeholder="correo@ejemplo.com">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Contraseña</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <i class="fa-solid fa-lock text-slate-500"></i>
+              </div>
+              <input type="password" id="passwordInput" required 
+                     class="neumorphic-input bg-[#121722] border border-[#1e2638] text-white rounded-xl block w-full pl-12 pr-10 p-3.5 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all shadow-inner outline-none text-sm placeholder-slate-600" 
+                     placeholder="••••••••">
+              <button type="button" id="togglePasswordBtn" class="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-orange-400 cursor-pointer">
+                <i class="fa-solid fa-eye" id="passwordEyeIcon"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" id="btnIngresar" class="neumorphic-btn w-full bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-orange-500/20 mt-8 flex justify-center items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer border border-orange-500/30">
+            Ingresar al Sistema <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 🖥️ ESTRUCTURA PRINCIPAL DEL SISTEMA (DASHBOARD) -->
+  <!-- ========================================== -->
+  <div id="mainLayout" class="hidden w-full h-full flex bg-slate-50 dark:bg-[#0a0d14]">
+    
+    <!-- MENÚ LATERAL (SIDEBAR COLLAPSIBLE) -->
+    <aside id="sidebar" class="bg-white dark:bg-[#000000] border-r border-slate-200 dark:border-[#1a1a1e] w-[84px] transition-all duration-300 flex flex-col z-20 relative shadow-2xl shrink-0 overflow-x-hidden">
+      
+      <!-- Logo Container -->
+      <div class="h-16 flex items-center px-5 border-b border-slate-200 dark:border-[#1a1a1e] shrink-0 gap-3 overflow-hidden">
+        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center transition-transform hover:scale-110">
+          <img src="/logo.png" 
+               onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden')" 
+               alt="Logo" 
+               class="w-10 h-10 object-contain drop-shadow-md">
+          <div class="hidden flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 text-white font-black text-lg shadow-md">
+            S
+          </div>
+        </div>
+        <span class="sidebar-text font-black tracking-wider text-slate-800 dark:text-white text-sm opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">
+          SISTEMA <span class="text-orange-500">1</span>
+        </span>
+      </div>
+
+      <!-- Botón de Expansión -->
+      <button id="toggleBtn" class="absolute -right-3 top-20 bg-white dark:bg-[#182030] border border-slate-200 dark:border-[#1e2638] text-slate-500 dark:text-slate-300 w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-lg z-30 cursor-pointer hover:bg-orange-500/10 dark:hover:bg-orange-500/20">
+        <i id="toggleIcon" class="fa-solid fa-chevron-right text-[10px]"></i>
+      </button>
+
+      <!-- Elementos de navegación -->
+      <nav id="sidebar-nav" class="flex-1 px-3 py-4 space-y-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+        
+        <!-- 1. Declaraciones de Importación -->
+        <a href="#declaraciones_importaciones" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-file-import text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Declaraciones de Importaciones</span>
+        </a>
+        
+        <!-- 2. Facturas -->
+        <a href="#facturas" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-file-invoice-dollar text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Facturas</span>
+        </a>
+        
+        <!-- 3. Dashboard & Gastos 2026 -->
+        <a href="#dashboard_despachos_2026" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-chart-pie text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Dashboard & Gastos 2026</span>
+        </a>
+        
+        <!-- 4. Reporte MSC -->
+        <a href="#reporte_msc" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-ship text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Reporte MSC</span>
+        </a>
+        
+        <!-- 5. Detalle de Despachos MSC -->
+        <a href="#detalle_despachos_msc" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-clipboard-list text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Detalle de Despachos MSC</span>
+        </a>
+        
+        <!-- 6. Reporte MSC Premium -->
+        <a href="#reporte_msc2" class="flex items-center px-4 py-3 text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-chart-line text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Reporte MSC Premium</span>
+        </a>
+        
+        <!-- 7. Control & Seguridad Hub -->
+        <a href="#control" class="flex items-center px-4 py-3 mt-4 border-t border-slate-200 dark:border-[#222226] text-slate-900 dark:text-white font-bold hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-[#141416] rounded-xl transition-all duration-200 group relative">
+          <i class="fa-solid fa-shield-halved text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-4 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Seguridad & Control</span>
+        </a>
+      </nav>
+      
+      <!-- Perfil y Logout -->
+      <div class="p-4 border-t border-slate-200 dark:border-[#1e2638] shrink-0 space-y-2">
+        <div class="flex items-center px-1 overflow-hidden">
+          <div class="relative w-10 h-10 rounded-full flex-shrink-0 bg-slate-800 flex items-center justify-center text-white shadow-md border border-orange-500/30">
+            <i class="fa-solid fa-user text-sm text-orange-400"></i>
+            <span class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
+          </div>
+          <div class="sidebar-text ml-3 opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300 flex-1 overflow-hidden">
+            <p class="text-xs font-black text-slate-900 dark:text-white truncate" id="userNameLabel">Cargando...</p>
+            <p class="text-[10px] text-emerald-600 dark:text-emerald-500 font-bold truncate flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> En línea</p>
+          </div>
+        </div>
+
+        <!-- Botón Sincronizar Google Sheets -->
+        <button id="btnSyncSidebar" type="button" class="flex items-center w-full px-2 py-2 text-slate-800 dark:text-slate-200 font-bold hover:text-amber-500 hover:bg-amber-500/10 dark:hover:bg-[#182030] rounded-xl transition-all group cursor-pointer border border-amber-500/20 dark:border-amber-500/30" title="Sincronizar Google Sheets">
+          <div class="w-8 h-8 flex items-center justify-center flex-shrink-0 text-amber-500 group-hover:scale-110 transition-transform">
+            <span id="syncIcon" class="text-base">⚡</span>
+          </div>
+          <span id="syncText" class="sidebar-text ml-2 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Sincronizar Sheets</span>
+        </button>
+
+        <button id="themeToggleBtn" class="flex items-center w-full px-2 py-2 text-slate-800 dark:text-slate-400 font-bold hover:text-amber-600 dark:hover:text-amber-500 hover:bg-orange-500/10 dark:hover:bg-[#182030] rounded-xl transition-all group cursor-pointer" title="Cambiar Tema">
+          <div class="w-8 h-8 flex items-center justify-center flex-shrink-0 text-slate-700 dark:text-slate-400 group-hover:text-amber-500">
+            <svg class="theme-toggle-svg w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <mask id="moon-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <circle class="theme-toggle-mask-circle" cx="24" cy="4" r="8" fill="black" />
+              </mask>
+              <circle class="theme-toggle-center-circle" cx="12" cy="12" r="5" fill="currentColor" mask="url(#moon-mask)" />
+              <g class="theme-toggle-rays" stroke="currentColor">
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </g>
+            </svg>
+          </div>
+          <span class="sidebar-text ml-2 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Cambiar Tema</span>
+        </button>
+
+        <button onclick="cerrarSesionUsuario()" class="flex items-center w-full px-2 py-2 text-slate-800 dark:text-slate-400 font-bold hover:text-orange-500 dark:hover:text-orange-400 hover:bg-orange-500/10 dark:hover:bg-orange-500/20 rounded-xl transition-all group cursor-pointer" title="Cerrar sesión">
+          <i class="fa-solid fa-power-off text-lg w-8 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+          <span class="sidebar-text ml-2 font-bold text-xs tracking-wide opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Cerrar Sesión</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN VIEW AREA -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <!-- App View Iframe viewport -->
+      <div class="flex-1 relative bg-slate-50 dark:bg-[#0a0d14]" id="iframe-container">
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

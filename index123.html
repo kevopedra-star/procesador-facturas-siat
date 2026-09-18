@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Privado | Acceso al Sistema</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: { colors: { slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' } } }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- ========================================== -->
+    <!-- EL CHISMOSO GLOBAL (BITÁCORA DE AUDITORÍA) -->
+    <!-- ========================================== -->
+    <script>
+        const SUPABASE_URL_AUDIT = 'https://sfqpptquojlsbeheguff.supabase.co';
+        const SUPABASE_KEY_AUDIT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+        const supabaseAudit = supabase.createClient(SUPABASE_URL_AUDIT, SUPABASE_KEY_AUDIT);
+
+        window.registrarAuditoria = async function(accion, modulo, detalle) {
+            try {
+                const usuarioActual = localStorage.getItem('usuarioActivo') || 'Desconocido'; 
+                let ipCliente = 'Desconocida';
+                try {
+                    const ipResponse = await fetch('https://api.ipify.org?format=json');
+                    const ipData = await ipResponse.json();
+                    ipCliente = ipData.ip;
+                } catch (e) {}
+
+                await supabaseAudit.from('bitacora_accesos').insert([{
+                    usuario: usuarioActual,
+                    accion: accion,
+                    modulo: modulo,
+                    detalle_consulta: detalle,
+                    ip: ipCliente
+                }]);
+            } catch (err) { /* Silencioso para no estorbar la UX */ }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.querySelectorAll('a, div, li, button').forEach(el => {
+                    const onclickText = el.getAttribute('onclick') || '';
+                    if(onclickText.includes('.html')) {
+                        el.addEventListener('click', () => {
+                            const nombreModulo = el.innerText.trim() || 'Módulo Interno';
+                            window.registrarAuditoria('Consulta', nombreModulo, 'Abrió la vista del módulo');
+                        });
+                    }
+                });
+            }, 1000);
+        });
+    </script>
+
+    <!-- ========================================== -->
+    <!-- 🛡️ SISTEMA DE SEGURIDAD ANTI-METICHES 🛡️ -->
+    <!-- ========================================== -->
+    <script>
+        (function() {
+            document.addEventListener('contextmenu', e => e.preventDefault());
+
+            document.addEventListener('keydown', function(e) {
+                if (
+                    e.key === 'F12' || 
+                    (e.ctrlKey && e.shiftKey && ['I', 'J', 'C'].includes(e.key.toUpperCase())) ||
+                    (e.ctrlKey && e.key.toUpperCase() === 'U')
+                ) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            let devToolsAbiertas = false;
+            
+            const atraparMetiches = function() {
+                if (devToolsAbiertas) return;
+                const start = new Date().getTime();
+                debugger; 
+                const end = new Date().getTime();
+
+                if (end - start > 100) {
+                    devToolsAbiertas = true;
+                    window.registrarAuditoria('Alerta de Seguridad', 'Seguridad Core', '⚠️ Intentó abrir DevTools');
+
+                    document.body.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; width:100vw; background-color:#020617; color:#ef4444; text-align:center; font-family:'Inter', sans-serif; z-index:999999;">
+                            <i class="fa-solid fa-user-secret" style="font-size: 6rem; margin-bottom: 20px;"></i>
+                            <h1 style="font-size:3.5rem; font-weight:800; margin-bottom: 10px;">⚠️ ACCESO RESTRINGIDO ⚠️</h1>
+                            <p style="font-size:1.25rem; color:#f87171; max-width: 600px;">Se detectó un intento no autorizado. Tu IP ha sido registrada.</p>
+                            <button onclick="window.location.reload()" style="margin-top:40px; padding:12px 30px; background-color:#dc2626; color:white; border-radius:8px; font-weight:bold;">Recargar</button>
+                        </div>
+                    `;
+                }
+            };
+
+            setInterval(atraparMetiches, 500);
+            setInterval(() => {
+                if(window.console && window.console.clear) {
+                    window.console.clear();
+                    console.log("%c⚠️ ALTO AHÍ ⚠️", "color: red; font-size: 40px; font-weight: bold; text-shadow: 2px 2px 0 #000;");
+                }
+            }, 1000);
+        })();
+    </script>
+</head>
+
+<body class="bg-slate-950 text-slate-200 h-screen w-screen overflow-hidden flex selection:bg-blue-500/30 font-sans">
+
+    <!-- ========================================== -->
+    <!-- 🔐 PANTALLA DE LOGIN -->
+    <!-- ========================================== -->
+    <div id="loginOverlay" class="fixed inset-0 bg-slate-950 z-[9999] flex transition-opacity duration-700">
+        
+        <!-- MITAD IZQUIERDA: ÁREA DEL LOGO -->
+        <div class="hidden lg:flex w-1/2 bg-slate-900 relative items-center justify-center border-r border-slate-800 overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-br from-slate-800/50 to-slate-950/90"></div>
+            <div class="relative w-full h-full flex items-center justify-center transition-transform hover:scale-105 duration-700">
+                <img src="https://ktggpdyyinmwbdkuedrq.supabase.co/storage/v1/object/sign/logos/logo/logo1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yYzJkNjRlNS0yZTJhLTRjZjItOTVjOS0yYjI2NDAzOTRjMWMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJsb2dvcy9sb2dvL2xvZ28xLnBuZyIsImlhdCI6MTc3ODAyMjg1NCwiZXhwIjoxODA5NTU4ODU0fQ.JVwI6YW0xOQiXDRc7TrD3h8LvBckm1iL72sw6iUsMro" 
+                     alt="Logo Principal" 
+                     class="w-[50%] max-w-none h-auto object-contain scale-125 lg:scale-150 xl:scale-[1.8] drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)] opacity-95 hover:opacity-100 transition-all">
+            </div>
+        </div>
+
+        <!-- MITAD DERECHA: ÁREA DEL FORMULARIO -->
+        <div class="w-full lg:w-1/2 flex items-center justify-center bg-slate-950 p-6 sm:p-12">
+            <div class="w-full max-w-md space-y-8">
+                
+                <!-- Logo para móviles -->
+                <div class="lg:hidden flex justify-center mb-8 overflow-visible">
+                    <div class="w-full h-64 flex items-center justify-center">
+                        <img src="https://ktggpdyyinmwbdkuedrq.supabase.co/storage/v1/object/sign/logos/logo/logo1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yYzJkNjRlNS0yZTJhLTRjZjItOTVjOS0yYjI2NDAzOTRjMWMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJsb2dvcy9sb2dvL2xvZ28xLnBuZyIsImlhdCI6MTc3ODAyMjg1NCwiZXhwIjoxODA5NTU4ODU0fQ.JVwI6YW0xOQiXDRc7TrD3h8LvBckm1iL72sw6iUsMro" alt="Logo Móvil" class="w-[130%] max-w-none h-full object-contain drop-shadow-2xl scale-125">
+                    </div>
+                </div>
+                
+                <!-- MENSAJES DE ERROR Y TIMEOUT -->
+                <div id="timeoutMessage" class="hidden bg-red-900/20 border border-red-500/30 text-red-400 text-sm font-semibold p-4 rounded-xl text-center animate-pulse mb-4">
+                    <i class="fa-solid fa-clock mr-1"></i> Tu sesión expiró por inactividad. Vuelve a ingresar.
+                </div>
+
+                <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500/30 text-red-400 text-sm font-semibold p-4 rounded-xl text-center mb-4 transition-all">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i> Usuario o contraseña incorrectos.
+                </div>
+                
+                <!-- Formulario -->
+                <form id="loginForm" class="space-y-6 mt-8">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Usuario</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fa-solid fa-user text-slate-500"></i>
+                            </div>
+                            <input type="text" id="usernameInput" required 
+                                   class="bg-slate-900 border border-slate-800 text-white rounded-xl block w-full pl-12 p-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-inner outline-none" 
+                                   placeholder="Tu nombre de usuario">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-2">Contraseña</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                <i class="fa-solid fa-lock text-slate-500"></i>
+                            </div>
+                            <input type="password" id="passwordInput" required 
+                                   class="bg-slate-900 border border-slate-800 text-white rounded-xl block w-full pl-12 p-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-inner outline-none" 
+                                   placeholder="••••••••">
+                        </div>
+                    </div>
+                    <button type="submit" id="btnIngresar" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-blue-900/30 mt-8 flex justify-center items-center gap-2 transform hover:-translate-y-0.5">
+                        Ingresar al Sistema <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    </button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 🖥️ ESTRUCTURA PRINCIPAL DEL SISTEMA -->
+    <!-- ========================================== -->
+    <div id="mainLayout" class="hidden w-full h-full flex">
+        
+        <!-- MENÚ LATERAL (SIDEBAR) -->
+        <aside id="sidebar" class="bg-slate-900 border-r border-slate-800 w-[84px] transition-all duration-300 flex flex-col z-20 relative shadow-2xl">
+            <div class="h-16 flex items-center px-6 border-b border-slate-800 shrink-0">
+                <div class="w-16 h-16 -ml-3 flex flex-shrink-0 items-center justify-center transition-transform hover:scale-110">
+                    <img src="https://ktggpdyyinmwbdkuedrq.supabase.co/storage/v1/object/sign/logos/logo/logo1.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yYzJkNjRlNS0yZTJhLTRjZjItOTVjOS0yYjI2NDAzOTRjMWMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJsb2dvcy9sb2dvL2xvZ28xLnBuZyIsImlhdCI6MTc3ODAyMjg1NCwiZXhwIjoxODA5NTU4ODU0fQ.JVwI6YW0xOQiXDRc7TrD3h8LvBckm1iL72sw6iUsMro" alt="Logo" class="w-[100%] h-[100%] max-w-none object-contain drop-shadow-md scale-125">
+                </div>
+            </div>
+
+            <button id="toggleBtn" class="absolute -right-3 top-20 bg-slate-800 hover:bg-blue-600 border border-slate-700 text-slate-300 w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-lg z-30">
+                <i id="toggleIcon" class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <!-- Links de Navegación -->
+            <nav class="flex-1 py-6 px-3 space-y-2 overflow-x-hidden overflow-y-auto">
+                <a href="indexg.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-chart-line w-6 text-center text-lg group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Reporte Maestro</span>
+                </a>
+                <a href="indexa.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-file-invoice text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Gestión Aduanera</span>
+                </a>
+                <a href="planilla.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-ship text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Planillas MSC</span>
+                </a>
+                <a href="indexfp.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-money-check-dollar text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Planillas y Gastos</span>
+                </a>
+                <a href="indexf.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-file-pdf text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Gestor de Facturas</span>
+                </a>
+                <a href="indexmin.html" target="mainFrame" class="flex items-center px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-users-gear text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Generador Cliente</span>
+                </a>
+                <a href="auditoria_accesos.html" target="mainFrame" class="flex items-center px-3 py-3 mt-4 border-t border-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20 rounded-xl transition-all group" onclick="activarMenu(this)">
+                    <i class="fa-solid fa-clipboard-check text-lg w-6 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-4 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Control y Auditoría</span>
+                </a>
+            </nav>
+            
+            <!-- Perfil y Logout -->
+            <div class="p-4 border-t border-slate-800 shrink-0 space-y-2">
+                <div class="flex items-center px-1 overflow-hidden">
+                    <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-user text-slate-400"></i>
+                    </div>
+                    <div class="sidebar-text ml-3 opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300 flex-1 overflow-hidden">
+                        <p class="text-sm font-semibold text-white truncate" id="userNameLabel">Usuario</p>
+                        <p class="text-xs text-emerald-500 truncate">En línea</p>
+                    </div>
+                </div>
+                
+                <button onclick="cerrarSesionUsuario()" class="flex items-center w-full px-2 py-2 text-slate-500 hover:text-red-400 hover:bg-red-900/10 rounded-xl transition-all group" title="Cerrar sesión">
+                    <i class="fa-solid fa-power-off text-lg w-8 text-center group-hover:scale-110 transition-transform flex-shrink-0"></i>
+                    <span class="sidebar-text ml-2 font-medium opacity-0 -translate-x-4 invisible whitespace-nowrap transition-all duration-300">Cerrar Sesión</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ÁREA PRINCIPAL (IFRAME) -->
+        <main class="flex-1 bg-slate-950 flex flex-col relative">
+            <iframe id="mainFrame" name="mainFrame" src="indexg.html" class="w-full h-full border-none"></iframe>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SCRIPT DE LÓGICA PRINCIPAL (MODIFICADO) -->
+    <!-- ========================================== -->
+    <script>
+        const loginOverlay = document.getElementById('loginOverlay');
+        const mainLayout = document.getElementById('mainLayout');
+        const loginForm = document.getElementById('loginForm');
+        const timeoutMessage = document.getElementById('timeoutMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const btnIngresar = document.getElementById('btnIngresar');
+        
+        // Revisar si ya hay sesión activa con Supabase
+        async function checkSession() {
+            const { data: { session } } = await supabaseAudit.auth.getSession();
+            if (session) {
+                iniciarApp(session.user.email);
+            }
+        }
+        checkSession();
+
+        // ==========================================
+        // 🔐 LÓGICA ESTRICTA DE LOGIN CON SUPABASE (AUTH OFICIAL)
+        // ==========================================
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('usernameInput').value.trim();
+            const password = document.getElementById('passwordInput').value.trim();
+            
+            if (email && password) {
+                // Estado de carga (para que se vea pro)
+                const textoOriginalBtn = btnIngresar.innerHTML;
+                btnIngresar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validando...';
+                btnIngresar.disabled = true;
+                errorMessage.classList.add('hidden');
+                timeoutMessage.classList.add('hidden');
+
+                try {
+                    // 👇 AQUÍ USAMOS LA LÓGICA DE AUTH DE SUPABASE (como en el archivo que subiste)
+                    const { data, error } = await supabaseAudit.auth.signInWithPassword({
+                        email: email,
+                        password: password,
+                    });
+
+                    if (error) {
+                        // SI NO HAY MATCH EXACTO -> PA' FUERA
+                        errorMessage.classList.remove('hidden');
+                        btnIngresar.innerHTML = textoOriginalBtn;
+                        btnIngresar.disabled = false;
+                        document.getElementById('passwordInput').value = ''; // limpiamos contraseña
+                        window.registrarAuditoria('Fallo de Login', 'Seguridad', `Intento fallido para: ${email}`);
+                    } else {
+                        // SI TODO CHIDO -> ADENTRO
+                        btnIngresar.innerHTML = textoOriginalBtn;
+                        btnIngresar.disabled = false;
+                        iniciarApp(data.user.email);
+                    }
+                } catch (err) {
+                    // Por si se cae el internet
+                    errorMessage.innerHTML = '<i class="fa-solid fa-wifi mr-1"></i> Error de conexión. Intenta de nuevo.';
+                    errorMessage.classList.remove('hidden');
+                    btnIngresar.innerHTML = textoOriginalBtn;
+                    btnIngresar.disabled = false;
+                }
+            }
+        });
+
+        // ==========================================
+        // CORRECCIÓN DEL ERROR "UNEXPECTED END OF INPUT"
+        // ==========================================
+        function iniciarApp(user) {
+            document.getElementById('userNameLabel').innerText = user;
+            loginOverlay.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                loginOverlay.classList.add('hidden');
+                mainLayout.classList.remove('hidden');
+                window.registrarAuditoria('Consulta', 'Menú Principal', 'Inició sesión en el sistema');
+                iniciarTemporizadorInactividad(); 
+            }, 700); 
+        }
+
+        async function cerrarSesionUsuario() {
+            window.registrarAuditoria('Consulta', 'Menú Principal', 'Cerró sesión manualmente');
+            await supabaseAudit.auth.signOut();
+            window.location.reload();
+        }
+
+        // ==========================================
+        // ⏳ SISTEMA ESTRICTO DE CIERRE POR INACTIVIDAD (30 MIN)
+        // ==========================================
+        let inactividadTimer;
+        // 30 minutos = 30 * 60 * 1000 milisegundos
+        const TIEMPO_MAXIMO_INACTIVIDAD = 30 * 60 * 1000; 
+
+        async function cerrarPorInactividad() {
+            window.registrarAuditoria('Cierre Automático', 'Seguridad Core', 'Sesión expirada tras 30 min de inactividad');
+            await supabaseAudit.auth.signOut();
+            
+            // Ocultamos la app y sacamos el login
+            mainLayout.classList.add('hidden');
+            loginOverlay.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+            timeoutMessage.classList.remove('hidden');
+            
+            // Limpiamos los inputs
+            document.getElementById('passwordInput').value = '';
+            
+            // Vaciamos el iframe para que no quede nada a la vista
+            document.getElementById('mainFrame').src = 'about:blank';
+        }
+
+        function reiniciarTemporizador() {
+            if (!mainLayout.classList.contains('hidden')) {
+                clearTimeout(inactividadTimer);
+                // Si el usuario hace cualquier cosa, los 30 minutos arrancan de nuevo desde cero
+                inactividadTimer = setTimeout(cerrarPorInactividad, TIEMPO_MAXIMO_INACTIVIDAD);
+            }
+        }
+
+        function iniciarTemporizadorInactividad() {
+            reiniciarTemporizador();
+            
+            // Vigilar si la nena mueve el mouse o teclea algo
+            ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+                window.addEventListener(evt, reiniciarTemporizador);
+            });
+
+            // Vigilar también dentro de los iframes (los módulos)
+            const iframe = document.getElementById('mainFrame');
+            iframe.addEventListener('load', () => {
+                try {
+                    const iframeWindow = iframe.contentWindow;
+                    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evt => {
+                        iframeWindow.addEventListener(evt, reiniciarTemporizador);
+                    });
+                } catch(e) {
+                    // Por si hay temas de CORS (cross-origin), lo ignoramos suavecito
+                }
+            });
+        }
+
+        // ==========================================
+        // LÓGICA DEL SIDEBAR (Menú lateral)
+        // ==========================================
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const toggleIcon = document.getElementById('toggleIcon');
+        const sidebarTexts = document.querySelectorAll('.sidebar-text');
+        let isExpanded = false;
+
+        toggleBtn.addEventListener('click', () => {
+            isExpanded = !isExpanded;
+            if (isExpanded) {
+                sidebar.classList.remove('w-[84px]');
+                sidebar.classList.add('w-64');
+                toggleIcon.classList.remove('fa-chevron-right');
+                toggleIcon.classList.add('fa-chevron-left');
+                sidebarTexts.forEach(text => {
+                    text.classList.remove('opacity-0', '-translate-x-4', 'invisible');
+                    text.classList.add('opacity-100', 'translate-x-0');
+                    text.style.width = 'auto';
+                });
+            } else {
+                sidebar.classList.remove('w-64');
+                sidebar.classList.add('w-[84px]');
+                toggleIcon.classList.remove('fa-chevron-left');
+                toggleIcon.classList.add('fa-chevron-right');
+                sidebarTexts.forEach(text => {
+                    text.classList.remove('opacity-100', 'translate-x-0');
+                    text.classList.add('opacity-0', '-translate-x-4');
+                    setTimeout(() => {
+                        if (!isExpanded) { text.classList.add('invisible'); text.style.width = '0px'; }
+                    }, 300);
+                });
+            }
+        });
+
+        function activarMenu(element) {
+            document.querySelectorAll('nav a').forEach(a => {
+                a.classList.remove('bg-slate-800', 'text-white', 'bg-emerald-900/20', 'text-emerald-300');
+            });
+            if(element.href.includes('auditoria_accesos')) {
+                element.classList.add('bg-emerald-900/20', 'text-emerald-300');
+            } else {
+                element.classList.add('bg-slate-800', 'text-white');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importaciones Pro Extension</title>
+    <link rel="stylesheet" href="popup.css">
+    
+    <!-- Librerías locales que no usan eval, cargadas en popup.js -->
+    <script src="lib/supabase.js"></script>
+    <script src="lib/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand">
+            <div style="display: flex; align-items: center; justify-content: center; margin-right: 8px;">
+                <img src="logo.png" alt="Logo" style="height: 30px; width: auto; object-fit: contain;">
+            </div>
+            <span class="brand-name">Importaciones <span class="brand-highlight">Pro</span></span>
+        </div>
+        <div class="tabs">
+            <button id="tab-upload" class="tab-btn active" data-tab="upload">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+                Procesar PDFs
+            </button>
+            <button id="tab-dashboard" class="tab-btn" data-tab="dashboard">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                </svg>
+                Dashboard
+            </button>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="content">
+        <!-- ================= VISTA SUBIDA ================= -->
+        <div id="view-upload" class="view-pane active">
+            <div class="card header-card">
+                <h2>Extracción e Ingreso de DIMs</h2>
+                <p>Procesa y alimenta tu base de Supabase directamente desde la extensión sin abrir tu sistema principal.</p>
+            </div>
+
+            <!-- Dropzone -->
+            <div id="drop-zone" class="dropzone">
+                <input type="file" id="file-input" multiple accept=".pdf" style="display: none;">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <polyline points="9 15 12 12 15 15"/>
+                </svg>
+                <h3>Sube tus archivos PDF</h3>
+                <p>Arrastra los archivos aquí o haz clic para buscarlos</p>
+            </div>
+
+            <!-- Area de Resultados -->
+            <div id="results-area" class="results-area hidden">
+                <div class="results-header">
+                    <h3>Registros Extraídos</h3>
+                    <button id="btn-save" class="btn btn-primary">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                        Guardar en Supabase
+                    </button>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Declaración</th>
+                                <th>Referencia</th>
+                                <th>Doc. Asociado</th>
+                                <th>Factura</th>
+                                <th>Pedido</th>
+                                <th>Pedido #</th>
+                                <th>Contenedor</th>
+                                <th>Peso Bruto</th>
+                                <th>Total Tributos</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VISTA DASHBOARD ================= -->
+        <div id="view-dashboard" class="view-pane">
+            <!-- KPIs -->
+            <div class="kpi-grid">
+                <div class="kpi-card border-blue">
+                    <span class="kpi-title">Total Declaraciones</span>
+                    <h3 id="kpi-docs">0</h3>
+                </div>
+                <div class="kpi-card border-orange">
+                    <span class="kpi-title">Acumulado GA</span>
+                    <h3 id="kpi-ga">0.00</h3>
+                </div>
+                <div class="kpi-card border-indigo">
+                    <span class="kpi-title">Acumulado IVA</span>
+                    <h3 id="kpi-iva">0.00</h3>
+                </div>
+                <div class="kpi-card border-green">
+                    <span class="kpi-title">Gran Acumulado</span>
+                    <h3 id="kpi-total">0.00</h3>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Tributos Mensuales (Bs.)</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-monthly"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Top Clientes (Tributos)</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="chart-clients"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sandbox Iframe (Oculto) -->
+    <iframe id="sandbox-frame" src="sandbox.html" style="display: none;"></iframe>
+
+    <!-- Overlay Loader -->
+    <div id="loader" class="loader-overlay hidden">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p id="loader-text">Procesando...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+        <div class="toast-content">
+            <svg id="toast-icon" class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+            <span id="toast-msg">Mensaje</span>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

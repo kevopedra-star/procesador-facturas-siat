@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría y Accesos | Sistema Aduanero</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            900: '#0f172a',
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fuentes e Iconos -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Scrollbar chingón para la tabla */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen flex flex-col">
+
+    <!-- Navbar / Header -->
+    <header class="bg-slate-900 border-b border-slate-800 shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-500/20 p-2 rounded-lg border border-blue-500/30">
+                    <i class="fa-solid fa-shield-halved text-blue-400 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-tight">Centro de Auditoría</h1>
+                    <p class="text-xs text-slate-400">Control y registro de accesos al sistema</p>
+                </div>
+            </div>
+            <div>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-md text-sm font-semibold transition-colors shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel"></i> Exportar a Excel
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+        
+        <!-- Tarjetas de Resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Consultas Hoy</p>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="stat-today">0</h3>
+                    </div>
+                    <div class="bg-blue-500/20 text-blue-400 p-2 rounded-lg"><i class="fa-solid fa-eye"></i></div>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Usuarios Activos</p>
+                        <h3 class="text-2xl font-bold text-white mt-1" id="stat-users">0</h3>
+                    </div>
+                    <div class="bg-purple-500/20 text-purple-400 p-2 rounded-lg"><i class="fa-solid fa-users"></i></div>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Módulo más visitado</p>
+                        <h3 class="text-lg font-bold text-white mt-1 truncate" id="stat-top-module">-</h3>
+                    </div>
+                    <div class="bg-orange-500/20 text-orange-400 p-2 rounded-lg"><i class="fa-solid fa-fire"></i></div>
+                </div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Alertas de Seguridad</p>
+                        <h3 class="text-2xl font-bold text-red-400 mt-1">0</h3>
+                    </div>
+                    <div class="bg-red-500/20 text-red-400 p-2 rounded-lg"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm flex flex-col md:flex-row gap-4 items-end">
+            <div class="w-full md:w-1/4">
+                <label class="block text-xs font-medium text-slate-400 mb-1">Buscar Usuario</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-search text-slate-500"></i>
+                    </div>
+                    <input type="text" id="filter-user" placeholder="Ej. juan.perez" class="bg-slate-950 border border-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 text-white placeholder-slate-500">
+                </div>
+            </div>
+            <div class="w-full md:w-1/4">
+                <label class="block text-xs font-medium text-slate-400 mb-1">Módulo</label>
+                <select id="filter-module" class="bg-slate-950 border border-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 text-white">
+                    <option value="">Todos los módulos</option>
+                    <option value="Generador Cliente">Generador Cliente</option>
+                    <option value="Planillas">Planillas MSC</option>
+                    <option value="Gestor Facturas">Gestor Facturas</option>
+                    <option value="Reporte Maestro">Reporte Maestro</option>
+                </select>
+            </div>
+            <div class="w-full md:w-1/4">
+                <label class="block text-xs font-medium text-slate-400 mb-1">Fecha</label>
+                <input type="date" id="filter-date" class="bg-slate-950 border border-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 text-white [color-scheme:dark]">
+            </div>
+            <div class="w-full md:w-auto">
+                <button onclick="applyFilters()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-lg shadow-blue-900/20">
+                    Filtrar
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
+            <div class="overflow-x-auto h-[500px]">
+                <table class="w-full text-sm text-left whitespace-nowrap" id="auditTable">
+                    <thead class="text-xs text-slate-400 uppercase bg-slate-850 sticky top-0 z-10 shadow-sm">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 font-semibold">Fecha y Hora</th>
+                            <th scope="col" class="px-6 py-3 font-semibold">Usuario</th>
+                            <th scope="col" class="px-6 py-3 font-semibold">Acción</th>
+                            <th scope="col" class="px-6 py-3 font-semibold">Módulo</th>
+                            <th scope="col" class="px-6 py-3 font-semibold">Datos Consultados / Detalle</th>
+                            <th scope="col" class="px-6 py-3 font-semibold">IP</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-800">
+                        <!-- Las filas se llenan con JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación Simple -->
+            <div class="bg-slate-850 px-6 py-3 flex items-center justify-between border-t border-slate-800">
+                <span class="text-sm text-slate-400">Mostrando <span id="showing-count" class="font-medium text-white">0</span> registros</span>
+                <div class="flex gap-2">
+                    <button class="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:bg-slate-700 transition-colors disabled:opacity-50"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:bg-slate-700 transition-colors disabled:opacity-50"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ==========================================
+        // LÓGICA DE LA BITÁCORA (SUPABASE REAL-TIME)
+        // ==========================================
+        
+        // Supabase kipukunayki (Kunanqa chiqapmi kachkan)
+        const SUPABASE_URL = 'https://sfqpptquojlsbeheguff.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let allAuditData = [];
+
+        // Colores chingones para cada acción
+        const actionColors = {
+            'Consulta': 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+            'Exportación': 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+            'Edición': 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+            'Eliminación': 'text-red-400 bg-red-400/10 border-red-400/20'
+        };
+
+        function getActionColor(action) {
+            return actionColors[action] || 'text-slate-400 bg-slate-400/10 border-slate-400/20';
+        }
+
+        // Jalar el historial inicial desde tu Supabase
+        async function fetchAuditData(isSilent = false) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('bitacora_accesos')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(200); // Traemos los últimos 200 nomás pa' que cargue en chinga
+
+                if (error) throw error;
+
+                // Mapeamos los datos de la BD a como los lee la tabla
+                allAuditData = data.map(row => ({
+                    id: row.id,
+                    timestamp: new Date(row.created_at),
+                    user: row.usuario || 'Desconocido',
+                    action: row.accion || 'Consulta',
+                    actionColor: getActionColor(row.accion),
+                    module: row.modulo || '-',
+                    details: row.detalle_consulta || '-',
+                    ip: row.ip || 'N/A'
+                }));
+
+                applyFilters();
+                updateStats(allAuditData);
+            } catch (error) {
+                if (!isSilent) console.error("Valió madre, error al cargar los datos:", error);
+                
+                // Si la tabla no existe
+                if (error.code === "PGRST205" && !isSilent) {
+                    const tbody = document.getElementById('table-body');
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-red-500 font-bold">Falta crear la tabla 'bitacora_accesos' en tu Supabase. Por favor, créala para que funcione el módulo.</td></tr>`;
+                }
+            }
+        }
+
+        // Escuchar si algún metiche hace algo en TIEMPO REAL
+        function setupRealtime() {
+            // NOTA: El entorno de vista previa (Canvas) bloquea los WebSockets.
+            // Para evitar el error de conexión, la función original de realtime fue reemplazada por "polling" (recarga automática).
+        }
+
+        // Simulación de tiempo real usando Polling (consulta cada 5 segundos)
+        function startPolling() {
+            setInterval(() => {
+                fetchAuditData(true); // Se actualiza silenciosamente en el fondo
+            }, 5000);
+        }
+
+        function formatDateTime(dateObj) {
+            const d = dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+            const t = dateObj.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            return `<div class="flex flex-col"><span>${d}</span><span class="text-xs text-slate-500 font-mono">${t}</span></div>`;
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-slate-500">No se encontraron registros de chismosos con esos filtros.</td></tr>`;
+                document.getElementById('showing-count').innerText = "0";
+                return;
+            }
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/50 transition-colors group';
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-3">${formatDateTime(row.timestamp)}</td>
+                    <td class="px-6 py-3 font-medium text-blue-300">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                ${row.user.charAt(0).toUpperCase()}
+                            </div>
+                            ${row.user}
+                        </div>
+                    </td>
+                    <td class="px-6 py-3">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-md border ${row.actionColor}">
+                            ${row.action}
+                        </span>
+                    </td>
+                    <td class="px-6 py-3 text-slate-300">${row.module}</td>
+                    <td class="px-6 py-3 text-slate-400 font-mono text-sm group-hover:text-slate-200 transition-colors">
+                        ${row.details}
+                    </td>
+                    <td class="px-6 py-3 text-xs text-slate-500 font-mono">
+                        ${row.ip}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('showing-count').innerText = data.length;
+        }
+
+        function updateStats(data) {
+            // Consultas hoy
+            const today = new Date().toDateString();
+            const todayCount = data.filter(d => d.timestamp.toDateString() === today).length;
+            document.getElementById('stat-today').innerText = todayCount;
+
+            // Usuarios Activos (únicos)
+            const uniqueUsers = new Set(data.map(d => d.user)).size;
+            document.getElementById('stat-users').innerText = uniqueUsers;
+
+            // Módulo top
+            const moduleCounts = {};
+            data.forEach(d => moduleCounts[d.module] = (moduleCounts[d.module] || 0) + 1);
+            const topModule = Object.keys(moduleCounts).reduce((a, b) => moduleCounts[a] > moduleCounts[b] ? a : b, '-');
+            document.getElementById('stat-top-module').innerText = topModule;
+        }
+
+        function applyFilters() {
+            const userFilter = document.getElementById('filter-user').value.toLowerCase();
+            const moduleFilter = document.getElementById('filter-module').value;
+            const dateFilter = document.getElementById('filter-date').value;
+
+            const filteredData = allAuditData.filter(row => {
+                const matchUser = row.user.toLowerCase().includes(userFilter);
+                const matchModule = moduleFilter === "" || row.module === moduleFilter;
+                
+                let matchDate = true;
+                if (dateFilter) {
+                    const rowDate = row.timestamp.toISOString().split('T')[0];
+                    matchDate = rowDate === dateFilter;
+                }
+
+                return matchUser && matchModule && matchDate;
+            });
+
+            renderTable(filteredData);
+        }
+
+        function exportToExcel() {
+            // Recuperar datos actuales de la tabla mostrada
+            const table = document.getElementById('auditTable');
+            const ws = XLSX.utils.table_to_sheet(table);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Auditoría");
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Reporte_Auditoria_${dateStr}.xlsx`);
+        }
+
+        // Inicializar App
+        window.onload = () => {
+            fetchAuditData(); // Cargamos historial
+            startPolling();   // Prendemos el polling en vez del realtime de websocket para evitar errores
+            
+            // Listeners en tiempo real para el buscador de usuario
+            document.getElementById('filter-user').addEventListener('input', applyFilters);
+            document.getElementById('filter-module').addEventListener('change', applyFilters);
+            document.getElementById('filter-date').addEventListener('change', applyFilters);
+        };
+    </script>
+</body>
+</html>

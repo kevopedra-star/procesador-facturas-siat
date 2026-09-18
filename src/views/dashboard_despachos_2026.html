@@ -1,0 +1,1817 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard & Gastos Despachos 2026</title>
+    
+    <!-- Fuentes Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS para Carga y Exportación de Excel -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Estilos de Tailwind / Proyecto -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <style>
+        :root {
+            --bg-color: #f4f5f8;
+            --text-color: #0f172a;
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+            --th-bg: #f1f5f9;
+            --th-text: #ea580c;
+            --row-even: #ffffff;
+            --row-odd: #f8fafc;
+            --row-hover: #e2e8f0;
+            --text-muted: #475569;
+        }
+
+        html.dark {
+            --bg-color: #000000;
+            --text-color: #f1f5f9;
+            --header-bg: rgba(9, 9, 11, 0.95);
+            --border-color: #222226;
+            --card-bg: #0d0d0d;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.2);
+            --th-bg: #141416;
+            --th-text: #f97316;
+            --row-even: #08080a;
+            --row-odd: #000000;
+            --row-hover: #1c1c22;
+            --text-muted: #a1a1aa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header-compact {
+            background: var(--header-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-tab {
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-tab.active {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #ffffff;
+            border-color: rgba(249, 115, 22, 0.5);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-tab:not(.active) {
+            background: var(--th-bg);
+            color: var(--text-muted);
+        }
+        .btn-tab:not(.active):hover {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .badge-completado {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-proceso {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .dense-table th, .dense-table td {
+            padding: 5px 10px !important;
+            font-size: 11px !important;
+            line-height: 1.2 !important;
+        }
+
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s ease;
+        }
+        .sortable-header:hover {
+            color: #ffffff !important;
+        }
+
+        /* Estilos de Paginación */
+        .page-btn {
+            min-width: 28px;
+            height: 28px;
+            padding: 0 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        .page-btn:hover:not(.disabled):not(.active) {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+        .page-btn.active {
+            background: #f97316;
+            color: #ffffff;
+            border-color: #f97316;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+        .page-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col p-2 sm:p-2.5 space-y-2 overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- 🔝 HEADER ULTRA COMPACTO CON BOTÓN DE CARGA EXCEL -->
+    <!-- ========================================== -->
+    <header class="header-compact px-3 py-1.5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white text-sm shadow-sm">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <h1 class="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
+                GASTOS & DASHBOARD <span class="text-orange-500">2026</span>
+            </h1>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- BOTÓN CARGAR EXCEL GASTOS -->
+            <label class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[11px] font-extrabold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-file-excel text-xs"></i> Cargar Excel Gastos
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+            </label>
+
+            <!-- TABS SWITCHER COMPACTO -->
+            <div class="flex items-center bg-[#0d111a] p-1 rounded-lg border border-slate-700/60">
+                <button id="btnViewDashboard" onclick="switchView('dashboard')" class="btn-tab active px-3 py-1 rounded-md font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </button>
+                <button id="btnViewTable" onclick="switchView('table')" class="btn-tab px-3 py-1 rounded-md font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-table-list"></i> Despachos Detallados
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 📊 VISTA 1: EXECUTIVE DASHBOARD (Totales + 4 Gráficos) -->
+    <!-- ========================================== -->
+    <section id="viewDashboard" class="flex-1 flex flex-col min-h-0 space-y-2 overflow-y-auto custom-scrollbar">
+
+        <!-- FILTROS DE DASHBOARD -->
+        <div class="card-panel p-2 flex flex-wrap gap-2 items-center justify-between shrink-0">
+            <div class="flex flex-wrap gap-2 items-center w-full md:w-auto">
+                <div class="relative min-w-[210px]">
+                    <i class="fa-solid fa-building absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <select id="dashFilterCliente" onchange="renderDashboard()" class="w-full bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-xs font-semibold pl-8 pr-6 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CLIENTES</option>
+                    </select>
+                </div>
+                
+                <div class="relative min-w-[150px]">
+                    <i class="fa-solid fa-calendar-days absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <select id="dashFilterMes" onchange="renderDashboard()" class="w-full bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-xs font-semibold pl-8 pr-6 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS MESES</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="fetchDashboardData()" class="px-3 py-1 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/40 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-rotate text-xs"></i> Recargar Datos
+            </button>
+        </div>
+
+        <!-- TARJETAS KPI EXECUTIVE -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            <!-- KPI 1: TOTAL DESPACHOS -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-orange-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Despachos</p>
+                    <h3 id="kpiDespachos" class="text-lg font-black text-white mono">0</h3>
+                    <p id="kpiDeclaraciones" class="text-[10px] text-orange-400 font-semibold">0 Declaraciones</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+            </div>
+
+            <!-- KPI 2: ESTADO TRÁMITES -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-emerald-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Procesados / Pendientes</p>
+                    <div class="flex items-baseline gap-1">
+                        <h3 id="kpiCompletados" class="text-lg font-black text-emerald-400 mono">0</h3>
+                        <span class="text-[10px] text-slate-400 font-bold">/ <span id="kpiEnProceso" class="text-amber-400">0 proc</span></span>
+                    </div>
+                    <p id="kpiPorcentaje" class="text-[10px] text-emerald-400 font-semibold">0% Avance</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+
+            <!-- KPI 3: MONTO TOTAL FACTURA GENERAL -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-orange-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Facturas General</p>
+                    <h3 id="kpiMontoFactura" class="text-base font-black text-orange-400 mono">Bs 0.00</h3>
+                    <p id="kpiPlanillaSub" class="text-[10px] text-slate-400">Planillas: <span class="text-orange-300 font-bold" id="kpiPlanillaSubVal">Bs 0.00</span></p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+
+            <!-- KPI 4: TOTAL TRIBUTOS & CIF -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-purple-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Tributos Aduana & CIF</p>
+                    <h3 id="kpiTributos" class="text-base font-black text-purple-400 mono">Bs 0.00</h3>
+                    <p id="kpiCif" class="text-[10px] text-slate-400">CIF: <span class="text-purple-300 font-bold" id="kpiCifVal">Bs 0.00</span></p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-landmark"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE 4 GRÁFICOS CON OPCIÓN DE AMPLIAR (CLICK O BOTÓN) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            <div class="card-panel p-2 space-y-1 hover:border-orange-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-chart-column text-orange-500"></i> Facturación por Cliente
+                    </h4>
+                    <button onclick="openChartModal('clientes')" class="text-slate-500 hover:text-orange-500 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('clientes')" title="Haz click para ampliar">
+                    <canvas id="chartClientes"></canvas>
+                    <div class="absolute inset-0 bg-orange-500/0 group-hover:bg-orange-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-emerald-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-pie-chart text-emerald-500"></i> Avance de Trámites
+                    </h4>
+                    <button onclick="openChartModal('estados')" class="text-slate-500 hover:text-emerald-500 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative flex items-center justify-center cursor-pointer group" onclick="openChartModal('estados')" title="Haz click para ampliar">
+                    <canvas id="chartEstados"></canvas>
+                    <div class="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-cyan-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-cubes text-cyan-400"></i> Items Declarados
+                    </h4>
+                    <button onclick="openChartModal('items')" class="text-slate-500 hover:text-cyan-400 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('items')" title="Haz click para ampliar">
+                    <canvas id="chartItems"></canvas>
+                    <div class="absolute inset-0 bg-cyan-500/0 group-hover:bg-cyan-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-purple-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-chart-line text-purple-400"></i> Evolución Mensual (Bs)
+                    </h4>
+                    <button onclick="openChartModal('evolucion')" class="text-slate-500 hover:text-purple-400 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('evolucion')" title="Haz click para ampliar">
+                    <canvas id="chartEvolucion"></canvas>
+                    <div class="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLA RESUMEN EJECUTIVA DE TOTALES -->
+        <div class="card-panel p-2 flex-1 flex flex-col min-h-0 space-y-1.5">
+            <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-1 gap-2 shrink-0">
+                <h4 class="font-bold text-xs text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-orange-500"></i> Resumen de Totales por Cliente y Mes (`TOTALES_CLIENTES_DASHBOARD_2026`)
+                </h4>
+                
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <select id="dashSortSelect" onchange="renderDashboard()" class="bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-[11px] font-semibold px-2 py-0.5 outline-none focus:border-orange-500">
+                            <option value="mes_desc">📅 Mes (Más reciente)</option>
+                            <option value="mes_asc">📅 Mes (Más antiguo)</option>
+                            <option value="desp_desc">📦 Despachos (Mayor a Menor)</option>
+                            <option value="cif_desc">💰 Valor CIF (Mayor a Menor)</option>
+                            <option value="fact_desc">💵 Monto Factura (Mayor a Menor)</option>
+                            <option value="plan_desc">📋 Total Planilla (Mayor a Menor)</option>
+                        </select>
+                    </div>
+
+                    <button onclick="exportDashboardExcel()" class="px-2.5 py-0.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-file-excel"></i> Exportar
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-auto custom-scrollbar flex-1 min-h-0">
+                <table class="w-full text-left border-collapse dense-table">
+                    <thead class="sticky top-0 bg-[#182030] text-orange-400 font-bold z-10 border-b border-slate-700 shadow-sm">
+                        <tr>
+                            <th>Cliente / Razón Social</th>
+                            <th>Mes Fact. (DB)</th>
+                            <th class="text-center">Despachos</th>
+                            <th class="text-center">Completados</th>
+                            <th class="text-center">En Proceso</th>
+                            <th class="text-right">Total CIF (Bs)</th>
+                            <th class="text-right">Total Tributos (Bs)</th>
+                            <th class="text-right">Monto Total Factura (Bs)</th>
+                            <th class="text-right">Total Planilla (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashTableBody" class="divide-y divide-slate-800/60 font-medium">
+                        <tr><td colspan="9" class="p-6 text-center text-slate-500">Cargando resumen de totales...</td></tr>
+                    </tbody>
+                    <tfoot id="dashTableFoot" class="sticky bottom-0 bg-[#182030] font-black text-orange-300 border-t-2 border-orange-500/40">
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 📄 VISTA 2: TABLA DE CONTENIDO DETALLADO CON FECHA DE FACTURACIÓN UNIFICADA -->
+    <!-- ========================================== -->
+    <section id="viewTable" class="flex-1 flex flex-col min-h-0 space-y-2 hidden">
+
+        <!-- 5 TARJETAS KPI DE RESUMEN COMPACTO SUPERIOR -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 shrink-0">
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Despachos</p>
+                <p id="tblKpiTotal" class="text-xs font-black text-white mono">0</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Completados / Proc</p>
+                <p class="text-[11px] font-black mono text-emerald-400"><span id="tblKpiComp">0</span> <span class="text-slate-400">/</span> <span id="tblKpiProc" class="text-amber-400">0</span></p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Facturas General</p>
+                <p id="tblKpiMontoFactura" class="text-[11px] font-black text-orange-400 mono">Bs 0.00</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Planilla</p>
+                <p id="tblKpiPlanilla" class="text-[11px] font-black text-cyan-400 mono">Bs 0.00</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Tributos</p>
+                <p id="tblKpiTributos" class="text-[11px] font-black text-purple-400 mono">Bs 0.00</p>
+            </div>
+        </div>
+
+        <!-- BARRA DE BÚSQUEDA, FILTROS Y ORDENAMIENTO DE LA TABLA DETALLADA -->
+        <div class="card-panel p-2 flex flex-wrap gap-2 items-center justify-between shrink-0">
+            <div class="flex flex-wrap gap-2 items-center w-full lg:w-auto">
+                <!-- BUSCADOR TEXTO -->
+                <div class="relative min-w-[170px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <input type="text" id="tblSearchInput" onkeyup="resetPageAndFilter()" placeholder="Buscar Ref, DIM, Cliente..." class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-medium pl-8 pr-2.5 py-1 outline-none focus:border-orange-500">
+                </div>
+
+                <!-- FILTRO N° REFERENCIA -->
+                <div class="relative min-w-[130px]">
+                    <input type="text" id="tblFilterReferencia" onkeyup="resetPageAndFilter()" placeholder="N° Referencia..." class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2.5 py-1 outline-none focus:border-orange-500">
+                </div>
+
+                <!-- FILTRO ESTADO -->
+                <div class="relative min-w-[125px]">
+                    <select id="tblFilterEstado" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS ESTADOS</option>
+                        <option value="COMPLETADO">SOLO COMPLETADOS</option>
+                        <option value="EN PROCESO" selected>SOLO EN PROCESO</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO MESES -->
+                <div class="relative min-w-[125px]">
+                    <select id="tblFilterMes" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS MESES</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO CLIENTE -->
+                <div class="relative min-w-[160px]">
+                    <select id="tblFilterCliente" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CLIENTES</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO CANAL -->
+                <div class="relative min-w-[155px]">
+                    <select id="tblFilterCanal" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-emerald-600 dark:text-emerald-400 font-bold rounded-lg text-xs px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CANALES</option>
+                        <option value="CON_CANAL">✨ SOLO CON CANAL</option>
+                        <option value="VERDE">🟢 SOLO CANAL VERDE</option>
+                        <option value="AMARILLO">🟡 SOLO CANAL AMARILLO</option>
+                        <option value="ROJO">🔴 SOLO CANAL ROJO</option>
+                        <option value="SIN_CANAL">⚪ SIN CANAL</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO DE ORDENAMIENTO -->
+                <div class="relative min-w-[170px]">
+                    <select id="tblSortSelect" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-orange-600 dark:text-orange-400 font-bold rounded-lg text-xs px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="fecha_desc">📅 Fecha (Recientes primero)</option>
+                        <option value="fecha_asc">📅 Fecha (Antiguos primero)</option>
+                        <option value="ref_asc">🔤 N° Referencia (A-Z)</option>
+                        <option value="ref_desc">🔤 N° Referencia (Z-A)</option>
+                        <option value="aduana_asc">🏛️ Aduana (A-Z)</option>
+                        <option value="aduana_desc">🏛️ Aduana (Z-A)</option>
+                        <option value="cif_desc">💰 CIF (Mayor a Menor)</option>
+                        <option value="cif_asc">💰 CIF (Menor a Mayor)</option>
+                        <option value="factura_desc">💵 Total Factura (Mayor a Menor)</option>
+                        <option value="factura_asc">💵 Total Factura (Menor a Mayor)</option>
+                        <option value="planilla_desc">📋 Total Planilla (Mayor a Menor)</option>
+                        <option value="planilla_asc">📋 Total Planilla (Menor a Mayor)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="exportDetalleExcel()" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-file-excel"></i> Exportar
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR FLEX-1 QUE EXPANDE LA TABLA HASTA ABAJO -->
+        <div class="card-panel p-2 flex-1 flex flex-col min-h-0 space-y-2">
+            <div class="overflow-auto custom-scrollbar flex-1 min-h-0 relative">
+                <table class="w-full text-left border-collapse dense-table">
+                    <thead class="sticky top-0 bg-[#f1f5f9] dark:bg-[#141416] text-orange-600 dark:text-orange-400 font-bold z-10 border-b border-slate-300 dark:border-[#222226] shadow-md">
+                        <tr>
+                            <th>Estado</th>
+                            <th>N° Referencia</th>
+                            <th>N° Declaración</th>
+                            <th class="sortable-header" onclick="toggleSort('fecha')">Fecha Facturación <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th>Mes Fact. (DB)</th>
+                            <th>Cliente / Razón Social</th>
+                            <th class="sortable-header" onclick="toggleSort('aduana')">Aduana <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th>Proveedor</th>
+                            <th class="text-right sortable-header" onclick="toggleSort('cif')">Total CIF (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th class="text-right">Total Tributos (Bs)</th>
+                            <th class="text-right sortable-header" onclick="toggleSort('factura')">Monto Total Factura (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th class="text-right sortable-header" onclick="toggleSort('planilla')">Total Planilla (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblDetalleBody" class="divide-y divide-slate-200 dark:divide-[#222226]/60 font-medium">
+                        <tr><td colspan="12" class="p-6 text-center text-slate-500">Cargando despachos detallados...</td></tr>
+                    </tbody>
+                    <tfoot id="tblDetalleFoot" class="sticky bottom-0 bg-[#f1f5f9] dark:bg-[#141416] font-black text-orange-600 dark:text-orange-300 border-t-2 border-orange-500/40 shadow-lg">
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- CONTROLES DE PAGINACIÓN AL PIE DE PANTALLA -->
+            <div id="paginationBar" class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1 px-1 border-t border-slate-200 dark:border-[#222226] text-xs shrink-0">
+                <div class="flex items-center gap-3">
+                    <span id="lblPaginationStats" class="font-bold text-slate-700 dark:text-slate-300 text-[11px]">Mostrando 0-0 de 0 Registros</span>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">FILAS POR PÁGINA:</span>
+                        <select id="tblPageSizeSelect" onchange="changePageSize(this.value)" class="bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white text-[11px] font-bold rounded-lg px-2 py-0.5 outline-none focus:border-orange-500 cursor-pointer">
+                            <option value="20">20</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="250">250</option>
+                            <option value="ALL">TODOS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE NAVEGACIÓN DE PÁGINAS -->
+                <div id="tblPaginationControls" class="flex items-center gap-1">
+                    <!-- Inyectado dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 🔍 MODAL OVERLAY PARA AMPLIAR GRÁFICAS -->
+    <!-- ========================================== -->
+    <div id="chartModalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-[#222226] flex items-center justify-between bg-slate-50 dark:bg-[#141416] shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-500 flex items-center justify-center text-base">
+                        <i id="modalChartIcon" class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div>
+                        <h3 id="modalChartTitle" class="text-base font-black text-slate-900 dark:text-white">Gráfica Ampliada</h3>
+                        <p id="modalChartSubtitle" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Vista detallada de datos</p>
+                    </div>
+                </div>
+                <button onclick="closeChartModal()" class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-[#222226] hover:bg-rose-500 hover:text-white text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <!-- Modal Body Canvas -->
+            <div class="p-6 flex-1 min-h-0 relative flex items-center justify-center bg-white dark:bg-[#08080a]">
+                <canvas id="modalChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 📜 JAVASCRIPT DE LOGICA DE NEGOCIO & SUPABASE -->
+    <!-- ========================================== -->
+    <script type="module">
+        import { supabase } from '../services/supabase.js';
+
+        let rawDashboardData = [];
+        let rawDetalleData = [];
+
+        let filteredDetalleData = [];
+        let currentPage = 1;
+        let pageSize = 50;
+
+        let chartClientesInstance = null;
+        let chartEstadosInstance = null;
+        let chartItemsInstance = null;
+        let chartEvolucionInstance = null;
+
+        const formatMoney = (val) => {
+            const num = parseFloat(val) || 0;
+            return 'Bs ' + num.toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+
+        const formatInt = (val) => {
+            const num = parseInt(val) || 0;
+            return num.toLocaleString('es-BO');
+        };
+
+        // PARSER INTELIGENTE DE FECHA EN ESPAÑOL Y NUMÉRICOS EXCEL
+        const parseSpanishDate = (val) => {
+            if (val === null || val === undefined || val === '') return null;
+            if (val instanceof Date) {
+                if (isNaN(val.getTime())) return null;
+                const y = val.getUTCFullYear();
+                const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(val.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            if (typeof val === 'number' || (!isNaN(val) && Number(val) > 20000)) {
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const jsDate = new Date(excelEpoch.getTime() + Number(val) * 86400000);
+                const y = jsDate.getUTCFullYear();
+                const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+                const d = String(jsDate.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            const str = val.toString().trim();
+            const matchDDMM = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+            if (matchDDMM) {
+                const day = matchDDMM[1].padStart(2, '0');
+                const month = matchDDMM[2].padStart(2, '0');
+                const year = matchDDMM[3];
+                return `${year}-${month}-${day}`;
+            }
+            const matchYYYYMM = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (matchYYYYMM) {
+                return `${matchYYYYMM[1]}-${matchYYYYMM[2].padStart(2, '0')}-${matchYYYYMM[3].padStart(2, '0')}`;
+            }
+            return str;
+        };
+
+        // HELPER PARA OBTENER REGISTROS OPTIMIZANDO ANCHO DE BANDA
+        async function fetchAllSupabaseRows(tableName, orderByCol = 'id', selectCols = '*') {
+            let allRows = [];
+            let offset = 0;
+            let page = 0;
+            const MAX_PAGES = 50;
+            const step = 1000;
+
+            while (page < MAX_PAGES) {
+                page++;
+                const { data, error } = await supabase
+                    .from(tableName)
+                    .select(selectCols)
+                    .range(offset, offset + step - 1)
+                    .order(orderByCol, { ascending: false });
+
+                if (error) {
+                    console.error(`Error al consultar ${tableName}:`, error);
+                    break;
+                }
+
+                if (!data || data.length === 0) break;
+                allRows = allRows.concat(data);
+                if (data.length < step) break;
+                offset += step;
+            }
+            return allRows;
+        }
+
+        const getFechaFacturacionDisplay = (d) => {
+            const isMinera = (d.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL') || (d.n_referencia || '').includes('EXP');
+            if (isMinera) {
+                return d.fecha_aceptacion || d.fecha_factura || '-';
+            }
+            return (d.fecha_factura && d.fecha_factura !== 'SIN FECHA') ? d.fecha_factura : (d.fecha_aceptacion || '-');
+        };
+
+        const getMesFromRow = (d) => {
+            if (d && d.mes_facturacion && d.mes_facturacion !== 'SIN FECHA') {
+                return d.mes_facturacion;
+            }
+            if (d && d.mes_aceptacion && d.mes_aceptacion !== 'SIN FECHA') {
+                return d.mes_aceptacion;
+            }
+            const f = getFechaFacturacionDisplay(d);
+            if (!f || f === '-') return 'SIN FECHA';
+            const str = f.toString().trim();
+            const m1 = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (m1) return `${m1[1]}-${m1[2].padStart(2, '0')}`;
+            const m2 = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+            if (m2) return `${m2[3]}-${m2[2].padStart(2, '0')}`;
+            return 'SIN FECHA';
+        };
+
+        window.switchView = (viewName) => {
+            const viewDash = document.getElementById('viewDashboard');
+            const viewTbl = document.getElementById('viewTable');
+            const btnDash = document.getElementById('btnViewDashboard');
+            const btnTbl = document.getElementById('btnViewTable');
+
+            if (viewName === 'dashboard') {
+                viewDash.classList.remove('hidden');
+                viewTbl.classList.add('hidden');
+                btnDash.classList.add('active');
+                btnTbl.classList.remove('active');
+            } else {
+                viewDash.classList.add('hidden');
+                viewTbl.classList.remove('hidden');
+                btnTbl.classList.add('active');
+                btnDash.classList.remove('active');
+                if (rawDetalleData.length === 0) fetchDetalleData();
+            }
+        };
+
+        // --- CARGA DE EXCEL DE GASTOS DE IMPORTACIÓN CON ESCANEO AUTOMÁTICO DE ENCABEZADOS ---
+        window.handleExcelUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            Swal.fire({
+                title: 'Procesando Excel de Gastos...',
+                text: 'Leyendo archivo e insertando/actualizando en Supabase...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); },
+                background: '#121722',
+                color: '#fff'
+            });
+
+            try {
+                const reader = new FileReader();
+                reader.onerror = (err) => {
+                    console.error("Error al leer archivo:", err);
+                    Swal.fire({ icon: 'error', title: 'Error de Lectura', text: 'No se pudo leer el archivo seleccionado.', background: '#121722', color: '#fff' });
+                };
+                reader.onload = async (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        // ESCANEO AUTOMÁTICO DE FILA DE ENCABEZADOS (DETECTA ENCABEZADO EN CUALQUIER FILA COMO LA FILA 6 DE REPORTE PLANILLA)
+                        const rawArray = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        let headerRowIndex = 0;
+                        for (let i = 0; i < rawArray.length; i++) {
+                            if (rawArray[i] && rawArray[i].some(cell => {
+                                const str = String(cell).trim().toUpperCase();
+                                return str === "TRAMITE" || str === "N° REFERENCIA" || str === "REFERENCIA" || str === "INTERNO" || str === "REF" || str === "N_REFERENCIA" || str === "CODIGO";
+                            })) {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: "" });
+
+                        if (jsonData.length === 0) {
+                            Swal.fire({ icon: 'warning', title: 'Archivo vacío', text: 'El archivo Excel no contiene filas procesables.', background: '#121722', color: '#fff' });
+                            return;
+                        }
+
+                        const rawPayload = jsonData.map(row => {
+                            const getVal = (keys) => {
+                                for (const k of keys) {
+                                    const normTarget = k.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                                    const foundKey = Object.keys(row).find(rk => {
+                                        const normRk = rk.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                                        return normRk === normTarget;
+                                    });
+                                    if (foundKey !== undefined && row[foundKey] !== null && row[foundKey] !== "") return row[foundKey];
+                                }
+                                return null;
+                            };
+
+                            const ref = getVal(['TRAMITE', 'N° REFERENCIA', 'Nº REFERENCIA', 'NRO REFERENCIA', 'NRO. REFERENCIA', 'REFERENCIA', 'INTERNO', 'N° INTERNO', 'REF', 'N_REFERENCIA', 'CODIGO', 'CARPETA']);
+                            if (!ref) return null;
+
+                            const num = (v) => parseFloat(v) || 0;
+                            const fechaFacturaRaw = getVal(['FECHA FACTURA', 'FECHA_FACTURA', 'FECHA', 'FECHA DE FACTURA', 'FECHA FACTURACION', 'FECHA FACTURACIÓN']);
+
+                            return {
+                                n_referencia: ref.toString().trim().toUpperCase(),
+                                n_declaracion: getVal(['DUI / DIM', 'DUI/DIM', 'DUI /DIM', 'DUI', 'DIM', 'N° DECLARACIÓN', 'Nº DECLARACIÓN', 'DECLARACION', 'N_DECLARACION', 'DIM N°']),
+                                fecha_factura: parseSpanishDate(fechaFacturaRaw),
+                                honorarios_agencia: num(getVal(['HONORARIOS AGENCIA', 'HONORARIOS_AGENCIA', 'HONORARIOS'])),
+                                carpeta_p_archivo: num(getVal(['CARPETA P/ ARCHIVO', 'CARPETA P ARCHIVO', 'CARPETA_P_ARCHIVO', 'CARPETA'])),
+                                gastos_en_despacho: num(getVal(['GASTOS EN DESPACHO', 'GASTOS_EN_DESPACHO'])),
+                                fotocopias_legalizadas: num(getVal(['FOTOCOPIAS LEGALIZADAS', 'FOTOCOPIAS_LEGALIZADAS'])),
+                                verificacion_y_etiquetado: num(getVal(['VERIFICACION Y ETIQUETADO', 'VERIFICACION_Y_ETIQUETADO'])),
+                                regularizacion_desp_anticipad: num(getVal(['REGULARIZACION DESP. ANTICIPAD', 'REGULARIZACION DESP ANTICIPAD', 'REGULARIZACION_DESP_ANTICIPAD'])),
+                                items_declarados_en_dim_y_dav: num(getVal(['ITEMS DECLARADOS EN DIM Y DAV', 'ITEMS_DECLARADOS_EN_DIM_Y_DAV'])),
+                                despacho_aduana_frontera: num(getVal(['DESPACHO ADUANA FRONTERA', 'DESPACHO_ADUANA_FRONTERA'])),
+                                servicio_logistico: num(getVal(['SERVICIO LOGISTICO', 'SERVICIO_LOGISTICO'])),
+                                formulario_dam: num(getVal(['FORMULARIO DAM', 'FORMULARIO_DAM'])),
+                                otros_servicios: num(getVal(['OTROS SERVICIOS', 'OTROS_SERVICIOS'])),
+                                formulario_ritex: num(getVal(['FORMULARIO RITEX', 'FORMULARIO_RITEX'])),
+                                serv_de_tram_senasag_unalab: num(getVal(['SERV. DE TRAM. SENASAG/UNALAB', 'SERV DE TRAM SENASAG UNALAB', 'SERV_DE_TRAM_SENASAG_UNALAB'])),
+                                ingreso_y_recojo_tram_senasag: num(getVal(['INGRESO Y RECOJO TRAM. SENASAG', 'INGRESO Y RECOJO TRAM SENASAG', 'INGRESO_Y_RECOJO_TRAM_SENASAG'])),
+                                total_factura: num(getVal(['TOTAL FACTURA', 'TOTAL_FACTURA', 'FACTURA', 'MONTO TOTAL FACTURA'])),
+                                total_planilla: num(getVal(['TOTAL PLANILLA', 'TOTAL_PLANILLA', 'PLANILLA']))
+                            };
+                        }).filter(Boolean);
+
+                        if (rawPayload.length === 0) {
+                            Swal.fire({ icon: 'warning', title: 'Columnas no reconocidas', text: 'No se encontró la columna de N° REFERENCIA, TRAMITE o INTERNO en el Excel.', background: '#121722', color: '#fff' });
+                            return;
+                        }
+
+                        // Deduplicar payload por n_referencia para evitar errores de ON CONFLICT en Supabase
+                        const uniqueMap = {};
+                        rawPayload.forEach(item => {
+                            uniqueMap[item.n_referencia] = item;
+                        });
+                        const payload = Object.values(uniqueMap);
+
+                        // Procesar por lotes ultra-estables de 50 filas con progreso en vivo para evitar statement timeout de Supabase
+                        const chunkSize = 50;
+                        const totalChunks = Math.ceil(payload.length / chunkSize);
+                        for (let i = 0; i < payload.length; i += chunkSize) {
+                            const chunkNum = Math.floor(i / chunkSize) + 1;
+                            const percent = Math.round((chunkNum / totalChunks) * 100);
+                            
+                            const htmlElem = document.querySelector('.swal2-html-container');
+                            if (htmlElem) {
+                                htmlElem.innerText = `Guardando en Supabase... Lote ${chunkNum} de ${totalChunks} (${percent}%)`;
+                            }
+
+                            const chunk = payload.slice(i, i + chunkSize);
+                            const { error: eUpsert } = await supabase.from('gastos_importacion').upsert(chunk, { onConflict: 'n_referencia', returning: 'minimal' });
+                            if (eUpsert) throw eUpsert;
+
+                            // Sincronizar directamente a GASTOS_DESPACHOS_2026 por referencia o declaración
+                            for (const item of chunk) {
+                                const isComp = (item.total_factura || 0) > 0 || (item.total_planilla || 0) > 0;
+                                const syncData = {
+                                    fecha_factura: item.fecha_factura || null,
+                                    mes_facturacion: item.fecha_factura ? item.fecha_factura.slice(0, 7) : 'SIN FECHA',
+                                    honorarios_agencia: String(item.honorarios_agencia || 0),
+                                    carpeta_p_archivo: String(item.carpeta_p_archivo || 0),
+                                    gastos_en_despacho: String(item.gastos_en_despacho || 0),
+                                    fotocopias_legalizadas: String(item.fotocopias_legalizadas || 0),
+                                    verificacion_y_etiquetado: String(item.verificacion_y_etiquetado || 0),
+                                    regularizacion_desp_anticipad: String(item.regularizacion_desp_anticipad || 0),
+                                    items_declarados_en_dim_y_dav: String(item.items_declarados_en_dim_y_dav || 0),
+                                    despacho_aduana_frontera: String(item.despacho_aduana_frontera || 0),
+                                    servicio_logistico: String(item.servicio_logistico || 0),
+                                    formulario_dam: String(item.formulario_dam || 0),
+                                    otros_servicios: String(item.otros_servicios || 0),
+                                    formulario_ritex: String(item.formulario_ritex || 0),
+                                    serv_de_tram_senasag_unalab: String(item.serv_de_tram_senasag_unalab || 0),
+                                    ingreso_y_recojo_tram_senasag: String(item.ingreso_y_recojo_tram_senasag || 0),
+                                    total_factura: String(item.total_factura || 0),
+                                    monto_total_factura: String(item.total_factura || 0),
+                                    total_planilla: String(item.total_planilla || 0),
+                                    estado_tramite: isComp ? 'COMPLETADO' : 'EN PROCESO'
+                                };
+
+                                let targetRow = null;
+                                if (item.n_referencia) {
+                                    const { data: byRef } = await supabase.from('GASTOS_DESPACHOS_2026').select('id, estado_tramite, razon_social').eq('n_referencia', item.n_referencia).maybeSingle();
+                                    if (byRef) targetRow = byRef;
+                                }
+                                if (!targetRow && item.n_declaracion) {
+                                    const { data: byDecl } = await supabase.from('GASTOS_DESPACHOS_2026').select('id, estado_tramite, razon_social').eq('n_declaracion', item.n_declaracion).maybeSingle();
+                                    if (byDecl) targetRow = byDecl;
+                                }
+
+                                if (targetRow) {
+                                    const isMsc = (targetRow.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                                    if (targetRow.estado_tramite === 'COMPLETADO' || isMsc || isComp) {
+                                        syncData.estado_tramite = 'COMPLETADO';
+                                    }
+                                    await supabase.from('GASTOS_DESPACHOS_2026').update(syncData).eq('id', targetRow.id);
+                                } else {
+                                    await supabase.from('GASTOS_DESPACHOS_2026').insert({
+                                        ...syncData,
+                                        n_referencia: item.n_referencia,
+                                        n_declaracion: item.n_declaracion || ''
+                                    });
+                                }
+                            }
+                        }
+
+                        // Ejecutar recálculo final de totales en Supabase una sola vez al terminar todo el archivo
+                        try {
+                            await supabase.rpc('recalcular_totales_dashboard_2026_fn');
+                        } catch (eRpc) {
+                            console.warn("Recálculo silencioso:", eRpc);
+                        }
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Excel Procesado con Éxito!',
+                            text: `Se insertaron/actualizaron ${payload.length} registros en gastos_importacion. La tabla GASTOS_DESPACHOS_2026 y Totales se han actualizado en tiempo real.`,
+                            background: '#121722',
+                            color: '#fff'
+                        });
+
+                        fetchDashboardData();
+                        if (rawDetalleData.length > 0) fetchDetalleData();
+                    } catch (errIn) {
+                        console.error("Error al procesar filas del Excel:", errIn);
+                        Swal.fire({ icon: 'error', title: 'Error de Importación', text: errIn.message || String(errIn), background: '#121722', color: '#fff' });
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error("Error al procesar Excel:", err);
+                Swal.fire({ icon: 'error', title: 'Error de Importación', text: err.message || String(err), background: '#121722', color: '#fff' });
+            } finally {
+                event.target.value = '';
+            }
+        };
+
+        // --- CARGAR DATOS DEL DASHBOARD (`TOTALES_CLIENTES_DASHBOARD_2026`) ---
+        window.fetchDashboardData = async () => {
+            try {
+                const dashCols = 'cliente_razon_social, mes_aceptacion, cantidad_despachos, cantidad_declaraciones, cantidad_completados, cantidad_en_proceso, total_items, suma_total_cif, suma_total_tributos, suma_total_facturas, suma_monto_total_factura, suma_total_facturas_con_comision, suma_total_planilla';
+                const { data, error } = await supabase
+                    .from('TOTALES_CLIENTES_DASHBOARD_2026')
+                    .select(dashCols);
+
+                if (error) throw error;
+                rawDashboardData = data || [];
+            } catch (err) {
+                console.warn("Consulta TOTALES_CLIENTES_DASHBOARD_2026:", err);
+                rawDashboardData = [];
+            }
+
+            populateDashboardFilters();
+            renderDashboard();
+        };
+
+        function populateDashboardFilters() {
+            const clientes = [...new Set(rawDashboardData.map(d => d.cliente_razon_social))].filter(Boolean).sort();
+            const rawMeses = [...new Set(rawDashboardData.map(d => d.mes_facturacion || d.mes_aceptacion))].filter(Boolean);
+            const meses = rawMeses.filter(m => m !== 'SIN FECHA').sort().reverse();
+            if (rawMeses.includes('SIN FECHA')) meses.push('SIN FECHA');
+
+            const selCliente = document.getElementById('dashFilterCliente');
+            const selMes = document.getElementById('dashFilterMes');
+
+            if (selCliente) selCliente.innerHTML = '<option value="">TODOS LOS CLIENTES</option>' + clientes.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (selMes) selMes.innerHTML = '<option value="">TODOS LOS MESES</option>' + meses.map(m => `<option value="${m}">${m}</option>`).join('');
+
+            // Poblar selectores de la pestaña "Despachos Detallados"
+            const tblSelCliente = document.getElementById('tblFilterCliente');
+            const tblSelMes = document.getElementById('tblFilterMes');
+
+            if (tblSelCliente) {
+                const prevC = tblSelCliente.value;
+                tblSelCliente.innerHTML = '<option value="">TODOS LOS CLIENTES</option>' + clientes.map(c => `<option value="${c}">${c}</option>`).join('');
+                if (prevC) tblSelCliente.value = prevC;
+            }
+
+            if (tblSelMes) {
+                const prevM = tblSelMes.value;
+                tblSelMes.innerHTML = '<option value="">TODOS LOS MESES</option>' + meses.map(m => `<option value="${m}">${m}</option>`).join('');
+                if (prevM) {
+                    tblSelMes.value = prevM;
+                }
+            }
+        }
+
+        window.renderDashboard = () => {
+            const filterClient = document.getElementById('dashFilterCliente').value;
+            const filterMes = document.getElementById('dashFilterMes').value;
+            const sortMode = document.getElementById('dashSortSelect').value;
+
+            let filtered = rawDashboardData.filter(d => {
+                const matchC = !filterClient || d.cliente_razon_social === filterClient;
+                const mVal = d.mes_facturacion || d.mes_aceptacion;
+                const matchM = !filterMes || mVal === filterMes;
+                return matchC && matchM;
+            });
+
+            filtered.sort((a, b) => {
+                const ma = a.mes_facturacion || a.mes_aceptacion || '';
+                const mb = b.mes_facturacion || b.mes_aceptacion || '';
+                if (sortMode === 'mes_desc') return mb.localeCompare(ma);
+                if (sortMode === 'mes_asc') return ma.localeCompare(mb);
+                if (sortMode === 'desp_desc') return (parseInt(b.cantidad_despachos) || 0) - (parseInt(a.cantidad_despachos) || 0);
+                if (sortMode === 'cif_desc') return (parseFloat(b.suma_total_cif) || 0) - (parseFloat(a.suma_total_cif) || 0);
+                if (sortMode === 'fact_desc') return (parseFloat(b.suma_monto_total_factura || b.suma_total_facturas_con_comision) || 0) - (parseFloat(a.suma_monto_total_factura || a.suma_total_facturas_con_comision) || 0);
+                if (sortMode === 'plan_desc') return (parseFloat(b.suma_total_planilla) || 0) - (parseFloat(a.suma_total_planilla) || 0);
+                return 0;
+            });
+
+            let totalDespachos = 0, totalDeclaraciones = 0, totalCompletados = 0, totalEnProceso = 0;
+            let sumMontoFactura = 0, sumTributos = 0, sumCif = 0, sumPlanilla = 0;
+
+            filtered.forEach(d => {
+                totalDespachos += parseInt(d.cantidad_despachos) || 0;
+                totalDeclaraciones += parseInt(d.cantidad_declaraciones) || 0;
+                totalCompletados += parseInt(d.cantidad_completados) || 0;
+                totalEnProceso += parseInt(d.cantidad_en_proceso) || 0;
+                sumMontoFactura += parseFloat(d.suma_total_facturas || d.suma_monto_total_factura || d.suma_total_facturas_con_comision) || 0;
+                sumTributos += parseFloat(d.suma_total_tributos) || 0;
+                sumCif += parseFloat(d.suma_total_cif) || 0;
+                sumPlanilla += parseFloat(d.suma_total_planilla) || 0;
+            });
+
+            document.getElementById('kpiDespachos').innerText = formatInt(totalDespachos);
+            document.getElementById('kpiDeclaraciones').innerText = `${formatInt(totalDeclaraciones)} Declaraciones`;
+            document.getElementById('kpiCompletados').innerText = formatInt(totalCompletados);
+            document.getElementById('kpiEnProceso').innerText = `${formatInt(totalEnProceso)} proc`;
+            
+            const pct = totalDespachos > 0 ? ((totalCompletados / totalDespachos) * 100).toFixed(1) : 0;
+            document.getElementById('kpiPorcentaje').innerText = `${pct}% Avance`;
+
+            document.getElementById('kpiMontoFactura').innerText = formatMoney(sumMontoFactura);
+            document.getElementById('kpiPlanillaSubVal').innerText = formatMoney(sumPlanilla);
+            document.getElementById('kpiTributos').innerText = formatMoney(sumTributos);
+            document.getElementById('kpiCifVal').innerText = formatMoney(sumCif);
+
+            renderDashTable(filtered, totalDespachos, totalCompletados, totalEnProceso, sumCif, sumTributos, sumMontoFactura, sumPlanilla);
+            renderFourCharts(filtered);
+        };
+
+        function renderDashTable(data, tDesp, tComp, tProc, tCif, tTrib, tFact, tPlan) {
+            const tbody = document.getElementById('dashTableBody');
+            const tfoot = document.getElementById('dashTableFoot');
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500">No hay registros que coincidan con los filtros.</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            tbody.innerHTML = data.map((d, i) => `
+                <tr class="${i % 2 === 0 ? 'bg-white dark:bg-[#08080a]' : 'bg-slate-50 dark:bg-[#000000]'} hover:bg-slate-100 dark:hover:bg-[#1c1c22] transition-colors border-b border-slate-200/80 dark:border-[#222226]/60">
+                    <td class="font-bold text-slate-900 dark:text-white">${d.cliente_razon_social}</td>
+                    <td class="font-semibold text-slate-600 dark:text-slate-400 mono">${d.mes_facturacion || d.mes_aceptacion}</td>
+                    <td class="text-center mono font-bold text-slate-900 dark:text-slate-100">${formatInt(d.cantidad_despachos)}</td>
+                    <td class="text-center mono font-bold text-emerald-600 dark:text-emerald-400">${formatInt(d.cantidad_completados)}</td>
+                    <td class="text-center mono font-bold text-amber-600 dark:text-amber-400">${formatInt(d.cantidad_en_proceso)}</td>
+                    <td class="text-right mono text-slate-900 dark:text-slate-100">${formatMoney(d.suma_total_cif)}</td>
+                    <td class="text-right mono text-slate-900 dark:text-slate-100">${formatMoney(d.suma_total_tributos)}</td>
+                    <td class="text-right mono text-orange-600 dark:text-orange-300 font-bold">${formatMoney(d.suma_total_facturas || d.suma_monto_total_factura || d.suma_total_facturas_con_comision)}</td>
+                    <td class="text-right mono font-semibold text-slate-700 dark:text-slate-300">${formatMoney(d.suma_total_planilla)}</td>
+                </tr>
+            `).join('');
+
+            tfoot.innerHTML = `
+                <tr class="bg-[#f1f5f9] dark:bg-[#141416] text-orange-600 dark:text-orange-300 font-black border-t-2 border-orange-500/40">
+                    <td class="font-black text-orange-600 dark:text-orange-400 uppercase">TOTALES GENERALES</td>
+                    <td class="text-slate-500 dark:text-slate-400 text-[10px]">--</td>
+                    <td class="text-center mono font-black">${formatInt(tDesp)}</td>
+                    <td class="text-center mono font-black text-emerald-600 dark:text-emerald-400">${formatInt(tComp)}</td>
+                    <td class="text-center mono font-black text-amber-600 dark:text-amber-400">${formatInt(tProc)}</td>
+                    <td class="text-right mono font-black">${formatMoney(tCif)}</td>
+                    <td class="text-right mono font-black">${formatMoney(tTrib)}</td>
+                    <td class="text-right mono font-black text-orange-600 dark:text-orange-300 text-xs">${formatMoney(tFact)}</td>
+                    <td class="text-right mono font-black">${formatMoney(tPlan)}</td>
+                </tr>
+            `;
+        }
+
+        function renderFourCharts(data) {
+            const clientTotals = {};
+            const clientItems = {};
+            const monthEvol = {};
+            let totalCompletados = 0;
+            let totalEnProceso = 0;
+
+            data.forEach(d => {
+                const c = d.cliente_razon_social;
+                const m = d.mes_facturacion || d.mes_aceptacion || 'SIN FECHA';
+
+                const monto = parseFloat(d.suma_total_facturas || d.suma_monto_total_factura || d.suma_total_facturas_con_comision) || 0;
+                clientTotals[c] = (clientTotals[c] || 0) + monto;
+
+                const items = parseFloat(d.total_items) || 0;
+                clientItems[c] = (clientItems[c] || 0) + items;
+
+                if (!monthEvol[m]) monthEvol[m] = { cif: 0, trib: 0 };
+                monthEvol[m].cif += parseFloat(d.suma_total_cif) || 0;
+                monthEvol[m].trib += parseFloat(d.suma_total_tributos) || 0;
+
+                totalCompletados += parseInt(d.cantidad_completados) || 0;
+                totalEnProceso += parseInt(d.cantidad_en_proceso) || 0;
+            });
+
+            if (totalCompletados === 0 && totalEnProceso === 0 && rawDetalleData && rawDetalleData.length > 0) {
+                rawDetalleData.forEach(r => {
+                    const isMsc = (r.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                    const isComp = isMsc || r.estado_tramite === 'COMPLETADO' || montoF > 0 || montoP > 0;
+                    if (isComp) totalCompletados++;
+                    else totalEnProceso++;
+                });
+            }
+
+            if (chartClientesInstance) chartClientesInstance.destroy();
+            if (chartEstadosInstance) chartEstadosInstance.destroy();
+            if (chartItemsInstance) chartItemsInstance.destroy();
+            if (chartEvolucionInstance) chartEvolucionInstance.destroy();
+
+            const ctxClientes = document.getElementById('chartClientes').getContext('2d');
+            chartClientesInstance = new Chart(ctxClientes, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(clientTotals),
+                    datasets: [{
+                        label: 'Total Factura (Bs)',
+                        data: Object.values(clientTotals),
+                        backgroundColor: 'rgba(249, 115, 22, 0.75)',
+                        borderColor: '#f97316',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#1e2638' } }
+                    }
+                }
+            });
+
+            const ctxEstados = document.getElementById('chartEstados').getContext('2d');
+            chartEstadosInstance = new Chart(ctxEstados, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completados', 'En Proceso'],
+                    datasets: [{
+                        data: [totalCompletados, totalEnProceso],
+                        backgroundColor: ['#10b981', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#f1f5f9', font: { size: 9, weight: 'bold' } } }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            const ctxItems = document.getElementById('chartItems').getContext('2d');
+            chartItemsInstance = new Chart(ctxItems, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(clientItems),
+                    datasets: [{
+                        label: 'Items Declarados',
+                        data: Object.values(clientItems),
+                        backgroundColor: 'rgba(6, 182, 212, 0.75)',
+                        borderColor: '#06b6d4',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#1e2638' } }
+                    }
+                }
+            });
+
+            const sortedMonths = Object.keys(monthEvol).sort();
+            const ctxEvol = document.getElementById('chartEvolucion').getContext('2d');
+            chartEvolucionInstance = new Chart(ctxEvol, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [
+                        {
+                            label: 'Tributos (Bs)',
+                            data: sortedMonths.map(m => monthEvol[m].trib),
+                            borderColor: '#a855f7',
+                            backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#f1f5f9', font: { size: 8 } } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { display: false } },
+                        y: { ticks: { color: '#94a3b8', font: { size: 8 } }, grid: { color: '#1e2638' } }
+                    }
+                }
+            });
+
+            // Guardar datos agregados para la vista ampliada en Modal Lightbox
+            lastAggregatedChartData = { clientTotals, clientItems, monthEvol, totalCompletados, totalEnProceso };
+        }
+
+        // ==========================================
+        // 🔍 LÓGICA DE AMPLIACIÓN DE GRÁFICAS (MODAL LIGHTBOX)
+        // ==========================================
+        let modalChartInstance = null;
+        let lastAggregatedChartData = null;
+
+        window.openChartModal = (chartType) => {
+            if (!lastAggregatedChartData) return;
+            const overlay = document.getElementById('chartModalOverlay');
+            const titleEl = document.getElementById('modalChartTitle');
+            const subtitleEl = document.getElementById('modalChartSubtitle');
+            const iconEl = document.getElementById('modalChartIcon');
+            const canvas = document.getElementById('modalChartCanvas');
+
+            if (!overlay || !canvas) return;
+
+            overlay.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+
+            const ctx = canvas.getContext('2d');
+            const isDark = document.documentElement.classList.contains('dark');
+            const textColor = isDark ? '#ffffff' : '#0f172a';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+
+            if (chartType === 'clientes') {
+                titleEl.textContent = 'Facturación por Cliente';
+                subtitleEl.textContent = 'Detalle ampliado del monto total facturado por Razón Social (Bs)';
+                iconEl.className = 'fa-solid fa-chart-column text-orange-500';
+
+                modalChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(lastAggregatedChartData.clientTotals),
+                        datasets: [{
+                            label: 'Total Factura (Bs)',
+                            data: Object.values(lastAggregatedChartData.clientTotals),
+                            backgroundColor: 'rgba(249, 115, 22, 0.85)',
+                            borderColor: '#f97316',
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, labels: { color: textColor, font: { size: 12, weight: 'bold' } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => ` Total Factura: Bs ${formatMoney(c.raw)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor, font: { size: 11, weight: '600' } }, grid: { display: false } },
+                            y: { ticks: { color: textColor, font: { size: 11 }, callback: (v) => 'Bs ' + formatMoney(v) }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            } else if (chartType === 'estados') {
+                titleEl.textContent = 'Avance de Trámites';
+                subtitleEl.textContent = 'Distribución ampliada de despachos Completados vs En Proceso';
+                iconEl.className = 'fa-solid fa-pie-chart text-emerald-500';
+
+                modalChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Completados', 'En Proceso'],
+                        datasets: [{
+                            data: [lastAggregatedChartData.totalCompletados, lastAggregatedChartData.totalEnProceso],
+                            backgroundColor: ['#10b981', '#f59e0b'],
+                            borderWidth: 3,
+                            borderColor: isDark ? '#0d0d0d' : '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { color: textColor, font: { size: 14, weight: 'bold' }, padding: 20 } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => ` ${c.label}: ${c.raw} Despachos`
+                                }
+                            }
+                        },
+                        cutout: '55%'
+                    }
+                });
+            } else if (chartType === 'items') {
+                titleEl.textContent = 'Items Declarados por Cliente';
+                subtitleEl.textContent = 'Cantidad total ampliada de ítems declarados en la DIM por razón social';
+                iconEl.className = 'fa-solid fa-cubes text-cyan-400';
+
+                modalChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(lastAggregatedChartData.clientItems),
+                        datasets: [{
+                            label: 'Items Declarados',
+                            data: Object.values(lastAggregatedChartData.clientItems),
+                            backgroundColor: 'rgba(6, 182, 212, 0.85)',
+                            borderColor: '#06b6d4',
+                            borderWidth: 2,
+                            borderRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, labels: { color: textColor, font: { size: 12, weight: 'bold' } } }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor, font: { size: 11, weight: '600' } }, grid: { display: false } },
+                            y: { ticks: { color: textColor, font: { size: 11 } }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            } else if (chartType === 'evolucion') {
+                titleEl.textContent = 'Evolución Mensual de Tributos';
+                subtitleEl.textContent = 'Histórico mensual de tributos aduaneros acumulados en Bolivianos (Bs)';
+                iconEl.className = 'fa-solid fa-chart-line text-purple-400';
+
+                const sortedMonths = Object.keys(lastAggregatedChartData.monthEvol).sort();
+                modalChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: sortedMonths,
+                        datasets: [{
+                            label: 'Tributos (Bs)',
+                            data: sortedMonths.map(m => lastAggregatedChartData.monthEvol[m].trib),
+                            borderColor: '#a855f7',
+                            backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 6,
+                            pointHoverRadius: 9,
+                            pointBackgroundColor: '#a855f7'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { color: textColor, font: { size: 13, weight: 'bold' } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: (c) => ` Tributos: Bs ${formatMoney(c.raw)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { color: textColor, font: { size: 12, weight: '600' } }, grid: { color: gridColor } },
+                            y: { ticks: { color: textColor, font: { size: 11 }, callback: (v) => 'Bs ' + formatMoney(v) }, grid: { color: gridColor } }
+                        }
+                    }
+                });
+            }
+        };
+
+        window.closeChartModal = () => {
+            const overlay = document.getElementById('chartModalOverlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeChartModal();
+        });
+
+        window.exportDashboardExcel = () => {
+            if (rawDashboardData.length === 0) return;
+            const ws = XLSX.utils.json_to_sheet(rawDashboardData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Totales Dashboard");
+            XLSX.writeFile(wb, "TOTALES_CLIENTES_DASHBOARD_2026.xlsx");
+        };
+
+        // --- CARGAR DATOS DETALLADOS (`GASTOS_DESPACHOS_2026`) VIA LAZY LOADING PAGINADO ---
+        let totalDetalleCount = 0;
+        window.fetchDetalleData = async () => {
+            try {
+                const from = (currentPage - 1) * pageSize;
+                const to = from + pageSize - 1;
+                const cols = 'id, n_referencia, n_declaracion, fecha_factura, fecha_aceptacion, mes_facturacion, mes_aceptacion, razon_social, aduana, proveedor, total_cif, total_tributos, total_factura, monto_total_factura, total_factura_con_comision, total_planilla, estado_tramite, items, canal, fecha_canal';
+                
+                let query = supabase.from('GASTOS_DESPACHOS_2026').select(cols, { count: 'exact' });
+
+                const search = (document.getElementById('tblSearchInput')?.value || '').toLowerCase().trim();
+                const filterReferencia = (document.getElementById('tblFilterReferencia')?.value || '').trim();
+                const filterEstado = document.getElementById('tblFilterEstado')?.value || '';
+                const filterMes = document.getElementById('tblFilterMes')?.value || '';
+                const filterCliente = document.getElementById('tblFilterCliente')?.value || '';
+                const filterCanal = document.getElementById('tblFilterCanal')?.value || '';
+
+                if (filterReferencia) {
+                    query = query.ilike('n_referencia', `%${filterReferencia}%`);
+                }
+
+                if (filterCliente) query = query.eq('razon_social', filterCliente);
+                
+                if (filterEstado === 'EN PROCESO') {
+                    query = query.eq('estado_tramite', 'EN PROCESO').not('razon_social', 'ilike', '%MINERA SAN CRISTOBAL%');
+                } else if (filterEstado === 'COMPLETADO') {
+                    query = query.or('estado_tramite.eq.COMPLETADO,razon_social.ilike.%MINERA SAN CRISTOBAL%');
+                }
+
+                if (filterMes === 'SIN FECHA') {
+                    query = query.or('mes_facturacion.is.null,mes_aceptacion.is.null,mes_facturacion.eq.SIN FECHA,mes_aceptacion.eq.SIN FECHA');
+                } else if (filterMes) {
+                    query = query.or(`mes_facturacion.eq.${filterMes},mes_aceptacion.eq.${filterMes}`);
+                }
+                
+                if (filterCanal === 'CON_CANAL') {
+                    query = query.not('canal', 'is', null).neq('canal', '-');
+                } else if (filterCanal === 'SIN_CANAL') {
+                    query = query.or('canal.is.null,canal.eq.-');
+                } else if (filterCanal && filterCanal !== 'CON_CANAL' && filterCanal !== 'SIN_CANAL') {
+                    query = query.ilike('canal', `%${filterCanal}%`);
+                }
+
+                if (search) {
+                    query = query.or(`n_referencia.ilike.%${search}%,n_declaracion.ilike.%${search}%,razon_social.ilike.%${search}%,aduana.ilike.%${search}%,proveedor.ilike.%${search}%`);
+                }
+
+                const sortMode = document.getElementById('tblSortSelect')?.value || 'fecha_desc';
+                if (sortMode.startsWith('ref_')) query = query.order('n_referencia', { ascending: sortMode.endsWith('_asc') });
+                else if (sortMode.startsWith('cif_')) query = query.order('total_cif', { ascending: sortMode.endsWith('_asc') });
+                else if (sortMode.startsWith('factura_')) query = query.order('monto_total_factura', { ascending: sortMode.endsWith('_asc') });
+                else if (sortMode.startsWith('planilla_')) query = query.order('total_planilla', { ascending: sortMode.endsWith('_asc') });
+                else if (sortMode.startsWith('aduana_')) query = query.order('aduana', { ascending: sortMode.endsWith('_asc') });
+                else if (sortMode === 'fecha_asc') query = query.order('id', { ascending: true });
+                else query = query.order('id', { ascending: false });
+
+                const { data, count, error } = await query.range(from, to);
+                if (error) throw error;
+
+                let fetchedRows = data || [];
+                if (filterEstado === 'EN PROCESO') {
+                    rawDetalleData = fetchedRows.filter(d => {
+                        const isMsc = (d.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                        const montoF = parseFloat(d.total_factura || d.monto_total_factura || d.total_factura_con_comision || d.comision_bob) || 0;
+                        const montoP = parseFloat(d.total_planilla) || 0;
+                        const isComp = isMsc || d.estado_tramite === 'COMPLETADO' || montoF > 0 || montoP > 0;
+                        return !isComp;
+                    });
+                } else if (filterEstado === 'COMPLETADO') {
+                    rawDetalleData = fetchedRows.filter(d => {
+                        const isMsc = (d.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                        const montoF = parseFloat(d.total_factura || d.monto_total_factura || d.total_factura_con_comision || d.comision_bob) || 0;
+                        const montoP = parseFloat(d.total_planilla) || 0;
+                        return isMsc || d.estado_tramite === 'COMPLETADO' || montoF > 0 || montoP > 0;
+                    });
+                } else {
+                    rawDetalleData = fetchedRows;
+                }
+                totalDetalleCount = count !== null ? count : rawDetalleData.length;
+
+                // Vinculación puntual solo para los n_referencia de esta página
+                const visibleRefs = rawDetalleData.map(d => d.n_referencia).filter(Boolean);
+                if (visibleRefs.length > 0) {
+                    try {
+                        const { data: controlData } = await supabase
+                            .from('control_estados_importacion')
+                            .select('n_referencia, n_declaracion, canal, fecha_canal')
+                            .in('n_referencia', visibleRefs);
+
+                        if (controlData && controlData.length > 0) {
+                            const controlMap = {};
+                            controlData.forEach(c => {
+                                if (c.n_referencia) controlMap[c.n_referencia.trim().toUpperCase()] = c;
+                                if (c.n_declaracion) controlMap[c.n_declaracion.trim().toUpperCase()] = c;
+                            });
+                            rawDetalleData.forEach(d => {
+                                const refKey = (d.n_referencia || '').trim().toUpperCase();
+                                const declKey = (d.n_declaracion || '').trim().toUpperCase();
+                                const match = controlMap[refKey] || controlMap[declKey];
+                                if (match) {
+                                    if (!d.canal || d.canal === '-' || d.canal === 'NULL' || d.canal === 'null') d.canal = match.canal;
+                                    if (!d.fecha_canal || d.fecha_canal === '-' || d.fecha_canal === 'NULL' || d.fecha_canal === 'null') d.fecha_canal = match.fecha_canal;
+                                }
+                            });
+                        }
+                    } catch (eControl) {
+                        console.warn("Consulta complementaria control_estados_importacion:", eControl);
+                    }
+                }
+
+                renderPaginatedTable();
+            } catch (err) {
+                console.error("Error al cargar detalle despachos:", err);
+            }
+        };
+
+        window.resetPageAndFilter = () => {
+            currentPage = 1;
+            fetchDetalleData();
+        };
+
+        window.toggleSort = (colKey) => {
+            const sel = document.getElementById('tblSortSelect');
+            const curr = sel.value;
+            if (curr.startsWith(colKey)) {
+                sel.value = curr.endsWith('_desc') ? `${colKey}_asc` : `${colKey}_desc`;
+            } else {
+                sel.value = `${colKey}_desc`;
+            }
+            resetPageAndFilter();
+        };
+
+        window.filterDetalleTable = () => {
+            fetchDetalleData();
+        };
+
+        window.changePageSize = (val) => {
+            if (val === 'ALL') {
+                pageSize = 999999;
+            } else {
+                pageSize = parseInt(val) || 50;
+            }
+            currentPage = 1;
+            fetchDetalleData();
+        };
+
+        window.goToPage = (page) => {
+            currentPage = page;
+            fetchDetalleData();
+        };
+
+        function renderPaginatedTable() {
+            const totalRecords = totalDetalleCount || rawDetalleData.length;
+            const effectiveSize = pageSize === 999999 ? totalRecords : pageSize;
+            const totalPages = Math.ceil(totalRecords / effectiveSize) || 1;
+
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * effectiveSize;
+            const endIndex = Math.min(startIndex + rawDetalleData.length, totalRecords);
+
+            document.getElementById('lblPaginationStats').innerText = totalRecords > 0 
+                ? `Mostrando ${startIndex + 1}-${endIndex} de ${totalRecords} Registros`
+                : `Mostrando 0 Registros`;
+
+            // Actualizar KPIs de la pestaña detallada
+            let totalComp = 0, totalProc = 0, sumMontoFact = 0, sumPlanilla = 0, sumTributos = 0;
+            rawDetalleData.forEach(d => {
+                const isMsc = (d.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                const montoF = parseFloat(d.total_factura || d.monto_total_factura || d.total_factura_con_comision || d.comision_bob) || 0;
+                const montoP = parseFloat(d.total_planilla) || 0;
+                const isComp = isMsc || d.estado_tramite === 'COMPLETADO' || montoF > 0 || montoP > 0;
+                if (isComp) totalComp++;
+                else totalProc++;
+                sumMontoFact += montoF;
+                sumPlanilla += montoP;
+                sumTributos += parseFloat(d.total_tributos) || 0;
+            });
+
+            document.getElementById('tblKpiTotal').innerText = formatInt(totalRecords);
+            document.getElementById('tblKpiComp').innerText = formatInt(totalComp);
+            document.getElementById('tblKpiProc').innerText = formatInt(totalProc);
+            document.getElementById('tblKpiMontoFactura').innerText = formatMoney(sumMontoFact);
+            document.getElementById('tblKpiPlanilla').innerText = formatMoney(sumPlanilla);
+            document.getElementById('tblKpiTributos').innerText = formatMoney(sumTributos);
+
+            renderPaginationControls(totalPages);
+            renderDetalleRows(rawDetalleData);
+        }
+
+        function renderPaginationControls(totalPages) {
+            const container = document.getElementById('tblPaginationControls');
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            html += `<button onclick="goToPage(${currentPage - 1})" class="page-btn ${currentPage === 1 ? 'disabled' : ''}" ${currentPage === 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left text-[10px]"></i></button>`;
+
+            const maxVisible = 5;
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+            if (endPage - startPage < maxVisible - 1) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+
+            if (startPage > 1) {
+                html += `<button onclick="goToPage(1)" class="page-btn">1</button>`;
+                if (startPage > 2) html += `<span class="px-1 text-slate-500 text-xs font-bold">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button onclick="goToPage(${i})" class="page-btn ${i === currentPage ? 'active' : ''}">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<span class="px-1 text-slate-500 text-xs font-bold">...</span>`;
+                html += `<button onclick="goToPage(${totalPages})" class="page-btn">${totalPages}</button>`;
+            }
+
+            html += `<button onclick="goToPage(${currentPage + 1})" class="page-btn ${currentPage === totalPages ? 'disabled' : ''}" ${currentPage === totalPages ? 'disabled' : ''}><i class="fa-solid fa-chevron-right text-[10px]"></i></button>`;
+
+            container.innerHTML = html;
+        }
+
+        function renderDetalleRows(data) {
+            const tbody = document.getElementById('tblDetalleBody');
+            const tfoot = document.getElementById('tblDetalleFoot');
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-slate-500">No hay despachos que coincidan con la búsqueda.</td></tr>`;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            let sumCif = 0, sumTrib = 0, sumMontoT = 0, sumPlan = 0;
+            data.forEach(d => {
+                sumCif += parseFloat(d.total_cif) || 0;
+                sumTrib += parseFloat(d.total_tributos) || 0;
+                sumMontoT += parseFloat(d.total_factura || d.monto_total_factura || d.total_factura_con_comision) || 0;
+                sumPlan += parseFloat(d.total_planilla) || 0;
+            });
+
+            tbody.innerHTML = data.map((d, i) => {
+                const montoFacturaNum = parseFloat(d.total_factura || d.monto_total_factura || d.total_factura_con_comision || d.comision_bob) || 0;
+                const montoPlanillaNum = parseFloat(d.total_planilla) || 0;
+                const isMsc = (d.razon_social || '').toUpperCase().includes('MINERA SAN CRISTOBAL');
+                const isComp = isMsc || d.estado_tramite === 'COMPLETADO' || montoFacturaNum > 0 || montoPlanillaNum > 0;
+
+                const badge = isComp 
+                    ? `<span class="badge-completado px-2 py-0.5 rounded text-[9px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> COMPLETADO</span>`
+                    : `<span class="badge-proceso px-2 py-0.5 rounded text-[9px] font-black inline-flex items-center gap-1"><i class="fa-solid fa-spinner fa-spin"></i> EN PROCESO</span>`;
+
+                const fechaDisplay = getFechaFacturacionDisplay(d);
+                const mesDisplay = getMesFromRow(d);
+
+                let canalBadgeHtml = '';
+                if (d.canal && d.canal !== '-' && d.canal !== 'NULL' && d.canal !== 'null') {
+                    const canalUpper = String(d.canal).toUpperCase();
+                    let badgeClass = 'bg-slate-500/15 text-slate-400 border-slate-500/30';
+                    let iconClass = 'fa-circle';
+                    
+                    if (canalUpper.includes('VERDE')) {
+                        badgeClass = 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 shadow-sm';
+                    } else if (canalUpper.includes('AMARILLO')) {
+                        badgeClass = 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 shadow-sm';
+                    } else if (canalUpper.includes('ROJO')) {
+                        badgeClass = 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/40 shadow-sm';
+                    }
+
+                    const fechaCanalDisplay = (d.fecha_canal && d.fecha_canal !== '-' && d.fecha_canal !== 'NULL' && d.fecha_canal !== 'null')
+                        ? `<div class="text-[8.5px] font-mono text-slate-400 dark:text-slate-400/90 leading-tight mt-0.5" title="Fecha Canal">${d.fecha_canal}</div>`
+                        : '';
+
+                    canalBadgeHtml = `
+                        <div class="mt-1 flex flex-col items-start gap-0.5">
+                            <span class="inline-flex items-center gap-1 text-[8.5px] font-black px-1.5 py-0.5 rounded border ${badgeClass}">
+                                <i class="fa-solid ${iconClass} text-[6px]"></i> ${d.canal}
+                            </span>
+                            ${fechaCanalDisplay}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <tr class="${i % 2 === 0 ? 'bg-white dark:bg-[#08080a]' : 'bg-slate-50 dark:bg-[#000000]'} hover:bg-slate-100 dark:hover:bg-[#1c1c22] transition-colors border-b border-slate-200/80 dark:border-[#222226]/60">
+                        <td>${badge}</td>
+                        <td class="font-bold text-orange-600 dark:text-orange-400 mono">${d.n_referencia || '-'}</td>
+                        <td class="font-semibold text-slate-700 dark:text-slate-300 mono">${d.n_declaracion || '-'}</td>
+                        <td class="text-slate-800 dark:text-slate-200 font-semibold mono">${fechaDisplay}</td>
+                        <td class="font-bold text-orange-600 dark:text-orange-300 mono">${mesDisplay}</td>
+                        <td class="font-bold text-slate-900 dark:text-white align-top py-1.5">
+                            <div>${d.razon_social || 'DESCONOCIDO'}</div>
+                            ${canalBadgeHtml}
+                        </td>
+                        <td class="text-slate-700 dark:text-slate-300">${d.aduana || '-'}</td>
+                        <td class="text-slate-600 dark:text-slate-400 truncate max-w-[140px]">${d.proveedor || '-'}</td>
+                        <td class="text-right mono font-semibold text-slate-900 dark:text-slate-100">${formatMoney(d.total_cif)}</td>
+                        <td class="text-right mono font-semibold text-slate-900 dark:text-slate-100">${formatMoney(d.total_tributos)}</td>
+                        <td class="text-right mono text-orange-600 dark:text-orange-300 font-bold">${formatMoney(d.total_factura || d.monto_total_factura || d.total_factura_con_comision)}</td>
+                        <td class="text-right mono font-semibold text-slate-900 dark:text-slate-100">${formatMoney(d.total_planilla)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tfoot.innerHTML = `
+                <tr class="bg-[#f1f5f9] dark:bg-[#141416] text-orange-600 dark:text-orange-300 font-black border-t-2 border-orange-500/40">
+                    <td colspan="8" class="font-black text-orange-600 dark:text-orange-400 uppercase">TOTALES DE PÁGINA (${data.length} REGISTROS)</td>
+                    <td class="text-right mono font-black">${formatMoney(sumCif)}</td>
+                    <td class="text-right mono font-black">${formatMoney(sumTrib)}</td>
+                    <td class="text-right mono font-black text-orange-600 dark:text-orange-300 text-xs">${formatMoney(sumMontoT)}</td>
+                    <td class="text-right mono font-black">${formatMoney(sumPlan)}</td>
+                </tr>
+            `;
+        }
+
+        window.exportDetalleExcel = () => {
+            if (filteredDetalleData.length === 0) return;
+            const ws = XLSX.utils.json_to_sheet(filteredDetalleData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Despachos Detallados 2026");
+            XLSX.writeFile(wb, "GASTOS_DESPACHOS_2026.xlsx");
+        };
+
+        let realtimeChannel = null;
+        function suscribirTiempoReal() {
+            if (!supabase || realtimeChannel) return;
+            
+            realtimeChannel = supabase
+                .channel('realtime-dashboard-despachos-2026')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'GASTOS_DESPACHOS_2026' }, (payload) => {
+                    const { eventType, new: newRow, old: oldRow } = payload;
+                    if (eventType === 'INSERT' && newRow) {
+                        const idx = rawDetalleData.findIndex(d => d.n_referencia === newRow.n_referencia);
+                        if (idx >= 0) rawDetalleData[idx] = { ...rawDetalleData[idx], ...newRow };
+                        else rawDetalleData.unshift(newRow);
+                    } else if (eventType === 'UPDATE' && newRow) {
+                        const idx = rawDetalleData.findIndex(d => d.id === newRow.id || (d.n_referencia && d.n_referencia === newRow.n_referencia));
+                        if (idx >= 0) rawDetalleData[idx] = { ...rawDetalleData[idx], ...newRow };
+                    } else if (eventType === 'DELETE' && oldRow) {
+                        rawDetalleData = rawDetalleData.filter(d => d.id !== oldRow.id && d.n_referencia !== oldRow.n_referencia);
+                    }
+                    filterDetalleTable();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'TOTALES_CLIENTES_DASHBOARD_2026' }, (payload) => {
+                    const { eventType, new: newRow, old: oldRow } = payload;
+                    if ((eventType === 'INSERT' || eventType === 'UPDATE') && newRow) {
+                        const idx = rawDashboardData.findIndex(d => d.cliente_razon_social === newRow.cliente_razon_social && d.mes_aceptacion === newRow.mes_aceptacion);
+                        if (idx >= 0) rawDashboardData[idx] = { ...rawDashboardData[idx], ...newRow };
+                        else rawDashboardData.push(newRow);
+                    } else if (eventType === 'DELETE' && oldRow) {
+                        rawDashboardData = rawDashboardData.filter(d => !(d.cliente_razon_social === oldRow.cliente_razon_social && d.mes_aceptacion === oldRow.mes_aceptacion));
+                    }
+                    renderDashboard();
+                })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'control_estados_importacion' }, (payload) => {
+                    const { eventType, new: newRow } = payload;
+                    if ((eventType === 'INSERT' || eventType === 'UPDATE') && newRow) {
+                        const refKey = (newRow.n_referencia || '').trim().toUpperCase();
+                        const declKey = (newRow.n_declaracion || '').trim().toUpperCase();
+                        let updated = false;
+                        rawDetalleData.forEach(d => {
+                            if ((d.n_referencia && d.n_referencia.trim().toUpperCase() === refKey) || 
+                                (d.n_declaracion && d.n_declaracion.trim().toUpperCase() === declKey)) {
+                                if (newRow.canal) d.canal = newRow.canal;
+                                if (newRow.fecha_canal) d.fecha_canal = newRow.fecha_canal;
+                                updated = true;
+                            }
+                        });
+                        if (updated) renderPaginatedTable();
+                    }
+                })
+                .subscribe();
+        }
+
+        function desuscribirTiempoReal() {
+            if (realtimeChannel && supabase) {
+                supabase.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+        }
+
+        window.addEventListener('beforeunload', desuscribirTiempoReal);
+        window.addEventListener('pagehide', desuscribirTiempoReal);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData();
+            suscribirTiempoReal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Sist. Importaciones Pro Extension",
+  "version": "1.1.0",
+  "description": "Extrae, sube a Supabase y visualiza el Dashboard de importaciones de forma totalmente independiente.",
+  "permissions": [],
+  "host_permissions": [
+    "https://sfqpptquojlsbeheguff.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "sandbox": {
+    "pages": [
+      "sandbox.html"
+    ]
+  }
+}

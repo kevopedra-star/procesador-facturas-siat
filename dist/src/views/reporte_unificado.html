@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Maestro de Importaciones</title>
+    <!-- Tailwind CSS -->
+        <!-- Supabase JS -->
+        <!-- SheetJS para Excel (Fuente Primaria) -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <!-- Iconos y Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@300;400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <!-- Alertas Bonitas -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    
+    <script>
+        /* Tailwind config movido */
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .table-input {
+            width: 100%; height: 100%; background: transparent;
+            text-align: inherit; outline: none; padding: 4px;
+            font-family: 'Roboto Mono', monospace; font-size: 10px;
+            border: 1px solid transparent; transition: all 0.2s;
+        }
+        .table-input:focus { background: white; border-color: #2563eb; }
+        .table-input::-moz-placeholder { color: #cbd5e1; }
+        .table-input::placeholder { color: #cbd5e1; }
+        
+        /* Scroll y Tabla */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .excel-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 11px; color: #1f2937; }
+        .excel-table th, .excel-table td { border-bottom: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; padding: 4px 8px; white-space: nowrap; }
+        .excel-table th { background-color: #f8fafc; font-weight: 700; color: #4b5563; position: sticky; top: 0; z-index: 20; border-top: 1px solid #e5e7eb; }
+        .excel-table tbody tr:hover { background-color: #eff6ff; }
+        
+        /* Columnas Colapsables */
+        .col-detail { transition: all 0.3s ease; }
+        .col-hidden { display: none; }
+
+        /* Estilos específicos para la tabla de Cliente */
+        .client-table th { background-color: #fdf2f8; color: #831843; border-color: #fbcfe8; font-size: 10px; text-transform: uppercase; }
+        .client-table td { font-family: 'Roboto Mono', monospace; font-size: 10px; border-color: #fce7f3; }
+        
+        /* Estilos para Verificador SUMA */
+        .suma-diff { background-color: #fee2e2; color: #b91c1c; font-weight: bold; }
+        .suma-ok { color: #15803d; }
+    </style>
+    <!-- Estilos de Tailwind Compilados por Vite -->
+  <script type="module" crossorigin src="/assets/reporte_unificado-B-TSVs9F.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DztbwT6Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-D9p2b7RA.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-weG9gO3Z.css">
+</head>
+<body class="bg-[#f1f3f6] dark:bg-[#0c0c0e] text-slate-800 dark:text-slate-100 min-h-screen font-['Inter']">
+
+    <!-- Barra de Navegación -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div class="max-w-[98%] mx-auto px-4 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-600 text-white p-1.5 rounded shadow-sm">
+                    <i class="fa-solid fa-table-columns"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-gray-800">Reporte <span class="text-brand-600">Unificado</span></h1>
+                </div>
+            </div>
+            
+            <div class="flex-1 max-w-4xl mx-6 flex gap-2">
+                <button onclick="toggleColumns()" class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded border border-gray-300 transition-colors" title="Ocultar/Mostrar Detalles de DIM">
+                    <i class="fa-solid fa-arrows-left-right-to-line"></i> <span id="toggle-text">Mostrar Detalles</span>
+                </button>
+                
+                <!-- FILTROS -->
+                <select id="clientFilter" onchange="applyFilters()" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded focus:ring-brand-500 focus:border-brand-500 block w-full p-1.5">
+                    <option value="all">Cargando clientes...</option>
+                </select>
+
+                <select id="monthFilter" onchange="applyFilters()" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded focus:ring-brand-500 focus:border-brand-500 block w-32 p-1.5 font-mono">
+                    <option value="all">Cargando meses...</option>
+                </select>
+
+                <select id="savedFilter" onchange="applyFilters()" class="bg-gray-50 border border-gray-300 text-gray-900 text-xs rounded focus:ring-brand-500 focus:border-brand-500 block w-32 p-1.5">
+                    <option value="all">Estado: Todos</option>
+                    <option value="saved">Solo Guardados ☁️</option>
+                    <option value="unsaved">Pendientes</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2">
+                <div id="status-indicator" class="flex items-center gap-1 bg-green-100 px-2 py-0.5 rounded border border-green-200 mr-2">
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span></span>
+                    <span class="text-[10px] text-green-800 font-bold">ONLINE</span>
+                </div>
+                
+                <!-- BOTONES ACCIONES -->
+                <button onclick="openClientReportModal()" class="px-3 py-1.5 text-xs font-bold text-white bg-pink-600 hover:bg-pink-700 rounded shadow-sm transition-colors border border-pink-700">
+                    <i class="fa-solid fa-rocket mr-1"></i> Módulo Cliente
+                </button>
+
+                <!-- BOTÓN VERIFICADOR SUMA -->
+                <button onclick="document.getElementById('verifyInputSuma').click()" class="px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded shadow-sm transition-colors border border-orange-700" title="Verificar datos contra Excel de SUMA">
+                    <i class="fa-solid fa-file-shield mr-1"></i> Verificar SUMA
+                </button>
+                <input type="file" id="verifyInputSuma" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleVerifySumaFile(event)">
+
+                <button onclick="openNitConfig()" class="px-3 py-1.5 text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded transition-colors"><i class="fa-solid fa-gears mr-1 text-gray-500"></i></button>
+                
+                <button onclick="document.getElementById('verifyInput').click()" class="px-3 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded shadow-sm transition-colors"><i class="fa-solid fa-scale-balanced mr-1"></i> Verif. Saldos</button>
+                <input type="file" id="verifyInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleVerifyFile(event)">
+                
+                <button onclick="saveAllToSupabase()" id="btn-save-cloud" class="hidden px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Guardar Todo</button>
+                <button onclick="loadData()" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded transition-colors"><i class="fa-solid fa-rotate"></i></button>
+                <button onclick="exportToExcel()" class="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded shadow-sm transition-colors"><i class="fa-solid fa-file-excel mr-1"></i> Excel</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido -->
+    <main class="w-full px-2 py-4 space-y-4">
+        
+        <!-- KPIs PRINCIPALES -->
+        <div class="grid grid-cols-5 gap-4 max-w-[98%] mx-auto mb-4">
+            <!-- Total DIMs -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350">+8.2%</span>
+                    <svg class="w-14 h-6 text-slate-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,20 Q15,5 30,22 T60,8 T90,25 T100,5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total DIMs</div>
+                    <div class="text-xl font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="stat-dims">0</div>
+                </div>
+            </div>
+            
+            <!-- Gastos Logísticos -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">+10.2%</span>
+                    <svg class="w-14 h-6 text-blue-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,15 Q20,25 40,5 T80,20 T100,8" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Gastos Logísticos</div>
+                    <div class="text-xl font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="stat-gastos">0.00</div>
+                </div>
+            </div>
+
+            <!-- Total Comisiones -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">+5.4%</span>
+                    <svg class="w-14 h-6 text-indigo-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q15,10 30,25 T60,5 T90,15 T100,10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total Comisiones</div>
+                    <div class="text-xl font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="stat-comisiones">0.00</div>
+                </div>
+            </div>
+
+            <!-- Tributos Aduana -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-orange-500 dark:text-orange-400">+14.8%</span>
+                    <svg class="w-14 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q15,5 30,22 T60,8 T90,25 T100,2" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Tributos Aduana</div>
+                    <div class="text-xl font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="stat-tributos">0.00</div>
+                </div>
+            </div>
+
+            <!-- Costo Total Importación -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+15.4%</span>
+                    <svg class="w-14 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,10 Q25,5 50,25 T90,10 T100,18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[10px] font-bold text-slate-455 dark:text-slate-400 uppercase tracking-wider">Costo Total Importación</div>
+                    <div class="text-xl font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="stat-total-general">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs DETALLADOS -->
+        <div class="grid grid-cols-5 gap-4 max-w-[98%] mx-auto">
+            <!-- Total ALBO/DAB -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">+10.2%</span>
+                    <svg class="w-12 h-6 text-blue-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,15 Q20,25 40,5 T80,20 T100,8" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total ALBO/DAB</div>
+                    <div class="text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums" id="kpi-albo">0.00</div>
+                </div>
+            </div>
+            
+            <!-- Total Insp. Previa -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400">+4.8%</span>
+                    <svg class="w-12 h-6 text-purple-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,22 Q15,5 35,25 T70,8 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-455 dark:text-slate-400 uppercase tracking-wider">Total Insp. Previa</div>
+                    <div class="text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums" id="kpi-ip">0.00</div>
+                </div>
+            </div>
+
+            <!-- Total Guías -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+9.6%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q10,15 30,5 T70,25 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total Guías</div>
+                    <div class="text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums" id="kpi-guias">0.00</div>
+                </div>
+            </div>
+
+            <!-- Total Puertos -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-50 dark:bg-yellow-950/40 text-yellow-600 dark:text-yellow-400">+2.5%</span>
+                    <svg class="w-12 h-6 text-yellow-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,10 Q25,5 50,25 T90,10 T100,18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total Puertos</div>
+                    <div class="text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums" id="kpi-puertos">0.00</div>
+                </div>
+            </div>
+
+            <!-- Total Otros -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350">+0.0%</span>
+                    <svg class="w-12 h-6 text-slate-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,20 Q30,10 60,25 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total Otros</div>
+                    <div class="text-base font-black text-slate-800 dark:text-white mt-1 tabular-nums" id="kpi-otros">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loader" class="flex flex-col items-center justify-center py-20 bg-white rounded border border-gray-200 shadow-sm mx-4 mt-4 hidden">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+            <p class="mt-2 text-xs text-gray-500">Cargando datos desde la nube...</p>
+        </div>
+
+        <!-- Tabla -->
+        <div class="bg-white border border-gray-300 shadow-sm hidden mx-2 mt-4" id="reportContainer">
+            <div class="overflow-x-auto max-h-[78vh] custom-scrollbar">
+                <table class="excel-table" id="mainTable">
+                    <thead>
+                        <tr>
+                            <th class="bg-gray-100 min-w-[120px]">Cliente</th>
+                            <th class="bg-gray-100 w-28">DIM</th>
+                            <th class="bg-gray-100 w-24 border-r-2 border-gray-200">Interno</th>
+                            
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-20">Mes</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-24">Fecha</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-24">Aduana</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-20 text-right">CIF</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-20">OI</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-20 text-right">GA</th>
+                            <th class="col-detail col-hidden bg-gray-50 text-gray-500 w-20 text-right">IVA</th>
+                            <th class="col-detail col-hidden bg-gray-200 text-black font-bold text-right w-24 border-x-2 border-gray-300">Total Trib.</th>
+                            <th class="col-detail col-hidden bg-gray-100 text-right w-20">Dif.</th>
+                            
+                            <th class="bg-indigo-50 text-indigo-900 w-24 text-right border-l-2 border-indigo-200">Comisión</th>
+                            
+                            <th class="bg-blue-50 text-blue-900 min-w-[340px]">ALBO / DAB</th>
+                            <th class="bg-purple-50 text-purple-900 min-w-[340px]">Insp. Previa</th>
+                            <th class="bg-amber-50 text-amber-900 min-w-[340px]">Guías</th>
+                            
+                            <th class="bg-yellow-50 text-yellow-900 min-w-[340px]">Puertos</th>
+                            <th class="bg-yellow-50 text-yellow-900 min-w-[340px]">Otros</th>
+                            
+                            <th class="bg-gray-800 text-white text-right w-28">Total Gastos</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportBody"></tbody>
+                    <tfoot id="reportFooter" class="bg-gray-800 text-white font-bold sticky bottom-0 z-20"></tfoot>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Módulo Cliente -->
+    <div id="clientReportModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-lg shadow-xl w-[95%] h-[90vh] flex flex-col">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-pink-50 rounded-t-lg">
+                <div class="flex items-center gap-2">
+                    <h3 class="text-lg font-bold text-pink-800"><i class="fa-solid fa-rocket text-pink-600 mr-2"></i>Módulo Cliente</h3>
+                    <span class="text-xs bg-pink-200 text-pink-800 px-2 py-0.5 rounded font-bold">Vista Previa y Copia</span>
+                </div>
+                <button onclick="document.getElementById('clientReportModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div class="p-4 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[300px]">
+                    <label class="text-xs font-bold text-gray-600 block mb-1">Pega aquí los Internos (Trámites):</label>
+                    <textarea id="internosInput" class="w-full h-16 border border-gray-300 rounded p-2 font-mono text-xs focus:ring-2 focus:ring-pink-500 outline-none" placeholder="2000138&#10;2000474..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block mb-1">Contrato Mes/Año:</label>
+                    <input type="text" id="mesGestionInput" value="012026" class="border rounded px-3 py-2 text-sm font-mono w-32 text-center shadow-sm" title="Formato MMAAAA">
+                </div>
+                <div class="flex gap-2 pb-1">
+                    <button onclick="renderClientTable()" class="px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 font-bold shadow-md active:scale-95 transition-all">
+                        <i class="fa-solid fa-eye mr-2"></i>Procesar y Ver
+                    </button>
+                    <button onclick="copyClientTable()" id="btnCopyTable" class="hidden px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 font-bold shadow-md active:scale-95 transition-all">
+                        <i class="fa-solid fa-copy mr-2"></i>Copiar Tabla
+                    </button>
+                    <button onclick="exportClientExcel()" id="btnExportTable" class="hidden px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold shadow-md active:scale-95 transition-all">
+                        <i class="fa-solid fa-file-excel mr-2"></i>Descargar Excel
+                    </button>
+                </div>
+            </div>
+
+            <div id="clientTableContainer" class="flex-1 overflow-auto p-4 bg-white relative hidden">
+                <table id="clientResultTable" class="excel-table client-table w-full border-collapse">
+                    <thead id="clientTableHead" class="sticky top-0 z-10 bg-pink-50 shadow-sm"></thead>
+                    <tbody id="clientTableBody"></tbody>
+                </table>
+                <div id="clientEmptyState" class="h-full flex flex-col items-center justify-center text-gray-400">
+                    <i class="fa-solid fa-clipboard-list text-6xl mb-4 text-gray-200"></i>
+                    <p>Pega los internos y dale "Procesar" para ver la magia.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Configuración NITs -->
+    <div id="nitConfigModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-address-book text-blue-600 mr-2"></i>Configuración de Proveedores (NIT)</h3>
+                <button onclick="document.getElementById('nitConfigModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-4">
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <input type="text" id="newNit" placeholder="NIT (ej. ASPB o 120585022)" class="border p-2 rounded text-sm">
+                    <input type="text" id="newProv" placeholder="Proveedor (ej. ASPB)" class="border p-2 rounded text-sm">
+                    <div class="flex gap-2">
+                        <input type="text" id="newCode" placeholder="Código (ej. ALB-001)" class="border p-2 rounded text-sm flex-1">
+                        <button onclick="addNitConfig()" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="overflow-y-auto max-h-64 border rounded">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="p-2">NIT</th>
+                                <th class="p-2">Proveedor</th>
+                                <th class="p-2">Código Asignado</th>
+                                <th class="p-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="nitConfigBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-end">
+                <button onclick="document.getElementById('nitConfigModal').classList.add('hidden'); renderTable(globalProcessedData);" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900">Cerrar y Actualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Resultados Verificación Saldos -->
+    <div id="verifyModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-list-check text-purple-600 mr-2"></i>Resultados de Verificación de Saldos</h3>
+                <button onclick="document.getElementById('verifyModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+                <div class="mb-4 text-sm text-gray-600 bg-blue-50 p-3 rounded border border-blue-100">
+                    <i class="fa-solid fa-circle-info mr-1 text-blue-500"></i> Se comparó <b>Total Gastos</b> (Sistema) vs <b>DEBITO</b> (Excel) usando el <b>Interno/Trámite</b> como llave.
+                </div>
+                <table class="w-full text-sm text-left border-collapse">
+                    <thead class="bg-gray-100 text-gray-700 uppercase text-xs sticky top-0">
+                        <tr>
+                            <th class="px-4 py-2 border">Interno (Trámite)</th>
+                            <th class="px-4 py-2 border">Cliente</th>
+                            <th class="px-4 py-2 border text-right">Total Gastos (Sistema)</th>
+                            <th class="px-4 py-2 border text-right">Débito (Excel)</th>
+                            <th class="px-4 py-2 border text-right">Diferencia</th>
+                            <th class="px-4 py-2 border text-center w-24">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifyBody"></tbody>
+                </table>
+                <div id="noDiffMsg" class="hidden text-center py-8 text-green-600 font-bold text-lg">
+                    <i class="fa-solid fa-check-circle text-4xl mb-2"></i><br>¡Todo cuadra perfecto! No hay diferencias.
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+                <button onclick="document.getElementById('verifyModal').classList.add('hidden')" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Verificador SUMA -->
+    <div id="verifySumaModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] flex flex-col">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-orange-50 rounded-t-lg">
+                <h3 class="text-lg font-bold text-orange-900"><i class="fa-solid fa-file-shield text-orange-600 mr-2"></i>Verificador SUMA - Cruce de Datos</h3>
+                <button onclick="document.getElementById('verifySumaModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1">
+                
+                <div class="grid grid-cols-5 gap-2 mb-4 text-xs font-bold text-center">
+                    <div class="bg-gray-100 p-2 rounded border border-gray-300">
+                        <div class="text-gray-500 uppercase text-[10px]">Total Filas</div>
+                        <div id="sumaCountTotal" class="text-lg">0</div>
+                    </div>
+                    <div class="bg-green-100 p-2 rounded border border-green-300">
+                        <div class="text-green-700 uppercase text-[10px]">Coinciden OK</div>
+                        <div id="sumaCountOk" class="text-lg text-green-800">0</div>
+                    </div>
+                    <div class="bg-red-100 p-2 rounded border border-red-300">
+                        <div class="text-red-700 uppercase text-[10px]">Diferencias</div>
+                        <div id="sumaCountDiff" class="text-lg text-red-800">0</div>
+                    </div>
+                    <div class="bg-orange-100 p-2 rounded border border-orange-300">
+                        <div class="text-orange-700 uppercase text-[10px]">Solo en Excel</div>
+                        <div id="sumaCountExcel" class="text-lg text-orange-800">0</div>
+                    </div>
+                    <div class="bg-blue-100 p-2 rounded border border-blue-300">
+                        <div class="text-blue-700 uppercase text-[10px]">Solo en Sistema</div>
+                        <div id="sumaCountSys" class="text-lg text-blue-800">0</div>
+                    </div>
+                </div>
+
+                <div class="mb-4 text-xs text-gray-700 bg-orange-50 p-3 rounded border border-orange-200 grid grid-cols-2 gap-4">
+                   <div>
+                       <p class="font-bold mb-1">Criterios de Búsqueda:</p>
+                       <ul class="list-disc pl-4 space-y-1">
+                           <li><b>Llave Primaria:</b> N° de DIM (Limpia, sin guiones ni años)</li>
+                           <li><b>Llave Secundaria:</b> N° de Referencia (Interno)</li>
+                       </ul>
+                   </div>
+                   <div>
+                       <p class="font-bold mb-1">Cruce Financiero:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                           <li><b>CIF:</b> Total Valor CIF Aduana BOB (Excel) vs CIF (Sistema)</li>
+                           <li><b>Tributos:</b> Total Tributos Determinados (Excel) vs Total Tributos (Sistema)</li>
+                       </ul>
+                   </div>
+                </div>
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead class="bg-gray-100 text-gray-700 uppercase sticky top-0 z-10">
+                        <tr>
+                            <th class="px-2 py-2 border bg-gray-200">Interno</th>
+                            <th class="px-2 py-2 border text-center w-24">Estado</th>
+                            <th class="px-2 py-2 border border-l-2 border-l-gray-300">DIM (Sis)</th>
+                            <th class="px-2 py-2 border">DIM (Excel)</th>
+                            <th class="px-2 py-2 border border-l-2 border-l-gray-300">Fecha (Sis)</th>
+                            <th class="px-2 py-2 border">Fecha (Excel)</th>
+                            <th class="px-2 py-2 border border-l-2 border-l-gray-300 text-right">CIF (Sis)</th>
+                            <th class="px-2 py-2 border text-right font-bold text-blue-800">CIF (Excel)</th>
+                            <th class="px-2 py-2 border border-l-2 border-l-gray-300 text-right">Trib. (Sis)</th>
+                            <th class="px-2 py-2 border text-right font-bold text-green-800">Trib. (Excel)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifySumaBody"></tbody>
+                </table>
+                <div id="noDiffMsgSuma" class="hidden text-center py-8 text-green-600 font-bold text-lg">
+                    <i class="fa-solid fa-check-double text-4xl mb-2"></i><br>¡Toda la data coincide con la Aduana!
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+                <button onclick="document.getElementById('verifySumaModal').classList.add('hidden')" class="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-800 text-white px-4 py-2 rounded shadow-lg transition-opacity duration-300 z-50 text-xs">
+        <span id="toastMsg">Notificación</span>
+    </div>
+
+</body>
+</html>

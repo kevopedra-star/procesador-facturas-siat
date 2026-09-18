@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Consolidado MSC - Vista Premium</title>
+    
+    <!-- CDNs de soporte -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- SheetJS para procesamiento de Excel -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    
+    <!-- Iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Fuentes Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;750&display=swap" rel="stylesheet">
+    
+    <!-- Estilos de Tailwind -->
+    <link rel="stylesheet" href="../css/style.css">
+    
+    <style>
+        :root {
+            --bg-color: #f4f5f8;
+            --text-color: #0f172a;
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.1);
+            --th-bg: #f1f5f9;
+            --th-text: #ea580c;
+            --row-even: #f8fafc;
+            --row-odd: #ffffff;
+            --row-hover: #e2e8f0;
+            --kpi-title: #475569;
+            --text-muted: #64748b;
+        }
+
+        html.dark {
+            --bg-color: #000000;
+            --text-color: #f1f5f9;
+            --header-bg: rgba(9, 9, 11, 0.95);
+            --border-color: #222226;
+            --card-bg: #0d0d0d;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+            --th-bg: #141416;
+            --th-text: #f97316;
+            --row-even: #08080a;
+            --row-odd: #000000;
+            --row-hover: #1c1c22;
+            --kpi-title: #f97316;
+            --text-muted: #a1a1aa;
+        }
+
+        /* Removidos los transition de background y color para cambio de tema instantáneo ("al raz") */
+        body {
+            background-color: var(--bg-color) !important;
+            color: var(--text-color) !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        header {
+            background-color: var(--header-bg) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+        }
+
+        .filter-bar {
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+
+        /* Tarjetas de Resumen (KPI) - Estilo Dark Premium */
+        .kpi-card {
+            background-color: var(--card-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .kpi-card:hover {
+            border-color: var(--accent-color) !important;
+            box-shadow: 0 10px 40px var(--accent-glow);
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle 80px at var(--x, 0px) var(--y, 0px), var(--accent-glow), transparent);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .kpi-card:hover::after {
+            opacity: 1;
+        }
+        
+        .kpi-value {
+            font-family: 'Roboto Mono', monospace;
+            color: var(--accent-color);
+            text-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Tabla Estilo Matrix Dark Premium con Sticky Headers */
+        .table-container-dark {
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            overflow: auto; /* Habilitar scroll nativo vertical y horizontal */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .planilla-table-dark {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-size: 10.5px;
+            color: var(--text-muted);
+        }
+        
+        /* Sticky general headers (vertical) */
+        .planilla-table-dark thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: var(--th-bg);
+            color: var(--th-text);
+            font-weight: 700;
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: 8.5px;
+            text-align: center;
+        }
+
+        /* Ajuste de sticky para segunda fila de th */
+        .planilla-table-dark thead tr:first-child th {
+            top: 0;
+            z-index: 22;
+        }
+        .planilla-table-dark thead tr:last-child th {
+            top: 38px; /* Altura aproximada de la primera fila */
+            z-index: 20;
+        }
+        
+        /* Estilos específicos para Columnas Congeladas (Sticky en scroll horizontal) */
+        .sticky-col-n {
+            position: sticky !important;
+            left: 0;
+            z-index: 9;
+            width: 35px;
+            min-width: 35px;
+            max-width: 35px;
+        }
+        .sticky-col-interno {
+            position: sticky !important;
+            left: 35px;
+            z-index: 9;
+            width: 90px;
+            min-width: 90px;
+            max-width: 90px;
+            border-right: 2px solid var(--border-color) !important;
+        }
+        .sticky-col-dim {
+            position: sticky !important;
+            left: 125px;
+            z-index: 9;
+            width: 130px;
+            min-width: 130px;
+            max-width: 130px;
+            border-right: 2px solid var(--border-color) !important;
+        }
+
+        /* Headers Congelados deben tener prioridad de z-index */
+        .planilla-table-dark thead tr:first-child th.sticky-col-n,
+        .planilla-table-dark thead tr:last-child th.sticky-col-n {
+            z-index: 30 !important;
+            background-color: var(--th-bg) !important;
+        }
+        .planilla-table-dark thead tr:first-child th.sticky-col-interno,
+        .planilla-table-dark thead tr:last-child th.sticky-col-interno {
+            z-index: 30 !important;
+            background-color: var(--th-bg) !important;
+        }
+        .planilla-table-dark tr:first-child th.sticky-col-dim,
+        .planilla-table-dark thead tr:last-child th.sticky-col-dim {
+            z-index: 30 !important;
+            background-color: var(--th-bg) !important;
+        }
+        
+        /* Column Group Color coding */
+        .th-general { background-color: var(--th-bg) !important; color: var(--text-color) !important; }
+        
+        .th-albo { 
+            background-color: rgba(59, 130, 246, 0.15) !important; 
+            color: #3b82f6 !important; 
+            border-bottom: 2px solid #3b82f6 !important; 
+        }
+        .th-previa { 
+            background-color: rgba(168, 85, 247, 0.15) !important; 
+            color: #a855f7 !important; 
+            border-bottom: 2px solid #a855f7 !important; 
+        }
+        .th-guias { 
+            background-color: rgba(249, 115, 22, 0.15) !important; 
+            color: #f97316 !important; 
+            border-bottom: 2px solid #f97316 !important; 
+        }
+        .th-puertos { 
+            background-color: rgba(234, 179, 8, 0.15) !important; 
+            color: #eab308 !important; 
+            border-bottom: 2px solid #eab308 !important; 
+        }
+        .th-otros { 
+            background-color: rgba(107, 114, 128, 0.15) !important; 
+            color: #6b7280 !important; 
+            border-bottom: 2px solid #6b7280 !important; 
+        }
+        
+        .planilla-table-dark td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            color: var(--text-color);
+            white-space: nowrap;
+        }
+        
+        /* Alternating row colors */
+        .planilla-table-dark tr:nth-child(even) td {
+            background-color: var(--row-even);
+        }
+        .planilla-table-dark tr:nth-child(odd) td {
+            background-color: var(--row-odd);
+        }
+
+        /* Estilo para las celdas congeladas del body */
+        .planilla-table-dark tr:nth-child(even) td.sticky-col-n,
+        .planilla-table-dark tr:nth-child(even) td.sticky-col-interno,
+        .planilla-table-dark tr:nth-child(even) td.sticky-col-dim {
+            background-color: var(--row-even) !important;
+        }
+        .planilla-table-dark tr:nth-child(odd) td.sticky-col-n,
+        .planilla-table-dark tr:nth-child(odd) td.sticky-col-interno,
+        .planilla-table-dark tr:nth-child(odd) td.sticky-col-dim {
+            background-color: var(--row-odd) !important;
+        }
+
+        .planilla-table-dark tr:hover td {
+            background-color: var(--row-hover) !important;
+        }
+        .planilla-table-dark tr:hover td.sticky-col-n,
+        .planilla-table-dark tr:hover td.sticky-col-interno,
+        .planilla-table-dark tr:hover td.sticky-col-dim {
+            background-color: var(--row-hover) !important;
+        }
+        
+        /* Coloreado condicional para filas de trámites Anticipados */
+        .row-anticipada-pending td {
+            background-color: #fef2f2 !important; /* Rojo pastel */
+            color: #991b1b !important;
+        }
+        .row-anticipada-pending td.sticky-col-n,
+        .row-anticipada-pending td.sticky-col-interno,
+        .row-anticipada-pending td.sticky-col-dim {
+            background-color: #fef2f2 !important;
+        }
+        html.dark .row-anticipada-pending td {
+            background-color: rgba(239, 68, 68, 0.08) !important; /* Rojo cianizado */
+            color: #fca5a5 !important;
+        }
+        html.dark .row-anticipada-pending td.sticky-col-n,
+        html.dark .row-anticipada-pending td.sticky-col-interno,
+        html.dark .row-anticipada-pending td.sticky-col-dim {
+            background-color: #1a1215 !important;
+        }
+
+        .row-anticipada-done td {
+            background-color: #ecfdf5 !important; /* Verde pastel */
+            color: #065f46 !important;
+        }
+        .row-anticipada-done td.sticky-col-n,
+        .row-anticipada-done td.sticky-col-interno,
+        .row-anticipada-done td.sticky-col-dim {
+            background-color: #ecfdf5 !important;
+        }
+        html.dark .row-anticipada-done td {
+            background-color: rgba(16, 185, 129, 0.08) !important; /* Verde cianizado */
+            color: #6ee7b7 !important;
+        }
+        html.dark .row-anticipada-done td.sticky-col-n,
+        html.dark .row-anticipada-done td.sticky-col-interno,
+        html.dark .row-anticipada-done td.sticky-col-dim {
+            background-color: #121d18 !important;
+        }
+        
+        .multi-cell div { 
+            border-bottom: 1px dashed var(--border-color);
+            padding: 3px 0;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .multi-cell div:last-child { border-bottom: 0; }
+        
+        .mono { font-family: 'Roboto Mono', monospace; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden antialiased">
+
+    <!-- Header con Filtros -->
+    <header class="p-4 flex flex-col gap-3 shrink-0 z-20 backdrop-blur-xl shadow-lg">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-cyan-500/10 text-cyan-600 dark:text-[#00f0ff] p-2.5 rounded-xl border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(0,240,255,0.1)]">
+                    <i class="fa-solid fa-chart-line text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Dashboard MSC <span class="text-cyan-600 dark:text-[#00f0ff]">Liquidación</span>
+                    </h1>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 flex-wrap">
+                <div id="loader" class="hidden flex items-center gap-2 text-cyan-600 dark:text-[#00f0ff] text-xs font-bold mr-4 animate-pulse">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Actualizando...
+                </div>
+
+                <button onclick="promptMasivoDimReg()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all"><i class="fa-solid fa-check-double mr-1.5 text-cyan-550 dark:text-cyan-400"></i> Carga Masiva Reg.</button>
+                
+                <label class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all cursor-pointer"><i class="fa-solid fa-file-excel mr-1.5 text-cyan-600 dark:text-[#00f0ff]"></i> Cargar Excel<input type="file" id="excelFile" class="hidden" accept=".xlsx, .xls" onchange="handleExcelUpload(event)"></label>
+
+                <label class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all cursor-pointer"><i class="fa-solid fa-scale-balanced mr-1.5 text-purple-650 dark:text-purple-400"></i> Verif. Saldos<input type="file" id="verifyExcelFile" class="hidden" accept=".xlsx, .xls" onchange="handleVerifyFile(event)"></label>
+
+                <label class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all cursor-pointer"><i class="fa-solid fa-file-shield mr-1.5 text-orange-550 dark:text-orange-400"></i> Verificar SUMA<input type="file" id="verifyInputSuma" class="hidden" accept=".xlsx, .xls, .csv" onchange="handleVerifySumaFile(event)"></label>
+
+                <button onclick="openNitConfig()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all" title="Configurar NITs"><i class="fa-solid fa-gears mr-1.5 text-slate-500"></i> NITs</button>
+
+                <button id="btnSaveExcel" onclick="saveExcelToBD()" class="hidden px-4 py-2 bg-[#0891b2] hover:bg-[#06b6d4] text-white font-black rounded-xl text-xs transition-all shadow-[0_0_15px_var(--accent-glow)]"><i class="fa-solid fa-floppy-disk mr-1.5"></i> Guardar en BD</button>
+
+                <button onclick="exportToExcel()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white font-bold transition-all"><i class="fa-solid fa-download mr-1.5 text-orange-555 dark:text-orange-400"></i> Descargar</button>
+                
+                <button onclick="loadData()" class="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] border border-var(--border-color) rounded-xl text-xs text-slate-800 dark:text-white transition-colors" title="Recargar Datos">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Filtros -->
+        <div class="filter-bar flex flex-wrap items-center gap-3 p-3 rounded-2xl text-xs shadow-inner">
+            <!-- Selector Mes -->
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-calendar text-slate-500 dark:text-slate-400"></i>
+                <select id="monthFilter" onchange="filterAndRender()" class="bg-white dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cyan-500">
+                    <option value="all">Todos los Meses</option>
+                </select>
+            </div>
+
+            <!-- Selector Ordenación -->
+            <div class="flex items-center gap-2 border-l border-var(--border-color) pl-3">
+                <i class="fa-solid fa-sort text-slate-500 dark:text-slate-400"></i>
+                <select id="sortFilter" onchange="filterAndRender()" class="bg-white dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cyan-500">
+                    <option value="fecha_desc">Fecha DIM (Nuevos primero)</option>
+                    <option value="fecha_asc">Fecha DIM (Antiguos primero)</option>
+                    <option value="dim_desc">Nº DIM (Mayor a Menor)</option>
+                    <option value="dim_asc">Nº DIM (Menor a Mayor)</option>
+                </select>
+            </div>
+
+            <!-- Selector Modalidad / Regularización -->
+            <div class="flex items-center gap-2 border-l border-var(--border-color) pl-3">
+                <i class="fa-solid fa-filter text-slate-500 dark:text-slate-400"></i>
+                <select id="regFilter" onchange="filterAndRender()" class="bg-white dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cyan-500">
+                    <option value="all">Todas las Modalidades</option>
+                    <option value="pending">Anticipadas Pendientes (Rojo)</option>
+                    <option value="done">Anticipadas Regularizadas (Verde)</option>
+                    <option value="general">Modalidad General</option>
+                    <option value="verif">Trámites Verificados (Verificado OK)</option>
+                    <option value="noverif">Trámites Sin Verificar (Pendientes)</option>
+                </select>
+            </div>
+            
+            <!-- Buscador -->
+            <div class="flex items-center gap-2 border-l border-var(--border-color) pl-3 flex-1">
+                <i class="fa-solid fa-magnifying-glass text-slate-500 dark:text-slate-400"></i>
+                <input type="text" id="searchFilter" onkeyup="filterAndRender()" placeholder="Buscar por DIM, Referencia o Interno..." class="bg-white dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white rounded-xl px-4 py-2 text-xs font-mono placeholder:font-sans focus:outline-none focus:border-cyan-500 w-full">
+            </div>
+            
+            <!-- Contadores de Estado Integrados Clickeables -->
+            <div class="flex flex-wrap items-center gap-2 text-[9.5px] font-bold">
+                <button onclick="setRegFilter('done')" title="Filtrar Anticipadas Regularizadas" class="px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-lg cursor-pointer transition-all">
+                    Reg: <span id="countReg">0</span>
+                </button>
+                <button onclick="setRegFilter('pending')" title="Filtrar Anticipadas Pendientes (Rojo)" class="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-700 dark:text-red-400 border border-red-500/20 rounded-lg cursor-pointer transition-all">
+                    Pend: <span id="countPend">0</span>
+                </button>
+                <button onclick="setRegFilter('verif')" title="Filtrar Verificados" class="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-[#00f0ff] border border-cyan-500/20 rounded-lg cursor-pointer transition-all">
+                    Verif: <span id="countVerif">0</span>
+                </button>
+                <button onclick="setRegFilter('noverif')" title="Filtrar Sin Verificar" class="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-455 border border-amber-500/20 rounded-lg cursor-pointer transition-all">
+                    Sin Verif: <span id="countNoVerif">0</span>
+                </button>
+                <button onclick="setRegFilter('all')" title="Mostrar Todos los Trámites" class="px-3.5 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#20212d] border border-var(--border-color) rounded-full font-black text-cyan-600 dark:text-[#00f0ff] text-[11px] shadow-sm cursor-pointer transition-all">
+                    <span id="countDisplay">0</span> Trámites
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 overflow-hidden p-4 flex flex-col gap-4">
+        
+        <!-- KPIs / Totales -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 shrink-0">
+            <!-- Comisión -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Comisión</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiComision">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-cyan-500 dark:bg-[#00f0ff] h-full" style="width: 75%"></div>
+                </div>
+            </div>
+            
+            <!-- ALBO / DAB -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">ALBO / DAB</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiAlbo">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-[#3b82f6] h-full" style="width: 40%"></div>
+                </div>
+            </div>
+
+            <!-- Insp. Previa -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Insp. Previa</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiIp">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-[#a855f7] h-full" style="width: 20%"></div>
+                </div>
+            </div>
+
+            <!-- Guías -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Guías</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiGuia">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-[#f97316] h-full" style="width: 55%"></div>
+                </div>
+            </div>
+
+            <!-- Puertos -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Puertos</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiPuerto">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-[#eab308] h-full" style="width: 30%"></div>
+                </div>
+            </div>
+
+            <!-- Otros -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Otros</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiOtros">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-[#6b7280] h-full" style="width: 15%"></div>
+                </div>
+            </div>
+
+            <!-- Total Gastos -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm">
+                <div class="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Gastos</div>
+                <div class="text-sm font-black kpi-value mt-2 tabular-nums" id="kpiTotalGastos">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-cyan-500 dark:bg-[#00f0ff] h-full" style="width: 65%"></div>
+                </div>
+            </div>
+
+            <!-- Gran Total -->
+            <div class="kpi-card p-3 flex flex-col justify-between shadow-sm border-cyan-500/30 dark:border-[#00f0ff]/30 bg-cyan-500/5 dark:bg-[#14231b]">
+                <div class="text-[9px] font-bold text-cyan-700 dark:text-orange-300 uppercase tracking-wider">GRAN TOTAL</div>
+                <div class="text-sm font-black mt-2 text-cyan-600 dark:text-[#00f0ff] tabular-nums" id="kpiGranTotal">0.00</div>
+                <div class="w-full bg-slate-200 dark:bg-[#1f202b] h-1.5 rounded-full mt-3 overflow-hidden">
+                    <div class="bg-cyan-500 dark:bg-[#00f0ff] h-full" style="width: 90%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="table-container-dark flex-1 overflow-auto">
+            <table class="planilla-table-dark" id="planillaTable">
+                <thead>
+                    <tr>
+                        <th colspan="17" class="th-general border-b border-var(--border-color)">DATOS DE LA DIM</th>
+                        <th colspan="8" class="th-albo border-b border-var(--border-color)">ALBO / DAB</th>
+                        <th colspan="8" class="th-previa border-b border-var(--border-color)">Insp. Previa</th>
+                        <th colspan="8" class="th-guias border-b border-var(--border-color)">Guías</th>
+                        <th colspan="4" class="th-puertos border-b border-var(--border-color)">Puertos</th>
+                        <th colspan="5" class="th-otros border-b border-var(--border-color)">Otros</th>
+                        <th colspan="1" class="th-general border-b border-var(--border-color)">TOTAL</th>
+                    </tr>
+                    <tr>
+                        <th class="sticky-col-n">N°</th>
+                        <th class="sticky-col-interno">Interno</th>
+                        <th class="sticky-col-dim">DIM Nº</th>
+                        <th>Fecha Val.</th>
+                        <th>Fecha DIM</th>
+                        <th class="border-l border-var(--border-color)">Nº (Ref)</th>
+                        <th>Fecha</th>
+                        <th>Modalidad</th>
+                        <th>DIM Reg.</th>
+                        <th>OI</th>
+                        <th>Tipo Cambio</th>
+                        <th>Valor CIF Bs.</th>
+                        <th>Porc. Com.</th>
+                        <th>Comisión</th>
+                        <th>Gravamen</th>
+                        <th>IVA</th>
+                        <th>Total Tributos</th>
+                        
+                        <th class="th-albo">Cód.</th>
+                        <th class="th-albo">Factura</th>
+                        <th class="th-albo">Fecha</th>
+                        <th class="th-albo text-right">Monto</th>
+                        <th class="th-albo text-center">Link</th>
+                        <th class="th-albo">n_declaracion (importaciones)</th>
+                        <th class="th-albo">doc_aduanero (facturas)</th>
+                        <th class="th-albo">verificado albo</th>
+                        
+                        <th class="th-previa">Cód.</th>
+                        <th class="th-previa">Factura</th>
+                        <th class="th-previa">Fecha</th>
+                        <th class="th-previa text-right">Monto</th>
+                        <th class="th-previa text-center">Link</th>
+                        <th class="th-previa">examen_previo (importaciones)</th>
+                        <th class="th-previa">doc_aduanero (facturas)</th>
+                        <th class="th-previa">verificado ip</th>
+ 
+                        <th class="th-guias">Cód.</th>
+                        <th class="th-guias">Factura</th>
+                        <th class="th-guias">Fecha</th>
+                        <th class="th-guias text-right">Monto</th>
+                        <th class="th-guias text-center">Link</th>
+                        <th class="th-guias">guia_embarque (importaciones)</th>
+                        <th class="th-guias">ref_guia (facturas)</th>
+                        <th class="th-guias">verificado guia</th>
+ 
+                        <th class="th-puertos">Cód.</th>
+                        <th class="th-puertos">Comp.</th>
+                        <th class="th-puertos">Fecha</th>
+                        <th class="th-puertos text-right">Monto</th>
+ 
+                        <th class="th-otros">Cód.</th>
+                        <th class="th-otros">Comp.</th>
+                        <th class="th-otros">Fecha</th>
+                        <th class="th-otros text-right">Monto</th>
+                        <th class="th-otros text-center">Link</th>
+                        
+                        <th class="bg-slate-100 dark:bg-slate-850/50 text-indigo-650 dark:text-indigo-400 text-center font-bold text-[10px] whitespace-nowrap">Verif. Suma</th>
+                        <th class="bg-slate-100 dark:bg-slate-850/50 text-purple-650 dark:text-purple-400 text-center font-bold text-[10px] whitespace-nowrap">Verif. Saldos</th>
+ 
+                        <th class="bg-slate-200 dark:bg-[#1f202b] text-slate-800 dark:text-white text-right">Total Gastos</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="100" class="px-6 py-24 text-center">
+                            <div class="inline-block w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <p class="font-bold text-sm tracking-wide animate-pulse">Conectando a base de datos segura...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Modal Resultados Verificación Saldos (MSC Premium) -->
+    <div id="verifyModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-[#16161a] rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-var(--border-color)">
+            <div class="p-4 border-b border-var(--border-color) flex justify-between items-center bg-slate-100 dark:bg-[#172422] rounded-t-lg">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase"><i class="fa-solid fa-list-check text-purple-650 dark:text-purple-400 mr-2"></i>Resultados de Verificación de Saldos</h3>
+                <button onclick="document.getElementById('verifyModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 text-xs">
+                <div class="mb-4 text-xs text-slate-600 dark:text-slate-300 bg-blue-50 dark:bg-blue-950/20 p-3 rounded border border-blue-100 dark:border-blue-900/30">
+                    <i class="fa-solid fa-circle-info mr-1 text-blue-500"></i> Se comparó <b>Total Gastos</b> (Sistema) vs <b>DEBITO</b> (Excel) usando el <b>Interno/Trámite</b> como llave.
+                </div>
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead class="bg-slate-100 dark:bg-[#172422] text-slate-700 dark:text-slate-300 uppercase text-[9px] sticky top-0">
+                        <tr>
+                            <th class="px-4 py-2 border border-var(--border-color)">Interno (Trámite)</th>
+                            <th class="px-4 py-2 border border-var(--border-color) text-right">Total Gastos (Sistema)</th>
+                            <th class="px-4 py-2 border border-var(--border-color) text-right">Débito (Excel)</th>
+                            <th class="px-4 py-2 border border-var(--border-color) text-right">Diferencia</th>
+                            <th class="px-4 py-2 border border-var(--border-color) text-center w-24">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifyBody" class="font-mono text-slate-800 dark:text-slate-100"></tbody>
+                </table>
+                <div id="noDiffMsg" class="hidden text-center py-8 text-green-600 dark:text-orange-400 font-bold text-sm">
+                    <i class="fa-solid fa-check-circle text-3xl mb-2"></i><br>¡Todo cuadra perfecto! No hay diferencias.
+                </div>
+            </div>
+            <div class="p-4 border-t border-var(--border-color) flex justify-end">
+                <button onclick="document.getElementById('verifyModal').classList.add('hidden')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] text-slate-800 dark:text-white rounded-lg text-xs font-bold border border-var(--border-color)">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Configuración NITs (MSC Premium) -->
+    <div id="nitConfigModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-[#16161a] rounded-lg shadow-xl w-full max-w-2xl border border-var(--border-color)">
+            <div class="p-4 border-b border-var(--border-color) flex justify-between items-center bg-slate-100 dark:bg-[#172422] rounded-t-lg">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase"><i class="fa-solid fa-address-book text-blue-600 mr-2"></i>Configuración de Proveedores (NIT)</h3>
+                <button onclick="document.getElementById('nitConfigModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-4 text-xs">
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <input type="text" id="newNit" placeholder="NIT (ej. 120585022)" class="bg-slate-50 dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white p-2 rounded-xl text-xs focus:outline-none">
+                    <input type="text" id="newProv" placeholder="Proveedor (ej. ALBO)" class="bg-slate-50 dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white p-2 rounded-xl text-xs focus:outline-none">
+                    <div class="flex gap-2">
+                        <input type="text" id="newCode" placeholder="Código (ej. ALB-001)" class="bg-slate-50 dark:bg-[#16171f] border border-var(--border-color) text-slate-800 dark:text-white p-2 rounded-xl text-xs flex-1 focus:outline-none">
+                        <button onclick="addNitConfig()" class="bg-[#0891b2] text-white px-3 py-2 rounded-xl hover:bg-[#06b6d4] transition-colors"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="overflow-y-auto max-h-64 border border-var(--border-color) rounded-xl">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-100 dark:bg-[#172422] text-slate-700 dark:text-slate-300 sticky top-0 uppercase text-[9px] border-b border-var(--border-color)">
+                            <tr>
+                                <th class="p-2">NIT</th>
+                                <th class="p-2">Proveedor</th>
+                                <th class="p-2">Código Asignado</th>
+                                <th class="p-2 w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="nitConfigBody" class="font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="p-4 border-t border-var(--border-color) flex justify-end bg-slate-50 dark:bg-[#0d1413] rounded-b-lg">
+                <button onclick="document.getElementById('nitConfigModal').classList.add('hidden'); loadData();" class="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 font-bold text-xs">Cerrar y Actualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Verificador SUMA (MSC Premium) -->
+    <div id="verifySumaModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-[#16161a] rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] flex flex-col border border-var(--border-color)">
+            <div class="p-4 border-b border-var(--border-color) flex justify-between items-center bg-slate-100 dark:bg-[#172422] rounded-t-lg">
+                <h3 class="text-xs font-bold text-slate-800 dark:text-white uppercase"><i class="fa-solid fa-file-shield text-orange-600 mr-2"></i>Verificador SUMA - Cruce de Datos</h3>
+                <button onclick="document.getElementById('verifySumaModal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1 text-xs">
+                
+                <div class="grid grid-cols-5 gap-2 mb-4 text-xs font-bold text-center">
+                    <div class="bg-slate-50 dark:bg-[#16171f] p-2 rounded-xl border border-var(--border-color)">
+                        <div class="text-slate-500 uppercase text-[9px]">Total Filas</div>
+                        <div id="sumaCountTotal" class="text-base text-slate-800 dark:text-white font-mono">0</div>
+                    </div>
+                    <div class="bg-orange-500/10 p-2 rounded-xl border border-orange-500/20">
+                        <div class="text-orange-600 dark:text-orange-400 uppercase text-[9px]">Coinciden OK</div>
+                        <div id="sumaCountOk" class="text-base text-emerald-800 dark:text-orange-400 font-mono">0</div>
+                    </div>
+                    <div class="bg-red-500/10 p-2 rounded-xl border border-red-500/20">
+                        <div class="text-red-700 dark:text-red-400 uppercase text-[9px]">Diferencias</div>
+                        <div id="sumaCountDiff" class="text-base text-red-800 dark:text-red-400 font-mono">0</div>
+                    </div>
+                    <div class="bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+                        <div class="text-amber-700 dark:text-amber-400 uppercase text-[9px]">Solo en Excel</div>
+                        <div id="sumaCountExcel" class="text-base text-amber-800 dark:text-amber-400 font-mono">0</div>
+                    </div>
+                    <div class="bg-blue-500/10 p-2 rounded-xl border border-blue-500/20">
+                        <div class="text-blue-700 dark:text-blue-400 uppercase text-[9px]">Solo en Sistema</div>
+                        <div id="sumaCountSys" class="text-base text-blue-800 dark:text-blue-400 font-mono">0</div>
+                    </div>
+                </div>
+
+                <div class="mb-4 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#16171f] p-3 rounded-xl border border-var(--border-color) grid grid-cols-2 gap-4">
+                   <div>
+                       <p class="font-bold mb-1">Criterios de Búsqueda:</p>
+                       <ul class="list-disc pl-4 space-y-1">
+                           <li><b>Llave Primaria:</b> N° de DIM (Limpia, sin guiones ni años)</li>
+                           <li><b>Llave Secundaria:</b> N° de Referencia (Interno)</li>
+                       </ul>
+                   </div>
+                   <div>
+                       <p class="font-bold mb-1">Cruce Financiero:</p>
+                        <ul class="list-disc pl-4 space-y-1">
+                           <li><b>CIF:</b> Total Valor CIF Aduana BOB (Excel) vs CIF (Sistema)</li>
+                           <li><b>Tributos:</b> Total Tributos Determinados (Excel) vs Total Tributos (Sistema)</li>
+                        </ul>
+                   </div>
+                </div>
+                <table class="w-full text-xs text-left border-collapse">
+                    <thead class="bg-slate-100 dark:bg-[#172422] text-slate-700 dark:text-slate-300 uppercase text-[9px] sticky top-0 z-10">
+                        <tr>
+                            <th class="px-2 py-2 border border-var(--border-color) bg-slate-200 dark:bg-[#172422]">Interno</th>
+                            <th class="px-2 py-2 border border-var(--border-color) text-center w-24">Estado</th>
+                            <th class="px-2 py-2 border border-var(--border-color) border-l-2 border-l-slate-400">DIM (Sis)</th>
+                            <th class="px-2 py-2 border border-var(--border-color)">DIM (Excel)</th>
+                            <th class="px-2 py-2 border border-var(--border-color) border-l-2 border-l-slate-400">Fecha (Sis)</th>
+                            <th class="px-2 py-2 border border-var(--border-color)">Fecha (Excel)</th>
+                            <th class="px-2 py-2 border border-var(--border-color) border-l-2 border-l-slate-400 text-right">CIF (Sis)</th>
+                            <th class="px-2 py-2 border border-var(--border-color) text-right font-bold text-cyan-600 dark:text-[#00f0ff]">CIF (Excel)</th>
+                            <th class="px-2 py-2 border border-var(--border-color) border-l-2 border-l-slate-400 text-right">Trib. (Sis)</th>
+                            <th class="px-2 py-2 border border-var(--border-color) text-right font-bold text-orange-500 dark:text-orange-400">Trib. (Excel)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="verifySumaBody" class="font-mono text-slate-800 dark:text-slate-100"></tbody>
+                </table>
+                <div id="noDiffMsgSuma" class="hidden text-center py-8 text-green-600 dark:text-orange-400 font-bold text-sm">
+                    <i class="fa-solid fa-check-double text-3xl mb-2"></i><br>¡Toda la data coincide con la Aduana!
+                </div>
+            </div>
+            <div class="p-4 border-t border-var(--border-color) flex justify-end">
+                <button onclick="document.getElementById('verifySumaModal').classList.add('hidden')" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 dark:bg-[#16171f] dark:hover:bg-[#1f202b] text-slate-800 dark:text-white rounded-lg text-xs font-bold border border-var(--border-color)">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../scripts/planilla-msc2.js"></script>
+    
+    <!-- Script para efecto radial Glow al mover mouse en tarjetas -->
+    <script>
+        document.addEventListener('mousemove', e => {
+            document.querySelectorAll('.kpi-card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--x', `${x}px`);
+                card.style.setProperty('--y', `${y}px`);
+            });
+        });
+    </script>
+</body>
+</html>

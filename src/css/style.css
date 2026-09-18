@@ -1,0 +1,1086 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-[#f4f4f7] dark:bg-[#000000] text-[#09090b] dark:text-[#ffffff] antialiased selection:bg-orange-500/30 selection:text-orange-500 transition-colors duration-300;
+  }
+}
+
+@layer components {
+  /* RA/dev Pure Black & Orange Cards & Panels */
+  .glass-card {
+    @apply bg-white dark:bg-[#09090b] border border-[#e4e4e7] dark:border-[#222226] rounded-2xl p-6 shadow-lg hover:border-orange-500/30 dark:hover:border-orange-500/40 transition-all duration-300;
+  }
+  
+  .premium-input {
+    @apply bg-white dark:bg-[#111114] border border-[#e4e4e7] dark:border-[#222226] hover:border-orange-500/50 dark:hover:border-orange-500/50 text-[#09090b] dark:text-[#ffffff] rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 transition-all outline-none text-xs w-full placeholder-slate-400 dark:placeholder-slate-500 shadow-inner;
+  }
+  
+  /* Select boxes */
+  .premium-select {
+    @apply premium-input appearance-none bg-no-repeat bg-[right_12px_center] bg-[length:10px_6px] pr-8;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ff5500'/%3E%3C/svg%3E");
+  }
+  
+  /* Buttons - RA/dev Electric Orange Primary */
+  .btn-primary {
+    @apply bg-gradient-to-r from-[#ff5500] to-[#f97316] hover:from-[#f97316] hover:to-[#ea580c] text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-[#ff5500]/25 hover:shadow-[#ff5500]/40 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-orange-400/30;
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent hover:bg-orange-500/10 dark:hover:bg-orange-500/15 border border-[#e4e4e7] dark:border-[#222226] text-orange-600 dark:text-orange-400 font-bold px-4 py-2 rounded-xl transition-all duration-300 shadow-sm active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-xs uppercase tracking-wider;
+  }
+
+  .btn-success {
+    @apply bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-emerald-400/30;
+  }
+
+  .btn-danger {
+    @apply bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-rose-500/20 hover:shadow-rose-500/30 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-rose-400/30;
+  }
+  
+  .btn-warning {
+    @apply bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold px-4 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-xs uppercase tracking-wider border border-amber-400/30;
+  }
+  
+  /* Tables */
+  .premium-table {
+    @apply min-w-full divide-y divide-[#e4e4e7] dark:divide-[#222226] bg-white dark:bg-[#09090b] rounded-2xl overflow-hidden shadow-lg;
+  }
+  
+  .premium-th {
+    @apply bg-[#f4f4f7] dark:bg-[#141416] px-4 py-3 text-left text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider whitespace-nowrap border-b border-[#e4e4e7] dark:border-[#222226];
+  }
+  
+  .premium-td {
+    @apply px-4 py-2.5 text-xs text-[#09090b] dark:text-[#ffffff] whitespace-nowrap border-b border-[#f4f4f7] dark:border-[#222226]/60 font-medium;
+  }
+  
+  .premium-tr {
+    @apply border-b border-[#e4e4e7]/60 dark:border-[#222226]/60 hover:bg-orange-500/5 dark:hover:bg-orange-500/10 transition-colors duration-150;
+  }
+  
+  /* Dropzones */
+  .premium-dropzone {
+    @apply bg-[#f4f4f7] dark:bg-[#09090b]/60 rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer border-2 border-dashed border-[#e4e4e7] dark:border-[#222226] hover:border-[#ff5500] dark:hover:border-[#ff5500] hover:bg-[#ff5500]/5 dark:hover:bg-[#ff5500]/5 flex flex-col items-center justify-center;
+  }
+  
+  /* Tabs */
+  .tab-btn {
+    @apply px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-300 cursor-pointer;
+  }
+  
+  .tab-active {
+    @apply bg-gradient-to-r from-[#ff5500] to-[#f97316] text-white shadow-md shadow-orange-500/25 font-bold;
+  }
+  
+  .tab-inactive {
+    @apply text-slate-700 dark:text-slate-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-slate-100 dark:hover:bg-[#141416];
+  }
+  
+  /* Badge indicator */
+  .status-badge {
+    @apply px-2 py-0.5 inline-flex text-[9px] font-bold rounded uppercase border;
+  }
+
+  /* Active Sidebar Item */
+  /* Active Sidebar Item */
+  .active-nav-item {
+    background-color: rgba(249, 115, 22, 0.15) !important;
+    color: #f97316 !important;
+    border-left: 4px solid #f97316 !important;
+    border-radius: 0.75rem !important;
+    font-weight: 800 !important;
+    opacity: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   SIDEBAR THEME RULES (Modo Claro vs Modo Oscuro - Negro Puro)
+   ========================================================================== */
+
+/* --- MODO OSCURO (html.dark / .dark - NEGRO PURO ABSOLUTO) --- */
+html.dark #sidebar,
+.dark #sidebar {
+  background-color: #000000 !important;
+  border-color: #1a1a1e !important;
+}
+
+/* Texto de navegación, etiquetas, botones e íconos en Modo Oscuro: BLANCO PURO (#ffffff) */
+html.dark #sidebar .sidebar-text,
+html.dark #sidebar-nav a:not(.active-nav-item),
+html.dark #sidebar-nav a:not(.active-nav-item) i,
+html.dark #sidebar button:not(.active-nav-item),
+html.dark #sidebar button:not(.active-nav-item) i,
+html.dark #userNameLabel,
+.dark #sidebar .sidebar-text,
+.dark #sidebar-nav a:not(.active-nav-item),
+.dark #sidebar-nav a:not(.active-nav-item) i,
+.dark #sidebar button:not(.active-nav-item),
+.dark #sidebar button:not(.active-nav-item) i,
+.dark #userNameLabel {
+  color: #ffffff !important;
+  background-color: transparent !important;
+}
+
+/* Estado Hover en Modo Oscuro */
+html.dark #sidebar-nav a:not(.active-nav-item):hover,
+html.dark #sidebar button:not(.active-nav-item):hover,
+.dark #sidebar-nav a:not(.active-nav-item):hover,
+.dark #sidebar button:not(.active-nav-item):hover {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  color: #f97316 !important;
+}
+html.dark #sidebar-nav a:not(.active-nav-item):hover i,
+html.dark #sidebar-nav a:not(.active-nav-item):hover .sidebar-text,
+.dark #sidebar-nav a:not(.active-nav-item):hover i,
+.dark #sidebar-nav a:not(.active-nav-item):hover .sidebar-text {
+  color: #f97316 !important;
+}
+
+/* Ítem Activo en Modo Oscuro (NEGRO Y NARANJA TECH) */
+html.dark .active-nav-item,
+html.dark #sidebar-nav a.active-nav-item,
+html.dark .active-nav-item .sidebar-text,
+html.dark .active-nav-item i,
+.dark .active-nav-item,
+.dark #sidebar-nav a.active-nav-item,
+.dark .active-nav-item .sidebar-text,
+.dark .active-nav-item i {
+  background-color: rgba(249, 115, 22, 0.18) !important;
+  color: #f97316 !important;
+  border-left: 4px solid #f97316 !important;
+  border-radius: 0.75rem !important;
+  font-weight: 800 !important;
+}
+
+/* --- MODO CLARO (html:not(.dark) / html.light) --- */
+html:not(.dark) #sidebar,
+html.light #sidebar {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Texto de navegación, etiquetas, botones e íconos en Modo Claro: NEGRO PIZARRA (#0f172a) */
+html:not(.dark) #sidebar .sidebar-text,
+html.light #sidebar .sidebar-text,
+html:not(.dark) #sidebar-nav a:not(.active-nav-item),
+html.light #sidebar-nav a:not(.active-nav-item),
+html:not(.dark) #sidebar-nav a:not(.active-nav-item) i,
+html.light #sidebar-nav a:not(.active-nav-item) i,
+html:not(.dark) #sidebar button:not(.active-nav-item),
+html.light #sidebar button:not(.active-nav-item),
+html:not(.dark) #sidebar button:not(.active-nav-item) i,
+html.light #sidebar button:not(.active-nav-item) i,
+html:not(.dark) #userNameLabel,
+html.light #userNameLabel {
+  color: #0f172a !important;
+}
+
+/* Estado Hover en Modo Claro */
+html:not(.dark) #sidebar-nav a:not(.active-nav-item):hover,
+html.light #sidebar-nav a:not(.active-nav-item):hover,
+html:not(.dark) #sidebar button:not(.active-nav-item):hover,
+html.light #sidebar button:not(.active-nav-item):hover {
+  background-color: rgba(249, 115, 22, 0.1) !important;
+  color: #ea580c !important;
+}
+html:not(.dark) #sidebar-nav a:not(.active-nav-item):hover i,
+html:not(.dark) #sidebar-nav a:not(.active-nav-item):hover .sidebar-text,
+html.light #sidebar-nav a:not(.active-nav-item):hover i,
+html.light #sidebar-nav a:not(.active-nav-item):hover .sidebar-text {
+  color: #ea580c !important;
+}
+
+/* Ítem Activo en Modo Claro */
+html:not(.dark) .active-nav-item,
+html.light .active-nav-item,
+html:not(.dark) .active-nav-item .sidebar-text,
+html.light .active-nav-item .sidebar-text,
+html:not(.dark) .active-nav-item i,
+html.light .active-nav-item i {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+  color: #ea580c !important;
+  border-left: 4px solid #ea580c !important;
+  font-weight: 800 !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+html.light ::-webkit-scrollbar-track, .light ::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #222226;
+  border-radius: 4px;
+}
+html.light ::-webkit-scrollbar-thumb, .light ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #f97316;
+}
+html.dark ::-webkit-scrollbar-thumb:hover, .dark ::-webkit-scrollbar-thumb:hover {
+  background: #ea580c;
+}
+
+/* Tablas con scroll horizontal suave */
+.table-container {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid #222226;
+  background-color: #09090b;
+}
+html.light .table-container, .light .table-container {
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+/* Ocultar botones de tema locales dentro de las vistas de iframe */
+button[onclick="toggleTheme()"] {
+  display: none !important;
+}
+
+/* Telegram Style Theme Toggle Animation */
+.theme-toggle-svg {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.theme-toggle-center-circle {
+  transition: r 0.5s cubic-bezier(0.4, 0, 0.2, 1), fill 0.5s ease;
+  transform-origin: center;
+}
+
+.theme-toggle-mask-circle {
+  transition: cx 0.5s cubic-bezier(0.4, 0, 0.2, 1), cy 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-toggle-rays {
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+/* Light mode (default) definitions */
+.theme-toggle-center-circle {
+  r: 5;
+}
+.theme-toggle-mask-circle {
+  cx: 24;
+  cy: 4;
+}
+.theme-toggle-rays {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Dark mode overrides (driven by html.dark) */
+.dark .theme-toggle-svg {
+  transform: rotate(40deg);
+}
+
+.dark .theme-toggle-center-circle {
+  r: 9;
+}
+
+.dark .theme-toggle-mask-circle {
+  cx: 18;
+  cy: 6;
+}
+
+.dark .theme-toggle-rays {
+  opacity: 0;
+  transform: scale(0);
+}
+
+/* Animated Rotating Gradient Border */
+.border-glow-wrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  padding: 1.5px;
+  background: transparent;
+  display: flex;
+}
+
+.border-glow-wrapper::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 30%,
+    #ff5500 50%,
+    #ff5500 70%,
+    transparent 90%
+  );
+  animation: border-spin-kf 4s linear infinite;
+  z-index: 0;
+}
+
+.border-glow-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 15px;
+  @apply bg-white dark:bg-[#16161a] w-full h-full;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Animated Rotating Gradient Border Circle (for profiles) */
+.border-glow-circle {
+  position: relative;
+  border-radius: 9999px;
+  overflow: hidden;
+  padding: 1.5px;
+  background: transparent;
+  display: flex;
+}
+
+.border-glow-circle::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 30%,
+    #ff5500 50%,
+    #ff5500 70%,
+    transparent 90%
+  );
+  animation: border-spin-kf 4s linear infinite;
+  z-index: 0;
+}
+
+.border-glow-circle-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 9999px;
+  @apply bg-white dark:bg-[#0c0c0e] w-full h-full flex items-center justify-center;
+}
+
+@keyframes border-spin-kf {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Custom SweetAlert2 Premium Theme Styling (Dark Glassmorphism) */
+.swal2-popup {
+  background: rgba(17, 26, 25, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(155, 215, 203, 0.15) !important;
+  border-radius: 24px !important;
+  font-family: 'Inter', sans-serif !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+}
+
+.swal2-title {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.swal2-html-container {
+  color: #688e89 !important;
+  font-weight: 500 !important;
+}
+
+.swal2-input, .swal2-textarea {
+  background: rgba(8, 13, 13, 0.8) !important;
+  border: 1px solid rgba(155, 215, 203, 0.2) !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+}
+
+.swal2-confirm {
+  background: #ff5500 !important;
+  color: #091010 !important;
+  box-shadow: 0 4px 14px 0 rgba(155, 215, 203, 0.3) !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  padding: 10px 24px !important;
+}
+
+.swal2-cancel {
+  background: #23232a !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  padding: 10px 24px !important;
+}
+
+/* Toast premium notification styling */
+.toast-premium {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  padding: 14px 24px;
+  border-radius: 20px;
+  background: rgba(17, 26, 25, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1.5px solid rgba(155, 215, 203, 0.15);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: toast-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.toast-premium.error {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.15);
+}
+
+@keyframes toast-pop-in {
+  0% {
+    transform: translateY(30px) scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Custom Border Glow Color Modifiers */
+.border-indigo-glow::before, .border-blue-glow::before, .border-purple-glow::before {
+  background: conic-gradient(from 0deg, transparent 30%, #ff5500 50%, #ff5500 70%, transparent 90%) !important;
+}
+.border-orange-glow::before, .border-yellow-glow::before {
+  background: conic-gradient(from 0deg, transparent 30%, #fdba74 50%, #f97316 70%, transparent 90%) !important;
+}
+.border-slate-glow::before {
+  background: conic-gradient(from 0deg, transparent 30%, #1f1f26 50%, #688e89 70%, transparent 90%) !important;
+}
+.border-emerald-glow::before {
+  background: conic-gradient(from 0deg, transparent 30%, #ff5500 50%, #ff5500 70%, transparent 90%) !important;
+}
+
+/* ==========================================================
+   HIGH-CONTRAST DUCK UI MONOCHROME SYSTEM OVERRIDES
+   ========================================================== */
+
+/* 1. Main Portal Sidebar Background & Border */
+#sidebar, aside#sidebar, .main-portal-sidebar {
+  background-color: #000000 !important;
+  border-right: 1px solid #1F1F22 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#sidebar *, aside#sidebar *, .main-portal-sidebar * {
+  border-color: #1F1F22 !important;
+}
+
+#sidebar-nav {
+  overflow-x: hidden !important;
+}
+
+/* 2. Page & Layout Backgrounds */
+html.dark body, .dark body, 
+html.dark, .dark,
+html.dark .bg-slate-50, html.dark .bg-gray-100, html.dark .bg-slate-950, 
+.dark .bg-slate-50, .dark .bg-gray-100, .dark .bg-slate-950, .dark #mainLayout, .bg-slate-950 {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+}
+
+html.dark .glass-panel, html.dark .bg-white, html.dark .bg-slate-900, 
+html.dark .bg-slate-800, html.dark .border-glow-inner, .dark .glass-panel, 
+.dark .bg-white, .dark .bg-slate-900, .dark .bg-slate-800, .dark .border-glow-inner {
+  background-color: #09090b !important;
+  border-color: #222226 !important;
+}
+
+/* Light Mode defaults */
+html.light body, .light body,
+html.light, .light,
+html.light .bg-slate-50, html.light .bg-gray-100, html.light .bg-slate-950,
+.light .bg-slate-50, .light .bg-gray-100, .light .bg-slate-950, .light #mainLayout, #mainLayout {
+  background-color: #F5F5F5 !important;
+  color: #1A1918 !important;
+}
+
+html.light .glass-panel, html.light .bg-white, html.light .bg-slate-900, 
+html.light .bg-slate-800, html.light .border-glow-inner, .light .glass-panel, 
+.light .bg-white, .light .bg-slate-900, .light .bg-slate-800, .light .border-glow-inner {
+  background-color: #EFEFEF !important;
+  border-color: #D4D4D8 !important;
+}
+
+/* Hover effects in Dark Mode */
+html.dark .btn-primary:hover, html.dark #btn-save:hover,
+.dark .btn-primary:hover, .dark #btn-save:hover {
+  background-color: #EFEFEF !important;
+  border-color: #EFEFEF !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 18px rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Active Pagination button */
+.pagination-active,
+.bg-indigo-600.text-white,
+.bg-blue-600.text-white,
+.page-link.active,
+#viewTable .bg-indigo-600,
+#viewTable button.bg-indigo-650 {
+  background-color: #1A1918 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border-color: #1A1918 !important;
+}
+
+html.dark .pagination-active,
+html.dark .bg-indigo-600.text-white,
+html.dark .bg-blue-600.text-white,
+html.dark .page-link.active,
+.dark .pagination-active,
+.dark .bg-indigo-600.text-white,
+.dark .bg-blue-600.text-white,
+.dark .page-link.active {
+  background-color: #FFFFFF !important;
+  color: #1A1918 !important;
+  border-color: #FFFFFF !important;
+}
+
+/* 4. Live Badge & Status indicators */
+.badge-live {
+  background-color: #EFEFEF !important;
+  color: #1A1918 !important;
+  border: 1px solid #1A1918 !important;
+}
+
+html.dark .badge-live, 
+.dark .badge-live {
+  background-color: #1F1F22 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #FFFFFF !important;
+}
+
+/* 5. Inputs, Search boxes & Selects */
+input[type="text"], 
+input[type="search"], 
+input[type="email"],
+input[type="password"],
+select, 
+textarea,
+#searchBox,
+#viewTable select {
+  background-color: #FFFFFF !important;
+  color: #1A1918 !important;
+  border: 1px solid #D4D4D8 !important;
+  transition: border-color 0.2s, box-shadow 0.2s !important;
+}
+
+input[type="text"]:focus, 
+input[type="search"]:focus, 
+input[type="email"]:focus,
+input[type="password"]:focus,
+select:focus,
+#searchBox:focus {
+  border-color: #1A1918 !important;
+  box-shadow: 0 0 0 2px rgba(26, 25, 24, 0.15) !important;
+}
+
+html.dark input[type="text"], html.dark input[type="search"], 
+html.dark input[type="email"], html.dark input[type="password"],
+html.dark select, html.dark textarea,
+html.dark #searchBox, html.dark #viewTable select,
+.dark input[type="text"], .dark input[type="search"], 
+.dark input[type="email"], .dark input[type="password"],
+.dark select, .dark textarea,
+.dark #searchBox, .dark #viewTable select {
+  background-color: #1F1F22 !important;
+  color: #FFFFFF !important;
+  border: 1px solid #2E2E33 !important;
+}
+
+html.dark input[type="text"]:focus, html.dark select:focus, html.dark #searchBox:focus,
+.dark input[type="text"]:focus, .dark select:focus, .dark #searchBox:focus {
+  border-color: #FFFFFF !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 6. Titles & Text colors */
+h1, h2, h3, h4, h5, h6, 
+.text-slate-800, 
+.text-gray-900, 
+.text-slate-900,
+.text-indigo-900 {
+  color: #1A1918 !important;
+}
+
+html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6, 
+html.dark .text-slate-800, html.dark .text-gray-900, html.dark .text-white,
+html.dark .text-slate-900, html.dark .text-indigo-900, html.dark .dark\:text-white,
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6, 
+.dark .text-slate-800, .dark .text-gray-900, .dark .text-white,
+.dark .text-slate-900, .dark .text-indigo-900, .dark .dark\:text-white {
+  color: #FFFFFF !important;
+}
+
+/* Muted colors */
+.text-slate-500, 
+.text-slate-400, 
+.text-gray-500, 
+.text-gray-400, 
+.sidebar-text.text-slate-500,
+.text-slate-300,
+.text-slate-350 {
+  color: #74747C !important;
+}
+
+html.dark .text-slate-500, html.dark .text-slate-400, html.dark .text-gray-500,
+html.dark .text-gray-400, html.dark .sidebar-text.text-slate-500,
+html.dark .text-slate-300, html.dark .text-slate-350,
+.dark .text-slate-500, .dark .text-slate-400, .dark .text-gray-500,
+.dark .text-gray-400, .dark .sidebar-text.text-slate-500,
+.dark .text-slate-300, .dark .text-slate-350 {
+  color: #74747C !important;
+}
+
+/* Borders & Dividers */
+hr, .border-slate-200, .border-gray-200, .border-slate-700, .border-slate-800 {
+  border-color: #D4D4D8 !important;
+}
+html.dark hr, html.dark .border-slate-200, html.dark .border-gray-200, 
+html.dark .border-slate-700, html.dark .border-slate-800,
+.dark hr, .dark .border-slate-200, .dark .border-gray-200, 
+.dark .border-slate-700, .dark .border-slate-800 {
+  border-color: #2E2E33 !important;
+}
+
+/* Conic spinners override */
+.border-glow-circle, .border-glow-wrapper {
+  border-color: #2E2E33 !important;
+  box-shadow: none !important;
+}
+.border-glow-circle::before, .border-glow-wrapper::before {
+  background: conic-gradient(from 0deg, transparent 30%, #74747C 50%, #FFFFFF 70%, transparent 90%) !important;
+}
+
+/* 7. Utility color overrides */
+.text-blue-500, .text-blue-600, .text-indigo-500, .text-indigo-600, 
+.text-pink-500, .text-pink-600, .text-brand-500, .text-brand-600, .text-brand-700,
+.text-purple-500, .text-purple-600 {
+  color: #1A1918 !important;
+}
+
+html.dark .text-blue-500, html.dark .text-blue-600, html.dark .text-indigo-500, html.dark .text-indigo-600, 
+html.dark .text-pink-500, html.dark .text-pink-600, html.dark .text-brand-500, html.dark .text-brand-600, html.dark .text-brand-700,
+html.dark .text-purple-500, html.dark .text-purple-600,
+.dark .text-blue-500, .dark .text-blue-600, .dark .text-indigo-500, .dark .text-indigo-600, 
+.dark .text-pink-500, .dark .text-pink-600, .dark .text-brand-500, .dark .text-brand-600, .dark .text-brand-700,
+.dark .text-purple-500, .dark .text-purple-600 {
+  color: #FFFFFF !important;
+}
+
+/* Soft background tints */
+.bg-blue-50, .bg-indigo-50, .bg-pink-50, .bg-purple-50, .bg-brand-50,
+.bg-blue-50\/40, .bg-indigo-50\/40, .bg-pink-50\/40, .bg-purple-50\/40, .bg-brand-50\/40 {
+  background-color: #EFEFEF !important;
+  border-color: #D4D4D8 !important;
+}
+
+html.dark .bg-blue-50, html.dark .bg-indigo-50, html.dark .bg-pink-50, html.dark .bg-purple-50, html.dark .bg-brand-50,
+.dark .bg-blue-50, .dark .bg-indigo-50, .dark .bg-pink-50, .dark .bg-purple-50, .dark .bg-brand-50 {
+  background-color: #1F1F22 !important;
+  border-color: #2E2E33 !important;
+}
+
+/* Button backgrounds & outlines overrides */
+.bg-blue-600, .bg-indigo-600, .bg-pink-600, .bg-purple-600, .bg-brand-600,
+.bg-blue-500, .bg-indigo-500, .bg-pink-500, .bg-purple-500, .bg-brand-500,
+.bg-blue-700, .bg-indigo-700, .bg-pink-700, .bg-purple-700, .bg-brand-700,
+.hover\:bg-blue-700:hover, .hover\:bg-indigo-700:hover, .hover\:bg-pink-700:hover, .hover\:bg-purple-700:hover, .hover\:bg-brand-700:hover {
+  background-image: none !important;
+  background-color: #1A1918 !important;
+  color: #FFFFFF !important;
+  border-color: #1A1918 !important;
+}
+
+html.dark .bg-blue-600, html.dark .bg-indigo-600, html.dark .bg-pink-600, html.dark .bg-purple-600, html.dark .bg-brand-600,
+html.dark .bg-blue-500, html.dark .bg-indigo-500, html.dark .bg-pink-500, html.dark .bg-purple-500, html.dark .bg-brand-500,
+.dark .bg-blue-600, .dark .bg-indigo-600, .dark .bg-pink-600, .dark .bg-purple-600, .dark .bg-brand-600,
+.dark .bg-blue-500, .dark .bg-indigo-500, .dark .bg-pink-500, .dark .bg-purple-500, .dark .bg-brand-500 {
+  background-image: none !important;
+  background-color: #FFFFFF !important;
+  color: #1A1918 !important;
+  border-color: #FFFFFF !important;
+}
+
+html.dark .hover\:bg-blue-700:hover, html.dark .hover\:bg-indigo-700:hover, html.dark .hover\:bg-pink-700:hover, html.dark .hover\:bg-purple-700:hover, html.dark .hover\:bg-brand-700:hover,
+.dark .hover\:bg-blue-700:hover, .dark .hover\:bg-indigo-700:hover, .dark .hover\:bg-pink-700:hover, .dark .hover\:bg-purple-700:hover, .dark .hover\:bg-brand-700:hover {
+  background-color: #EFEFEF !important;
+  color: #1A1918 !important;
+  border-color: #EFEFEF !important;
+}
+
+/* ==========================================================
+   PREMIUM POLISHED METALLIC SHINE & MICRO-ANIMATIONS
+   ========================================================== */
+
+/* Shimmer Sweep Animation on Hover */
+.btn-primary, #btn-save, .tab-active, .main-tab-active, .active-nav-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after, #btn-save::after, .tab-active::after, .main-tab-active::after, .active-nav-item::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -150%;
+  width: 50%; height: 100%;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: skewX(-25deg);
+  pointer-events: none;
+}
+
+.btn-primary:hover::after, #btn-save:hover::after, .tab-active:hover::after, .main-tab-active:hover::after, .active-nav-item:hover::after {
+  left: 150%;
+  transition: all 0.75s ease-in-out;
+}
+
+/* Sidebar Nav Icon hover effects */
+#sidebar-nav a:hover i {
+  transform: scale(1.15);
+  color: #FFFFFF !important;
+  transition: transform 0.2s ease-in-out !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1A1918;
+}
+html.light ::-webkit-scrollbar-track, .light ::-webkit-scrollbar-track {
+  background: #F5F5F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #2E2E33;
+  border-radius: 4px;
+}
+html.light ::-webkit-scrollbar-thumb, .light ::-webkit-scrollbar-thumb {
+  background: #D4D4D8;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #74747C;
+}
+
+/* Table container horizontal scroll border styling */
+.table-container {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid #2E2E33;
+  background-color: #1F1F22;
+}
+
+html.light .table-container, .light .table-container {
+  border: 1px solid #e4e4e7;
+  background-color: #ffffff;
+}
+
+/* SweetAlert overrides to match Sinbad Teal theme */
+.swal2-popup {
+  background: rgba(17, 26, 25, 0.95) !important;
+  border: 1px solid rgba(155, 215, 203, 0.15) !important;
+}
+
+.swal2-title {
+  color: #ffffff !important;
+}
+
+.swal2-html-container {
+  color: #688e89 !important;
+}
+
+.swal2-input, .swal2-textarea {
+  background: rgba(8, 13, 13, 0.8) !important;
+  border: 1px solid rgba(155, 215, 203, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.swal2-confirm {
+  background: #ff5500 !important;
+  color: #091010 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px 0 rgba(155, 215, 203, 0.3) !important;
+}
+
+.swal2-cancel {
+  background: #23232a !important;
+  color: #ffffff !important;
+}
+
+/* Premium smooth iframe-fade-in animation */
+iframe {
+  animation: iframe-fade-in 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes iframe-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================
+   FOOLPROOF OVERRIDES FOR SHADES OF INDIGO, PURPLE, VIOLET, BLUE
+   ========================================================== */
+
+/* Active pagination and select options overrides */
+.page-active, .page-link.active, .pagination-active {
+  background: #ff5500 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(60, 144, 134, 0.25) !important;
+  border-color: #ff5500 !important;
+}
+
+html.dark .page-active, .dark .page-active,
+html.dark .page-link.active, .dark .page-link.active,
+html.dark .pagination-active, .dark .pagination-active {
+  background: #ff5500 !important;
+  background-image: none !important;
+  color: #091010 !important;
+  box-shadow: 0 4px 12px rgba(155, 215, 203, 0.3) !important;
+  border-color: #ff5500 !important;
+}
+
+/* Specific button paginators hover */
+.page-btn:hover:not(.page-active) {
+  background: rgba(60, 144, 134, 0.1) !important;
+  color: #ff5500 !important;
+}
+html.dark .page-btn:hover:not(.page-active), .dark .page-btn:hover:not(.page-active) {
+  background: rgba(155, 215, 203, 0.1) !important;
+  color: #ff5500 !important;
+}
+
+/* Custom Dropdown selected item class override */
+.from-indigo-500.to-purple-600 {
+  background-image: none !important;
+  background-color: #ff5500 !important;
+  color: #ffffff !important;
+}
+html.dark .from-indigo-500.to-purple-600, .dark .from-indigo-500.to-purple-600 {
+  background-color: #ff5500 !important;
+  color: #091010 !important;
+}
+
+.shadow-indigo-500\/30 {
+  box-shadow: 0 4px 12px rgba(60, 144, 134, 0.25) !important;
+}
+html.dark .shadow-indigo-500\/30, .dark .shadow-indigo-500\/30 {
+  box-shadow: 0 4px 12px rgba(155, 215, 203, 0.3) !important;
+}
+
+/* Inactive items styling and hover state override */
+.hover\:bg-indigo-50:hover {
+  background-color: #f4f4f7 !important;
+  color: #ea580c !important;
+}
+html.dark .hover\:bg-slate-700\/80:hover, .dark .hover\:bg-slate-700\/80:hover {
+  background-color: #1f1f26 !important;
+  color: #ff5500 !important;
+}
+.hover\:text-indigo-600:hover {
+  color: #ea580c !important;
+}
+html.dark .hover\:text-indigo-300:hover, .dark .hover\:text-indigo-300:hover {
+  color: #ff5500 !important;
+}
+
+/* NIT Custom Purple text overrides */
+.text-custom-purple {
+  color: #ff5500 !important;
+}
+html.dark .text-custom-purple, .dark .text-custom-purple {
+  color: #ff5500 !important;
+}
+
+/* Border columns comisiones overrides */
+.border-indigo-300, .border-purple-400, .border-indigo-200 {
+  border-color: #e4e4e7 !important;
+}
+html.dark .border-indigo-300, html.dark .border-purple-400, html.dark .border-indigo-200,
+.dark .border-indigo-300, .dark .border-purple-400, .dark .border-indigo-200 {
+  border-color: #23232a !important;
+}
+
+/* Tables background column comisiones overrides */
+.bg-indigo-50\/20, .bg-purple-50\/20, .bg-blue-50\/20 {
+  background-color: rgba(60, 144, 134, 0.05) !important;
+}
+html.dark .bg-indigo-50\/20, html.dark .bg-purple-50\/20, html.dark .bg-blue-50\/20,
+.dark .bg-indigo-50\/20, .dark .bg-purple-50\/20, .dark .bg-blue-50\/20 {
+  background-color: rgba(155, 215, 203, 0.05) !important;
+}
+
+.text-indigo-400, .text-purple-600, .text-indigo-700, .text-indigo-500, .text-indigo-300 {
+  color: #ea580c !important;
+}
+html.dark .text-indigo-400, html.dark .text-purple-600, html.dark .text-indigo-700, html.dark .text-indigo-500, html.dark .text-indigo-300,
+.dark .text-indigo-400, .dark .text-purple-600, .dark .text-indigo-700, .dark .text-indigo-500, .dark .text-indigo-300 {
+  color: #ff5500 !important;
+}
+
+.bg-indigo-500\/10, .bg-indigo-500\/20 {
+  background-color: rgba(60, 144, 134, 0.12) !important;
+}
+html.dark .bg-indigo-500\/10, html.dark .bg-indigo-500\/20,
+.dark .bg-indigo-500\/10, .dark .bg-indigo-500\/20 {
+  background-color: rgba(155, 215, 203, 0.15) !important;
+}
+
+/* Custom Blue overrides */
+.text-orange-500 {
+  color: #ea580c !important;
+}
+html.dark .text-orange-500, .dark .text-orange-500 {
+  color: #ff5500 !important;
+}
+.bg-orange-500 {
+  background-color: #ff5500 !important;
+}
+html.dark .bg-orange-500, .dark .bg-orange-500 {
+  background-color: #ff5500 !important;
+}
+
+/* Global Title Cinematic Fluid Fade-and-Drift Animation */
+h1, h2, .animate-title-move {
+  animation: title-fluid-move 6s ease-in-out infinite;
+  display: inline-block;
+  transition: color 0.4s ease, text-shadow 0.4s ease !important;
+  transform-origin: left center;
+}
+
+h1:hover, h2:hover, .animate-title-move:hover {
+  color: #ff5500 !important;
+  text-shadow: 0 0 15px rgba(155, 215, 203, 0.4);
+}
+
+html.light h1:hover, html.light h2:hover,
+.light h1:hover, .light h2:hover,
+html.light .animate-title-move:hover, .light .animate-title-move:hover {
+  color: #ea580c !important;
+  text-shadow: 0 0 15px rgba(46, 115, 109, 0.25);
+}
+
+@keyframes title-fluid-move {
+  0% {
+    opacity: 0.3;
+    transform: translateX(0) translateY(0);
+    filter: blur(1.2px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(12px) translateY(-3px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0.3;
+    transform: translateX(0) translateY(0);
+    filter: blur(1.2px);
+  }
+}
+
+/* ==========================================================
+   GLOWING PULSE ANIMATIONS FOR SIDEBAR ICONS
+   ========================================================== */
+
+:root {
+  --icon-glow-color: rgba(60, 144, 134, 0.2);
+  --icon-glow-active-color: rgba(60, 144, 134, 0.55);
+}
+html.dark, .dark {
+  --icon-glow-color: rgba(155, 215, 203, 0.2);
+  --icon-glow-active-color: rgba(155, 215, 203, 0.75);
+}
+
+/* Apply basic glow animation to all nav icons */
+#sidebar-nav a i {
+  animation: icon-glow-pulse 4s ease-in-out infinite;
+  display: inline-block;
+  will-change: filter, transform;
+}
+
+/* Stagger the delay of each icon to create a wave effect down the sidebar */
+#sidebar-nav a:nth-child(1) i { animation-delay: 0s; }
+#sidebar-nav a:nth-child(2) i { animation-delay: 0.4s; }
+#sidebar-nav a:nth-child(3) i { animation-delay: 0.8s; }
+#sidebar-nav a:nth-child(4) i { animation-delay: 1.2s; }
+#sidebar-nav a:nth-child(5) i { animation-delay: 1.6s; }
+#sidebar-nav a:nth-child(6) i { animation-delay: 2.0s; }
+#sidebar-nav a:nth-child(7) i { animation-delay: 2.4s; }
+
+/* Enhanced, faster glow animation for the active tab icon */
+#sidebar-nav a.active i,
+.active-nav-item i {
+  animation: icon-glow-active-pulse 2.5s ease-in-out infinite !important;
+  color: #ff5500 !important;
+  filter: drop-shadow(0 0 10px rgba(60, 144, 134, 0.7)) !important;
+}
+
+html.dark #sidebar-nav a.active i,
+.dark #sidebar-nav a.active i,
+html.dark .active-nav-item i,
+.dark .active-nav-item i {
+  color: #ff5500 !important;
+  filter: drop-shadow(0 0 10px rgba(155, 215, 203, 0.85)) !important;
+}
+
+@keyframes icon-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px var(--icon-glow-color));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 7px var(--icon-glow-active-color));
+    transform: scale(1.08);
+  }
+}
+
+@keyframes icon-glow-active-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px var(--icon-glow-active-color));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 12px var(--icon-glow-active-color));
+  }
+}
+
+
+

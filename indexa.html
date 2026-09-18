@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Aduanera Pro</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- PDF.js -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    
+    <!-- Gráficas Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Fuentes e Iconos -->
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+
+    <style>
+        /* SCROLLBARS PERSONALIZADOS */
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; background-clip: content-box; }
+        
+        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* EFECTOS GLASSMORPHISM */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border-radius: 0.75rem;
+            backdrop-filter: blur(10px);
+        }
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); 
+        }
+
+        /* ANIMACIONES SUTILES */
+        .animate-fade-in-up {
+            animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse-soft {
+            animation: pulseSoft 4s infinite ease-in-out;
+        }
+        @keyframes pulseSoft {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.01); }
+        }
+
+        /* CHECKBOX PERSONALIZADO BAT */
+        .bat-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            accent-color: #f59e0b;
+        }
+    </style>
+
+    <script>
+        // Configuración del worker para PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            400: '#3b82f6',
+                            500: '#2563eb', 
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#172554',
+                        },
+                        dark: {
+                            bg: '#020617',
+                            card: '#0f172a',
+                            border: '#1e293b', 
+                            text: '#f8fafc',
+                            muted: '#94a3b8'
+                        },
+                        custom: {
+                            red: '#ef4444',
+                            green: '#10b981',
+                            blue: '#3b82f6',
+                            purple: '#8b5cf6',
+                            orange: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Chequeo de tema inicial rápido ---
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+</head>
+<body class="bg-slate-50 dark:bg-[#020617] text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 relative overflow-x-hidden font-sans selection:bg-custom-blue selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="bg-white dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800/50 sticky top-0 z-50 transition-colors duration-300 shadow-sm">
+        <div class="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="bg-custom-blue/10 dark:bg-custom-blue/20 p-2 rounded-lg mr-3 flex items-center justify-center">
+                        <i class="fa-solid fa-layer-group text-custom-blue text-xl"></i>
+                    </div>
+                    <h1 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight hidden md:block transition-colors">
+                        Sist. Importaciones <span class="text-slate-400 font-normal">Pro</span>
+                    </h1>
+                    
+                    <!-- Navegación de Pestañas -->
+                    <div class="ml-6 md:ml-10 flex space-x-1 bg-slate-100 dark:bg-[#1e293b] p-1 rounded-xl border border-slate-200 dark:border-slate-700/50 transition-colors">
+                        <button onclick="switchView('upload')" id="nav-upload" class="bg-white dark:bg-slate-800 text-custom-blue shadow-sm px-4 md:px-5 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all cursor-default">
+                            Procesar PDFs
+                        </button>
+                        <button onclick="switchView('history')" id="nav-history" class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-4 md:px-5 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all cursor-pointer">
+                            BD Historial
+                        </button>
+                        <button onclick="switchView('dashboard')" id="nav-dashboard" class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-4 md:px-5 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all cursor-pointer">
+                            Dashboard
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <!-- Botoncito mágico del tema -->
+                    <button onclick="toggleTheme()" class="text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors" title="Cambiar modo">
+                        <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                        <i class="fa-solid fa-sun text-lg hidden dark:block text-yellow-400"></i>
+                    </button>
+
+                    <div id="connectionStatus" class="hidden sm:flex items-center text-xs font-bold text-custom-green bg-custom-green/10 px-3 py-1.5 rounded-lg border border-custom-green/20">
+                        <span class="relative flex h-2 w-2 mr-2">
+                          <span class="absolute inline-flex h-full w-full rounded-full bg-custom-green opacity-75 animate-ping"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-custom-green"></span>
+                        </span>
+                        LIVE
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="relative z-10 w-full max-w-[98%] mx-auto px-2 sm:px-4 py-8">
+        
+        <!-- ================= VISTA DE SUBIDA ================= -->
+        <div id="uploadView" class="animate-fade-in-up">
+            <div class="md:flex md:items-center md:justify-between mb-6 glass-card p-6 border border-slate-200 dark:border-slate-800 transition-colors">
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:truncate tracking-tight transition-colors">Extracción de Declaraciones</h2>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Arrastra tus PDFs aquí y la IA se encargará de sacar todos los datos (y de pasada generar el BAT).</p>
+                </div>
+                <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+                    <button onclick="saveToSupabase()" id="btnSave" class="hidden inline-flex items-center px-6 py-2.5 border border-transparent rounded-lg text-sm font-bold text-white bg-custom-blue hover:bg-blue-600 focus:outline-none transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Subir a la Nube
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dropzone -->
+            <div class="bg-white dark:bg-[#1e293b] rounded-xl p-16 mb-8 text-center transition-colors cursor-pointer border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-custom-blue dark:hover:border-custom-blue/50 group" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <input type="file" id="fileInput" multiple accept=".pdf" class="hidden" onchange="handleFileSelect(event)">
+                <div class="space-y-4">
+                    <div class="mx-auto h-20 w-20 bg-slate-100 dark:bg-slate-800/50 text-slate-400 dark:text-slate-400 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 border border-slate-200 dark:border-slate-700">
+                        <i class="fa-solid fa-file-pdf text-4xl text-slate-400 group-hover:text-custom-blue transition-colors"></i>
+                    </div>
+                    <div class="text-lg">
+                        <span class="font-bold text-slate-800 dark:text-slate-200">Sube tus archivos PDF</span>
+                        <span class="text-slate-500 dark:text-slate-400">o arrástralos al centro</span>
+                    </div>
+                    <p class="text-sm text-slate-400 dark:text-slate-500 font-medium">Extrae datos y genera scripts BAT automáticamente</p>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            <div id="resultsArea" class="hidden glass-card overflow-hidden">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border-b border-slate-200 dark:border-slate-800">
+                    <div class="bg-slate-50 dark:bg-[#1e293b] p-5 rounded-lg border border-slate-200 dark:border-slate-700/50 flex flex-col justify-between transition-colors">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Total GA (BOB)</p>
+                        <h4 class="text-2xl font-black text-slate-900 dark:text-white transition-colors" id="upload-sum-ga">0.00</h4>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-[#1e293b] p-5 rounded-lg border border-slate-200 dark:border-slate-700/50 flex flex-col justify-between transition-colors">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Total IVA (BOB)</p>
+                        <h4 class="text-2xl font-black text-slate-900 dark:text-white transition-colors" id="upload-sum-iva">0.00</h4>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-[#1e293b] p-5 rounded-lg border border-slate-200 dark:border-slate-700/50 flex flex-col justify-between transition-colors">
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Total Acumulado (BOB)</p>
+                        <h4 class="text-2xl font-black text-custom-red" id="upload-sum-total">0.00</h4>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 bg-slate-50 dark:bg-[#0f172a] border-b border-slate-200 dark:border-slate-800 flex justify-between items-center transition-colors">
+                    <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center transition-colors">
+                        <i class="fa-solid fa-folder-open text-custom-blue mr-2"></i> Datos Extraídos
+                    </h3>
+                    <span id="recordCount" class="text-xs font-bold text-slate-500 dark:text-slate-400">0 registros</span>
+                </div>
+                
+                <div class="overflow-x-auto pb-4 bg-slate-50 dark:bg-[#0f172a] transition-colors">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800 transition-colors">
+                        <thead class="bg-slate-100 dark:bg-[#0f172a] transition-colors">
+                            <tr>
+                                <th class="sticky left-0 z-10 bg-slate-100 dark:bg-[#0f172a] px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b] transition-colors">Declaración</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-custom-blue uppercase tracking-wider whitespace-nowrap">Interno</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-bold text-custom-orange uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-link"></i> Docs</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">NIT</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">Razón Social</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Factura</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Pedido</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">O.I.</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">O.C.</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-plane-departure mr-1"></i> Guía</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[140px]">Proveedor</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[120px]"><i class="fa-solid fa-building-flag mr-1"></i> Aduana</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ítems</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">CIF (BOB)</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Desglose Imp.</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-bold text-custom-green uppercase tracking-wider whitespace-nowrap">Acumulado</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Modalidad</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-file-signature mr-1"></i> Ex. Previo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-200 dark:divide-slate-800 transition-colors">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VISTA DE HISTORIAL ================= -->
+        <div id="historyView" class="hidden animate-fade-in-up">
+            <div class="md:flex md:items-center md:justify-between mb-6 glass-card p-6 border border-slate-200 dark:border-slate-800 transition-colors">
+                <div class="flex-1 min-w-0">
+                    <h2 class="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:truncate tracking-tight transition-colors">Base de Datos Maestra</h2>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Todos tus registros de Supabase sincronizados. Selecciona casillas para generar carpetas de descarga.</p>
+                </div>
+                <div class="mt-4 flex md:mt-0 md:ml-4 flex-wrap gap-2">
+                     <button onclick="generateBatScript()" class="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-bold text-white bg-custom-orange hover:bg-orange-600 focus:outline-none transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                        <i class="fa-solid fa-file-code mr-2"></i> Generar .BAT
+                    </button>
+                     <button onclick="openCleanModal()" class="inline-flex items-center px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-bold text-custom-blue bg-white dark:bg-[#1e293b] hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none transition-colors mr-2 shadow-sm">
+                        <i class="fa-solid fa-broom mr-2"></i> Limpiar BD
+                    </button>
+                     <button onclick="loadHistory()" class="inline-flex items-center px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#1e293b] hover:bg-slate-50 dark:hover:bg-slate-700 focus:outline-none transition-colors shadow-sm">
+                        <i class="fa-solid fa-rotate-right mr-2"></i> Recargar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Buscador y Filtro por Fechas -->
+            <div class="bg-white dark:bg-[#1e293b] p-3 rounded-xl mb-6 flex flex-col md:flex-row md:items-center gap-4 border border-slate-200 dark:border-slate-700 transition-colors shadow-sm">
+                <!-- Buscador de Texto -->
+                <div class="flex-1 relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fa-solid fa-magnifying-glass text-slate-400 dark:text-slate-500 text-sm"></i>
+                    </div>
+                    <input type="text" id="searchInput" onkeyup="filterHistory()" class="block w-full pl-10 pr-3 py-2 bg-transparent border-transparent text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-0 focus:outline-none transition-colors" placeholder="Buscar por Declaración, Guía, Factura, Razón Social...">
+                </div>
+                
+                <!-- Rango de Fechas -->
+                <div class="flex items-center gap-2 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 pt-3 md:pt-0 md:pl-4">
+                    <span class="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">Desde:</span>
+                    <input type="date" id="dateFromFilter" onchange="filterHistory()" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-custom-blue/30 focus:outline-none transition-all">
+                    
+                    <span class="text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">Hasta:</span>
+                    <input type="date" id="dateToFilter" onchange="filterHistory()" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-custom-blue/30 focus:outline-none transition-all">
+                    
+                    <button onclick="clearDateFilter()" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors" title="Limpiar rango de fechas">
+                        <i class="fa-solid fa-circle-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <div class="border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 pt-3 md:pt-0 md:pl-4 pr-3 text-sm font-bold text-slate-500 dark:text-slate-400 transition-colors">
+                    <span id="historyCount" class="text-slate-800 dark:text-slate-200">0</span>
+                </div>
+            </div>
+
+             <div class="glass-card overflow-hidden border border-slate-200 dark:border-slate-800 transition-colors">
+                <div class="overflow-x-auto pb-4 bg-slate-50 dark:bg-[#0f172a] transition-colors">
+                    <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800 transition-colors">
+                        <thead class="bg-slate-100 dark:bg-[#0f172a] transition-colors">
+                            <tr>
+                                <th class="sticky left-0 z-20 bg-slate-100 dark:bg-[#0f172a] px-3 py-3 text-center shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b] transition-colors w-10">
+                                    <input type="checkbox" id="selectAllBat" onclick="toggleAllBat()" class="bat-checkbox">
+                                </th>
+                                <th class="sticky left-[3.2rem] z-10 bg-slate-100 dark:bg-[#0f172a] px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b] transition-colors">Declaración</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-custom-blue uppercase tracking-wider whitespace-nowrap">Interno</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-bold text-custom-orange uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-link"></i> Docs</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">NIT</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">Razón Social</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Factura</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Pedido</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">O.I.</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">O.C.</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-plane-departure mr-1"></i> Guía</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[140px]">Proveedor</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[120px]"><i class="fa-solid fa-building-flag mr-1"></i> Aduana</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ítems</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">CIF (BOB)</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Desglose Imp.</th>
+                                <th class="px-4 py-3 text-right text-[10px] font-bold text-custom-green uppercase tracking-wider whitespace-nowrap">Acumulado</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">Modalidad</th>
+                                <th class="px-4 py-3 text-left text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-file-signature mr-1"></i> Ex. Previo</th>
+                                <th class="px-4 py-3 text-center text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-gear"></i> Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 transition-colors">
+                        </tbody>
+                    </table>
+                    
+                    <div id="noDataMessage" class="hidden py-16 text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-slate-100 dark:bg-[#1e293b] mb-4 border border-slate-200 dark:border-slate-700 transition-colors">
+                            <i class="fa-solid fa-ghost text-3xl text-slate-400 dark:text-slate-500"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-slate-700 dark:text-slate-300">Esta tabla está pelona</h3>
+                        <p class="mt-1 text-xs text-slate-500">Sube unos PDFs en la otra pestaña, compa.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= VISTA DASHBOARD ================= -->
+        <div id="dashboardView" class="hidden animate-fade-in-up">
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl p-5 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm transition-colors">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Total Documentos</p>
+                    <h4 class="text-3xl font-black text-slate-900 dark:text-white transition-colors" id="dash-sum-docs">0</h4>
+                </div>
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl p-5 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm transition-colors">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Acumulado GA (BOB)</p>
+                    <h4 class="text-3xl font-black text-custom-orange" id="dash-sum-ga">0.00</h4>
+                </div>
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl p-5 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm transition-colors">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Acumulado IVA (BOB)</p>
+                    <h4 class="text-3xl font-black text-custom-blue" id="dash-sum-iva">0.00</h4>
+                </div>
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl p-5 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm transition-colors">
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider mb-2">Gran Acumulado (BOB)</p>
+                    <h4 class="text-3xl font-black text-custom-red" id="dash-sum-total">0.00</h4>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+                    <div class="bg-slate-50 dark:bg-slate-800/30 p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between transition-colors">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center uppercase tracking-wider transition-colors">
+                            <i class="fa-solid fa-chart-column text-custom-blue mr-2"></i> Evolución Mensual de Tributos
+                        </h3>
+                        <button onclick="expandChart('monthly')" class="text-slate-400 hover:text-custom-blue dark:hover:text-custom-blue transition-colors" title="Ampliar Gráfico">
+                            <i class="fa-solid fa-expand text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 h-64 relative w-full">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+                    <div class="bg-slate-50 dark:bg-slate-800/30 p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between transition-colors">
+                        <h3 class="text-sm font-bold text-slate-800 dark:text-white flex items-center uppercase tracking-wider transition-colors">
+                            <i class="fa-solid fa-scale-balanced text-custom-purple mr-2"></i> Top Clientes (CIF vs Tributos)
+                        </h3>
+                        <button onclick="expandChart('clients')" class="text-slate-400 hover:text-custom-purple dark:hover:text-custom-purple transition-colors" title="Ampliar Gráfico">
+                            <i class="fa-solid fa-expand text-lg"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 h-64 relative w-full flex items-center justify-center">
+                        <canvas id="clientChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+                    <div class="bg-custom-blue p-4 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white flex items-center uppercase tracking-wider">
+                            <i class="fa-solid fa-folder-open mr-2"></i> Top Clientes (Despachos)
+                        </h3>
+                    </div>
+                    <div class="p-4 max-h-[320px] overflow-y-auto">
+                        <ul id="client-despachos-list" class="space-y-2"></ul>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+                    <div class="bg-custom-purple p-4 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white flex items-center uppercase tracking-wider">
+                            <i class="fa-solid fa-folder-open mr-2"></i> Top Clientes (CIF BOB)
+                        </h3>
+                    </div>
+                    <div class="p-4 max-h-[320px] overflow-y-auto">
+                        <ul id="client-cif-list" class="space-y-2"></ul>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm transition-colors">
+                    <div class="bg-custom-green p-4 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-white flex items-center uppercase tracking-wider">
+                            <i class="fa-solid fa-folder-open mr-2"></i> Mensual (Tributos)
+                        </h3>
+                    </div>
+                    <div class="p-4 max-h-[320px] overflow-y-auto">
+                        <ul id="monthly-tributos-list" class="space-y-2"></ul>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Loader -->
+        <div id="loading" class="hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center z-[140] transition-all">
+            <div class="bg-white dark:bg-[#0f172a] p-8 rounded-xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-800 shadow-xl transition-colors">
+                <div class="relative w-12 h-12 mb-4">
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-custom-blue border-t-transparent animate-spin"></div>
+                </div>
+                <p class="text-slate-800 dark:text-slate-200 text-sm font-bold transition-colors" id="loadingText">Agarrate, compa...</p>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div id="editModal" class="hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center z-[110]">
+            <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl mx-4 flex flex-col max-h-[90vh] shadow-2xl animate-fade-in-up transition-colors">
+                <!-- Encabezado del Modal -->
+                <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1e293b]/30 rounded-t-xl transition-colors">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white transition-colors"><i class="fa-solid fa-pen-to-square text-custom-blue mr-2"></i>Editar Registro (Métele galleta)</h3>
+                    <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                
+                <!-- Cuerpo (Formulario scrolleable) -->
+                <div class="p-6 overflow-y-auto flex-1">
+                    <form id="editForm" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Declaración</label>
+                            <input type="text" id="edit_n_declaracion" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Ref. Interna</label>
+                            <input type="text" id="edit_n_referencia" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">NIT Importador</label>
+                            <input type="text" id="edit_nit_importador" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1 md:col-span-2">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Razón Social</label>
+                            <input type="text" id="edit_razon_social" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Factura</label>
+                            <input type="text" id="edit_factura" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Pedido</label>
+                            <input type="text" id="edit_pedido" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">O.I.</label>
+                            <input type="text" id="edit_oi" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">O.C.</label>
+                            <input type="text" id="edit_oc" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Guía Embarque</label>
+                            <input type="text" id="edit_guia_embarque" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1 md:col-span-2">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Proveedor</label>
+                            <input type="text" id="edit_proveedor" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Aduana</label>
+                            <input type="text" id="edit_aduana" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Fecha Aceptación</label>
+                            <input type="text" id="edit_fecha_aceptacion" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Cant. Ítems</label>
+                            <input type="text" id="edit_items" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-custom-blue">Total CIF (BOB)</label>
+                            <input type="text" id="edit_total_cif" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Gravamen (GA)</label>
+                            <input type="text" id="edit_gravamen" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">IVA</label>
+                            <input type="text" id="edit_iva" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-custom-red">Total Tributos (BOB)</label>
+                            <input type="text" id="edit_total_tributos" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Modalidad</label>
+                            <input type="text" id="edit_modalidad" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                        <div class="flex flex-col space-y-1">
+                            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider transition-colors">Examen Previo</label>
+                            <input type="text" id="edit_examen_previo" class="bg-slate-50 dark:bg-[#1e293b] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-custom-blue transition-colors">
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Footer Modal -->
+                <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end space-x-3 bg-slate-50 dark:bg-[#1e293b]/30 rounded-b-xl transition-colors">
+                    <button onclick="closeEditModal()" class="px-5 py-2.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors border border-slate-300 dark:border-slate-700">Nel, Cancelar</button>
+                    <button onclick="saveEdit()" class="px-6 py-2.5 bg-custom-blue text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]"><i class="fa-solid fa-floppy-disk mr-2"></i>Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div id="deleteModal" class="hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center z-[110]">
+            <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 p-6 w-full max-w-sm animate-fade-in-up transition-colors shadow-xl">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 transition-colors">¿Seguro, pariente?</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 font-medium transition-colors">Vas a darle chicharrón a este registro para siempre.</p>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeDeleteModal()" class="px-4 py-2 bg-slate-200 dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">Cancelar</button>
+                    <button id="confirmDeleteBtn" class="px-4 py-2 bg-custom-red text-white rounded-lg text-xs font-bold hover:bg-red-600 transition-colors shadow-sm">Eliminar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clean Modal -->
+        <div id="cleanModal" class="hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center z-[110]">
+            <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 p-6 w-full max-w-sm animate-fade-in-up shadow-[0_0_20px_rgba(59,130,246,0.1)] transition-colors">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2 transition-colors"><i class="fa-solid fa-broom text-custom-blue mr-2"></i>¿Pasarle escoba a todo?</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 font-medium transition-colors">Esto va a revisar todo tu historial y le volará la basura a los nombres de <span class="text-slate-800 dark:text-slate-200 font-bold">proveedores</span> y <span class="text-slate-800 dark:text-slate-200 font-bold">razones sociales</span> viejas dejándolas al puro centavo.</p>
+                <div class="flex justify-end space-x-3">
+                    <button onclick="closeCleanModal()" class="px-4 py-2 bg-slate-200 dark:bg-[#1e293b] text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors">Nel, espérate</button>
+                    <button onclick="executeCleanDatabase()" class="px-4 py-2 bg-custom-blue text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-colors shadow-[0_0_15px_rgba(59,130,246,0.3)]">¡Órale, límpialo!</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Expand Modal -->
+        <div id="chartModal" class="hidden fixed inset-0 bg-slate-900/50 dark:bg-[#020617]/80 backdrop-blur-sm flex items-center justify-center z-[130]">
+            <div class="bg-white dark:bg-[#0f172a] rounded-xl border border-slate-200 dark:border-slate-800 w-full max-w-6xl mx-4 flex flex-col h-[85vh] shadow-2xl animate-fade-in-up transition-colors">
+                <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1e293b]/30 rounded-t-xl transition-colors">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white transition-colors" id="chartModalTitle">Gráfico Detallado</h3>
+                    <button onclick="closeChartModal()" class="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="p-6 flex-1 relative w-full h-full">
+                    <canvas id="expandedChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 bg-white dark:bg-[#0f172a] px-4 py-3 rounded-lg border border-slate-200 dark:border-slate-800 transition-all duration-300 z-[140] transform translate-y-10 opacity-0 flex items-center max-w-sm shadow-lg">
+        <i id="toastIcon" class="fa-solid mr-3 text-lg"></i>
+        <span id="toastMsg" class="font-bold text-xs text-slate-800 dark:text-slate-200">Notificación</span>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://sfqpptquojlsbeheguff.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+        const TABLE_NAME = 'importaciones';
+
+        let extractedData = [];
+        let historyData = []; 
+        let supabaseClient = null;
+        let recordToDeleteId = null;
+        let recordToEditId = null; 
+        let monthlyChartInstance = null; 
+        let clientChartInstance = null; 
+        let expandedChartInstance = null;
+
+        // --- MANEJO DE TEMA DÍA/NOCHE ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
+            
+            // Actualizar colores de las gráficas al instante
+            if (historyData.length > 0) {
+                const isDark = html.classList.contains('dark');
+                Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
+                Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+                
+                if (monthlyChartInstance) monthlyChartInstance.update();
+                if (clientChartInstance) clientChartInstance.update();
+                if (expandedChartInstance) expandedChartInstance.update();
+            }
+        }
+
+        // ----- FUNCIONES PA' LIMPIAR LA MUGRE DE LOS NOMBRES -----
+        function cleanRazonSocial(text) {
+            if (!text || text === '-') return '-';
+            return text.split(' - ')[0].trim();
+        }
+
+        function cleanProveedor(text) {
+            if (!text || text === '-') return '-';
+            let parts = text.split(',');
+            if (parts.length === 1) return text.trim();
+            let firstPart = parts[0].trim();
+            let secondPart = parts[1] ? parts[1].trim() : '';
+            if (/^(INC\.?|LLC\.?|LTD\.?|S\.A\.?|S\.A\.C\.?|S\.R\.L\.?|CORP\.?|CORPORATION|CO\.?)\b/i.test(secondPart)) {
+                return firstPart + ', ' + secondPart;
+            }
+            return firstPart;
+        }
+
+        function openCleanModal() { document.getElementById('cleanModal').classList.remove('hidden'); }
+        function closeCleanModal() { document.getElementById('cleanModal').classList.add('hidden'); }
+
+        async function executeCleanDatabase() {
+            closeCleanModal();
+            if (!supabaseClient) return showToast("Sin conexión a la base.", true);
+            
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "Pasando la escoba...";
+
+            const { data, error } = await supabaseClient.from(TABLE_NAME).select('id, razon_social, proveedor');
+            if (error) {
+                document.getElementById('loading').classList.add('hidden');
+                return showToast("Error al obtener datos: " + error.message, true);
+            }
+
+            let updates = [];
+            data.forEach(row => {
+                const oldRz = row.razon_social || '';
+                const oldProv = row.proveedor || '';
+                const newRz = cleanRazonSocial(oldRz);
+                const newProv = cleanProveedor(oldProv);
+
+                if (oldRz !== newRz || oldProv !== newProv) {
+                    updates.push({ id: row.id, razon_social: newRz, proveedor: newProv });
+                }
+            });
+
+            if (updates.length === 0) {
+                document.getElementById('loading').classList.add('hidden');
+                return showToast("Todo está rechinando de limpio ya.", false, "broom");
+            }
+
+            let errores = 0;
+            for (const upd of updates) {
+                const { error: updateError } = await supabaseClient
+                    .from(TABLE_NAME)
+                    .update({ razon_social: upd.razon_social, proveedor: upd.proveedor })
+                    .eq('id', upd.id);
+                if (updateError) errores++;
+            }
+
+            document.getElementById('loading').classList.add('hidden');
+
+            if (errores > 0) {
+                showToast(`Chale, falló la limpieza en ${errores} registros.`, true);
+            } else {
+                showToast(`¡A huevo! Se arreglaron ${updates.length} registros.`, false, "broom");
+                loadHistory(); 
+            }
+        }
+
+        const parseAmount = (val) => {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            return parseFloat(val.toString().replace(/,/g, '')) || 0;
+        };
+
+        function renderDashboard(dataArray) {
+            let totalGA = 0, totalIVA = 0, totalPagar = 0, totalDocs = dataArray.length;
+            const clientStats = {};
+            const monthlyStats = {}; 
+
+            dataArray.forEach(d => {
+                totalGA += parseAmount(d.gravamen || d.customsTax);
+                totalIVA += parseAmount(d.iva || d.vatTax);
+                totalPagar += parseAmount(d.total_tributos || d.totalTributos);
+
+                let clientName = (d.razon_social || d.razonSocial || 'DESCONOCIDO').trim().toUpperCase();
+                if (!clientStats[clientName]) {
+                    clientStats[clientName] = { count: 0, cif: 0, tributos: 0 };
+                }
+                clientStats[clientName].count += 1;
+                clientStats[clientName].cif += parseAmount(d.total_cif || d.totalCIFValue);
+                clientStats[clientName].tributos += parseAmount(d.total_tributos || d.totalTributos);
+
+                let dateStr = d.fecha_aceptacion || d.acceptanceDate || '';
+                let monthYear = 'Desconocido';
+                let sortKey = '000000';
+                
+                let dateMatch = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (dateMatch) {
+                    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+                    let mIndex = parseInt(dateMatch[2], 10) - 1;
+                    let year = dateMatch[3];
+                    monthYear = `${monthNames[mIndex]} ${year}`;
+                    sortKey = `${year}${dateMatch[2]}`; 
+                }
+                
+                if (!monthlyStats[monthYear]) {
+                    monthlyStats[monthYear] = { total: 0, sortKey: sortKey };
+                }
+                monthlyStats[monthYear].total += parseAmount(d.total_tributos || d.totalTributos);
+            });
+
+            document.getElementById('dash-sum-docs').innerText = totalDocs;
+            document.getElementById('dash-sum-ga').innerText = totalGA.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('dash-sum-iva').innerText = totalIVA.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('dash-sum-total').innerText = totalPagar.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            const clientsArray = Object.keys(clientStats).map(k => ({
+                name: k,
+                count: clientStats[k].count,
+                cif: clientStats[k].cif,
+                tributos: clientStats[k].tributos
+            }));
+
+            const byCount = [...clientsArray].sort((a, b) => b.count - a.count);
+            const listDespachos = document.getElementById('client-despachos-list');
+            listDespachos.innerHTML = '';
+            if(byCount.length === 0) {
+                listDespachos.innerHTML = '<li class="text-slate-500 text-xs italic py-2">No hay datos todavía.</li>';
+            } else {
+                byCount.forEach((client) => { 
+                    let li = `
+                        <li class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 transition-colors">
+                            <div class="flex items-center truncate mr-2">
+                                <i class="fa-regular fa-circle text-slate-400 dark:text-slate-600 mr-2 text-[10px]"></i>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 truncate transition-colors" title="${client.name}">${client.name}</span>
+                            </div>
+                            <div class="bg-slate-200 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-400 font-bold text-[10px] whitespace-nowrap transition-colors">
+                                ${client.count} Docs
+                            </div>
+                        </li>
+                    `;
+                    listDespachos.insertAdjacentHTML('beforeend', li);
+                });
+            }
+
+            const byCif = [...clientsArray].sort((a, b) => b.cif - a.cif);
+            const listCif = document.getElementById('client-cif-list');
+            listCif.innerHTML = '';
+            if(byCif.length === 0) {
+                listCif.innerHTML = '<li class="text-slate-500 text-xs italic py-2">No hay datos todavía.</li>';
+            } else {
+                byCif.forEach((client) => {
+                    let formattedCif = client.cif.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    let li = `
+                        <li class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 transition-colors">
+                            <div class="flex items-center truncate mr-2">
+                                <i class="fa-regular fa-circle text-slate-400 dark:text-slate-600 mr-2 text-[10px]"></i>
+                                <span class="text-xs font-bold text-slate-700 dark:text-slate-300 truncate transition-colors" title="${client.name}">${client.name}</span>
+                            </div>
+                            <div class="text-slate-500 dark:text-slate-400 font-bold text-[10px] whitespace-nowrap transition-colors">
+                                Bs. ${formattedCif}
+                            </div>
+                        </li>
+                    `;
+                    listCif.insertAdjacentHTML('beforeend', li);
+                });
+            }
+
+            const monthlyArray = Object.keys(monthlyStats).map(k => ({
+                label: k,
+                total: monthlyStats[k].total,
+                sortKey: monthlyStats[k].sortKey
+            })).sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+
+            const listMonthly = document.getElementById('monthly-tributos-list');
+            if (listMonthly) {
+                listMonthly.innerHTML = '';
+                if (monthlyArray.length === 0) {
+                    listMonthly.innerHTML = '<li class="text-slate-500 text-xs italic py-2">No hay datos todavía.</li>';
+                } else {
+                    monthlyArray.forEach(month => {
+                        let formattedTotal = month.total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        let li = `
+                            <li class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 transition-colors">
+                                <div class="flex items-center truncate mr-2">
+                                    <i class="fa-regular fa-circle text-slate-400 dark:text-slate-600 mr-2 text-[10px]"></i>
+                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300 capitalize transition-colors">${month.label}</span>
+                                </div>
+                                <div class="text-slate-500 dark:text-slate-400 font-bold text-[10px] whitespace-nowrap transition-colors">
+                                    Bs. ${formattedTotal}
+                                </div>
+                            </li>
+                        `;
+                        listMonthly.insertAdjacentHTML('beforeend', li);
+                    });
+                }
+            }
+
+            updateCharts(monthlyArray, byCif);
+        }
+
+        // --- MANEJO DE GRÁFICOS ---
+        function updateCharts(monthlyData, clientsData) {
+            const ctxMonthly = document.getElementById('monthlyChart');
+            const ctxClient = document.getElementById('clientChart');
+            
+            if (!ctxMonthly || !ctxClient) return;
+
+            if(monthlyChartInstance) monthlyChartInstance.destroy();
+            if(clientChartInstance) clientChartInstance.destroy();
+
+            const isDark = document.documentElement.classList.contains('dark');
+            Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
+            Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+
+            const delayedAnimation = {
+                duration: 1500,
+                easing: 'easeOutQuart',
+                delay: (context) => {
+                    let delay = 0;
+                    if (context.type === 'data' && context.mode === 'default') {
+                        delay = context.dataIndex * 150;
+                    }
+                    return delay;
+                }
+            };
+
+            const chartMonths = [...monthlyData].reverse();
+            const mLabels = chartMonths.map(m => m.label);
+            const mValues = chartMonths.map(m => m.total);
+
+            monthlyChartInstance = new Chart(ctxMonthly.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: mLabels,
+                    datasets: [{
+                        label: 'Total Tributos Pagados (Bs.)',
+                        data: mValues,
+                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: delayedAnimation,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { return ' Bs. ' + (c.raw || 0).toLocaleString('en-US', {minimumFractionDigits: 2}); } } } },
+                    scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }
+                }
+            });
+
+            const topClients = clientsData.slice(0, 15);
+            const cLabels = topClients.map(c => c.name.length > 12 ? c.name.substring(0, 12) + '...' : c.name);
+            const cCifValues = topClients.map(c => c.cif);
+            const cTribValues = topClients.map(c => c.tributos);
+
+            clientChartInstance = new Chart(ctxClient.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: cLabels,
+                    datasets: [
+                        { label: 'Valor CIF', data: cCifValues, backgroundColor: 'rgba(59, 130, 246, 0.9)', borderRadius: 4 },
+                        { label: 'Tributos', data: cTribValues, backgroundColor: 'rgba(16, 185, 129, 0.9)', borderRadius: 4 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    animation: delayedAnimation,
+                    plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 } } }, tooltip: { callbacks: { label: function(c) { return c.dataset.label + ': Bs. ' + (c.raw || 0).toLocaleString('en-US', {minimumFractionDigits: 2}); } } } },
+                    scales: { y: { beginAtZero: true, grid: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // --- EXPANDIR GRÁFICOS ---
+        function expandChart(chartType) {
+            document.getElementById('chartModal').classList.remove('hidden');
+            const ctx = document.getElementById('expandedChartCanvas').getContext('2d');
+            let title = "";
+            let labels = [];
+            let datasets = [];
+
+            if (chartType === 'monthly' && monthlyChartInstance) {
+                title = "Evolución Mensual de Tributos";
+                labels = monthlyChartInstance.data.labels;
+                datasets = monthlyChartInstance.data.datasets;
+            } else if (chartType === 'clients' && clientChartInstance) {
+                title = "Top Clientes (CIF vs Tributos)";
+                labels = clientChartInstance.data.labels;
+                datasets = clientChartInstance.data.datasets;
+            }
+
+            document.getElementById('chartModalTitle').innerText = title;
+
+            if (expandedChartInstance) expandedChartInstance.destroy();
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const delayedAnimation = {
+                duration: 2000,
+                easing: 'easeOutBounce',
+                delay: (context) => context.type === 'data' && context.mode === 'default' ? context.dataIndex * 150 : 0
+            };
+
+            expandedChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: delayedAnimation,
+                    plugins: { 
+                        legend: { 
+                            display: chartType === 'clients',
+                            position: 'top', 
+                            labels: { color: isDark ? '#94a3b8' : '#64748b', font: { size: 14 } } 
+                        }, 
+                        tooltip: { 
+                            callbacks: { label: function(c) { return (c.dataset.label ? c.dataset.label + ': ' : '') + 'Bs. ' + (c.raw || 0).toLocaleString('en-US', {minimumFractionDigits: 2}); } } 
+                        } 
+                    },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' }, 
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b', font: { size: 14 } } 
+                        }, 
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { color: isDark ? '#94a3b8' : '#64748b', font: { size: 14 } } 
+                        } 
+                    }
+                }
+            });
+        }
+
+        function closeChartModal() {
+            document.getElementById('chartModal').classList.add('hidden');
+            if (expandedChartInstance) expandedChartInstance.destroy();
+        }
+
+        function updateUploadSummary(dataArray) {
+            let totalGA = 0, totalIVA = 0, totalPagar = 0;
+            dataArray.forEach(d => { totalGA += parseAmount(d.customsTax); totalIVA += parseAmount(d.vatTax); totalPagar += parseAmount(d.totalTributos); });
+            document.getElementById('upload-sum-ga').innerText = totalGA.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('upload-sum-iva').innerText = totalIVA.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('upload-sum-total').innerText = totalPagar.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function init() {
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            } catch (e) {
+                console.error("Error init Supabase", e);
+                showToast("Fallo de conexión a la BD", true);
+            }
+        }
+
+        function switchView(viewName) {
+            const uploadView = document.getElementById('uploadView');
+            const historyView = document.getElementById('historyView');
+            const dashboardView = document.getElementById('dashboardView');
+            
+            const navUpload = document.getElementById('nav-upload');
+            const navHistory = document.getElementById('nav-history');
+            const navDashboard = document.getElementById('nav-dashboard');
+
+            const inactiveClasses = "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-4 md:px-5 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all cursor-pointer";
+            const activeClasses = "bg-white dark:bg-slate-800 text-custom-blue shadow-sm px-4 md:px-5 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all cursor-default";
+
+            uploadView.classList.add('hidden');
+            historyView.classList.add('hidden');
+            dashboardView.classList.add('hidden');
+
+            navUpload.className = inactiveClasses;
+            navHistory.className = inactiveClasses;
+            navDashboard.className = inactiveClasses;
+
+            if (viewName === 'upload') {
+                uploadView.classList.remove('hidden');
+                navUpload.className = activeClasses;
+            } else if (viewName === 'history') {
+                historyView.classList.remove('hidden');
+                navHistory.className = activeClasses;
+                loadHistory();
+            } else if (viewName === 'dashboard') {
+                dashboardView.classList.remove('hidden');
+                navDashboard.className = activeClasses;
+                loadHistory(); 
+            }
+        }
+
+        async function loadHistory() {
+            if (!supabaseClient) return;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "Cargando info...";
+            const { data, error } = await supabaseClient.from(TABLE_NAME).select('*').order('id', { ascending: false });
+            document.getElementById('loading').classList.add('hidden');
+
+            if (error) return showToast("Error bajando datos: " + error.message, true);
+            historyData = data || [];
+            
+            // Limpiar checkbox general del BAT
+            const selectAllCheck = document.getElementById('selectAllBat');
+            if(selectAllCheck) selectAllCheck.checked = false;
+
+            renderHistoryTable(historyData);
+            renderDashboard(historyData);
+        }
+
+        function renderHistoryTable(data) {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('historyCount').innerText = data.length;
+            
+            if (data.length === 0) {
+                document.getElementById('noDataMessage').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('noDataMessage').classList.add('hidden');
+
+            data.forEach((item, index) => {
+                const isAnticipado = item.modalidad && item.modalidad.includes('ANTICIPADO');
+                const docsLinks = item.documentos_enlaces ? (Array.isArray(item.documentos_enlaces) ? item.documentos_enlaces.length : 0) : 0;
+
+                const row = `
+                    <tr class="border-b border-slate-200 dark:border-slate-800/50 animate-fade-in-up hover:bg-slate-100 dark:hover:bg-[#1e293b]/50 transition-colors group" style="animation-delay: ${Math.min(index * 20, 500)}ms">
+                        <td class="sticky left-0 z-20 bg-slate-50 dark:bg-[#0f172a] px-3 py-2.5 text-center shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b]">
+                            <input type="checkbox" class="bat-checkbox doc-checkbox" value="${item.id}">
+                        </td>
+                        <td class="sticky left-[3.2rem] z-10 bg-slate-50 dark:bg-[#0f172a] px-4 py-2.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b] transition-colors">${item.n_declaracion || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-bold text-custom-blue whitespace-nowrap">${item.n_referencia || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-bold text-center whitespace-nowrap">
+                            <span class="${docsLinks > 0 ? 'bg-custom-orange/20 text-custom-orange' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'} px-2 py-1 rounded-lg">
+                                ${docsLinks}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 text-[10px] font-mono text-custom-purple whitespace-nowrap">${item.nit_importador || '-'}</td>
+                        <td class="px-4 py-2.5 text-[9px] uppercase font-bold text-slate-700 dark:text-slate-200 max-w-[200px] truncate transition-colors" title="${item.razon_social}">${item.razon_social || '-'}</td>
+                        
+                        <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-[#1e293b] rounded transition-colors">${item.factura || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-bold text-custom-blue whitespace-nowrap">${item.pedido || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${item.oi || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${item.oc || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${item.guia_embarque || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 max-w-[140px] truncate transition-colors" title="${item.proveedor}">${item.proveedor || '-'}</td>
+                        <td class="px-4 py-2.5 text-[9px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#1e293b] max-w-[120px] truncate rounded px-2 transition-colors" title="${item.aduana}">${item.aduana || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap transition-colors">${item.fecha_aceptacion || '-'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-bold text-center text-slate-700 dark:text-slate-300 transition-colors">${item.items || '0'}</td>
+                        <td class="px-4 py-2.5 text-[10px] font-bold text-right text-slate-700 dark:text-slate-300 whitespace-nowrap transition-colors">${item.total_cif || '0.00'}</td>
+                        <td class="px-4 py-2 whitespace-nowrap">
+                            <div class="flex flex-col space-y-0.5">
+                                <span class="text-[8px] text-slate-400 dark:text-slate-500 flex justify-between w-16 transition-colors"><span class="font-bold">GA:</span> <span class="text-slate-600 dark:text-slate-300">${item.gravamen || '0'}</span></span>
+                                <span class="text-[8px] text-slate-400 dark:text-slate-500 flex justify-between w-16 transition-colors"><span class="font-bold">IVA:</span> <span class="text-slate-600 dark:text-slate-300">${item.iva || '0'}</span></span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-2.5 text-[11px] font-black text-right text-custom-red whitespace-nowrap">${item.total_tributos || '0'}</td>
+                        <td class="px-4 py-2.5 whitespace-nowrap">
+                            <span class="px-1.5 py-0.5 inline-flex text-[8px] font-bold rounded uppercase ${isAnticipado ? 'bg-custom-orange/20 text-custom-orange' : 'bg-custom-green/20 text-custom-green'} border border-transparent">
+                                ${item.modalidad || 'N/A'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-[#1e293b] rounded transition-colors">${item.examen_previo || '-'}</td>
+                        <td class="px-4 py-2.5 text-center whitespace-nowrap">
+                            <button onclick="openEditModal(${item.id})" class="text-custom-blue hover:text-blue-500 dark:hover:text-blue-400 rounded transition-colors mr-3" title="Editar registro">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="openDeleteModal(${item.id})" class="text-slate-400 dark:text-slate-500 hover:text-custom-red dark:hover:text-custom-red rounded transition-colors" title="Borrar alv">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', row);
+            });
+        }
+
+        function filterHistory() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) { 
+                renderHistoryTable(historyData); 
+                return; 
+            }
+            const filtered = historyData.filter(item => {
+                const dec = (item.n_declaracion || '').toLowerCase();
+                const ref = (item.n_referencia || '').toLowerCase();
+                const ped = (item.pedido || '').toLowerCase();
+                const raz = (item.razon_social || '').toLowerCase();
+                const gui = (item.guia_embarque || '').toLowerCase();
+                const fac = (item.factura || '').toLowerCase();
+                const exp = (item.examen_previo || '').toLowerCase();
+                return dec.includes(query) || ref.includes(query) || ped.includes(query) || raz.includes(query) || gui.includes(query) || fac.includes(query) || exp.includes(query);
+            });
+            renderHistoryTable(filtered);
+        }
+
+        // --- MANEJO DE SELECCIÓN PARA BAT ---
+        function toggleAllBat() {
+            const isChecked = document.getElementById('selectAllBat').checked;
+            const checkboxes = document.querySelectorAll('.doc-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+        }
+
+        function generateBatScript() {
+            const checkboxes = document.querySelectorAll('.doc-checkbox:checked');
+            if (checkboxes.length === 0) {
+                return showToast("¡A caray! No seleccionaste ni una fila compa.", true);
+            }
+
+            let batContent = '@echo off\r\n';
+            batContent += 'chcp 65001 > nul\r\n'; 
+            batContent += 'echo -----------------------------------------\r\n';
+            batContent += 'echo    DESCARGADOR AUTOMATICO DE ADUANA PRO\r\n';
+            batContent += 'echo    Modo: Organizacion por Carpetas\r\n';
+            batContent += 'echo -----------------------------------------\r\n';
+            batContent += 'echo.\r\n';
+
+            let filesProcessed = 0;
+
+            checkboxes.forEach(cb => {
+                const id = parseInt(cb.value);
+                const record = historyData.find(r => r.id === id);
+                
+                if (record && record.documentos_enlaces && record.documentos_enlaces.length > 0) {
+                    filesProcessed++;
+                    
+                    const interno = (record.n_referencia || 'Sin_Interno').replace(/[^\w\s.-]/gi, '').trim();
+                    const folderName = `${interno}`;
+                    
+                    batContent += `echo Procesando carpeta: "${folderName}"...\r\n`;
+                    batContent += `if not exist "${folderName}" mkdir "${folderName}"\r\n`;
+                    batContent += `cd "${folderName}"\r\n`;
+
+                    record.documentos_enlaces.forEach(doc => {
+                        const numOrden = doc.num ? doc.num.toString().padStart(2, '0') : '00';
+                        const safeFileName = `${numOrden} - ${doc.tipo} - ${doc.numeroDoc}`.replace(/[^\w\s.-]/gi, '').trim() + '.pdf';
+                        batContent += `echo   Descargando: [${numOrden}] ${doc.tipo}...\r\n`;
+                        batContent += `curl -L -s "${doc.url}" -o "${safeFileName}"\r\n`;
+                    });
+
+                    batContent += 'cd ..\r\n'; 
+                    batContent += 'echo.\r\n';
+                }
+            });
+
+            if (filesProcessed === 0) {
+                return showToast("Puro chile, ninguno de los seleccionados tiene documentos guardados.", true);
+            }
+
+            batContent += 'echo -----------------------------------------\r\n';
+            batContent += 'echo ¡Listo pariente! Todo descargado y acomodado en su lugar.\r\n';
+            batContent += 'echo Presiona cualquier tecla para salir.\r\n';
+            batContent += 'pause > nul\r\n';
+
+            const blob = new Blob([batContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Descargar_Carpetas_Aduana.bat';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast(`¡A huevo! Script listo con ${filesProcessed} carpetas.`, false, "file-code");
+        }
+
+        // --- MANEJO DE EDICIÓN Y BORRADO ---
+        function openEditModal(id) {
+            const record = historyData.find(r => r.id === id);
+            if (!record) return;
+            recordToEditId = id;
+            document.getElementById('edit_n_declaracion').value = record.n_declaracion || '';
+            document.getElementById('edit_n_referencia').value = record.n_referencia || '';
+            document.getElementById('edit_nit_importador').value = record.nit_importador || '';
+            document.getElementById('edit_razon_social').value = record.razon_social || '';
+            document.getElementById('edit_factura').value = record.factura || '';
+            document.getElementById('edit_pedido').value = record.pedido || '';
+            document.getElementById('edit_oi').value = record.oi || '';
+            document.getElementById('edit_oc').value = record.oc || '';
+            document.getElementById('edit_guia_embarque').value = record.guia_embarque || '';
+            document.getElementById('edit_proveedor').value = record.proveedor || '';
+            document.getElementById('edit_aduana').value = record.aduana || '';
+            document.getElementById('edit_fecha_aceptacion').value = record.fecha_aceptacion || '';
+            document.getElementById('edit_items').value = record.items || '';
+            document.getElementById('edit_total_cif').value = record.total_cif || '';
+            document.getElementById('edit_gravamen').value = record.gravamen || '';
+            document.getElementById('edit_iva').value = record.iva || '';
+            document.getElementById('edit_total_tributos').value = record.total_tributos || '';
+            document.getElementById('edit_modalidad').value = record.modalidad || '';
+            document.getElementById('edit_examen_previo').value = record.examen_previo || '';
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            recordToEditId = null;
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        async function saveEdit() {
+            if (!recordToEditId || !supabaseClient) return;
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "Guardando arreglos...";
+
+            const updates = {
+                n_declaracion: document.getElementById('edit_n_declaracion').value,
+                n_referencia: document.getElementById('edit_n_referencia').value,
+                nit_importador: document.getElementById('edit_nit_importador').value,
+                razon_social: document.getElementById('edit_razon_social').value,
+                factura: document.getElementById('edit_factura').value,
+                pedido: document.getElementById('edit_pedido').value,
+                oi: document.getElementById('edit_oi').value,
+                oc: document.getElementById('edit_oc').value,
+                guia_embarque: document.getElementById('edit_guia_embarque').value,
+                proveedor: document.getElementById('edit_proveedor').value,
+                aduana: document.getElementById('edit_aduana').value,
+                fecha_aceptacion: document.getElementById('edit_fecha_aceptacion').value,
+                items: document.getElementById('edit_items').value,
+                total_cif: document.getElementById('edit_total_cif').value,
+                gravamen: document.getElementById('edit_gravamen').value,
+                iva: document.getElementById('edit_iva').value,
+                total_tributos: document.getElementById('edit_total_tributos').value,
+                modalidad: document.getElementById('edit_modalidad').value,
+                examen_previo: document.getElementById('edit_examen_previo').value
+            };
+
+            const { error } = await supabaseClient.from(TABLE_NAME).update(updates).eq('id', recordToEditId);
+            document.getElementById('loading').classList.add('hidden');
+
+            if (error) {
+                showToast("Chale, error al editar: " + error.message, true);
+            } else {
+                showToast("¡Registro tuneado al cien!", false, "check");
+                closeEditModal();
+                loadHistory(); 
+            }
+        }
+
+        function openDeleteModal(id) { recordToDeleteId = id; document.getElementById('deleteModal').classList.remove('hidden'); }
+        function closeDeleteModal() { recordToDeleteId = null; document.getElementById('deleteModal').classList.add('hidden'); }
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if (!recordToDeleteId || !supabaseClient) return;
+            const { error } = await supabaseClient.from(TABLE_NAME).delete().eq('id', recordToDeleteId);
+            if (error) showToast("Error al borrar: " + error.message, true);
+            else { showToast("Eliminado papá", false, "trash"); closeDeleteModal(); loadHistory(); }
+        });
+
+        // --- MANEJO DE EXTRACCIÓN AL SUBIR PDFS ---
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "Procesando...";
+            extractedData = []; 
+            document.getElementById('tableBody').innerHTML = '';
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].type === "application/pdf") {
+                    try {
+                        const textsAndLinks = await extractTextAndLinksFromPDF(files[i]);
+                        const data = parseData(textsAndLinks, files[i].name);
+                        
+                        // Guardar la variable de enlaces mágicos
+                        data.enlaces_magicos = textsAndLinks.links;
+                        
+                        extractedData.push(data);
+                        renderRow(data, i);
+                    } catch (error) { console.error(error); showToast(`Error en ${files[i].name}`, true); }
+                }
+            }
+            
+            updateUploadSummary(extractedData);
+            document.getElementById('resultsArea').classList.remove('hidden');
+            document.getElementById('btnSave').classList.remove('hidden');
+            document.getElementById('recordCount').innerText = `${extractedData.length} registros`;
+            document.getElementById('loading').classList.add('hidden');
+            event.target.value = '';
+        }
+
+        // --- EXTRACCIÓN MÁGICA: TEXTO + ENLACES (BAT) ---
+        async function extractTextAndLinksFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            
+            let rawText = "";
+            let orderedText = "";
+            const documentsMap = new Map();
+            const baseUrl = "https://suma.aduana.gob.bo/b-oce/rest/downloadFile/";
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const annotations = await page.getAnnotations();
+                
+                rawText += textContent.items.map(item => item.str).join(' ') + "\n";
+                
+                let items = textContent.items.map(item => ({
+                    str: item.str,
+                    x: item.transform[4],
+                    y: item.transform[5]
+                })).filter(item => item.str.trim() !== '');
+
+                items.sort((a, b) => {
+                    const yDiff = b.y - a.y;
+                    if (Math.abs(yDiff) < 5) return a.x - b.x;
+                    return yDiff;
+                });
+
+                let currentLine = "";
+                let lastY = -1;
+
+                items.forEach(item => {
+                    if (lastY === -1) lastY = item.y;
+                    if (Math.abs(lastY - item.y) > 5) {
+                        orderedText += currentLine.trim() + "\n";
+                        currentLine = "";
+                    }
+                    currentLine += item.str + " ";
+                    lastY = item.y;
+                });
+                orderedText += currentLine.trim() + "\n\n";
+
+                const links = annotations.filter(ann => ann.url && ann.url.includes(baseUrl));
+                if (links.length > 0) {
+                    links.sort((a, b) => b.rect[1] - a.rect[1]); 
+                    for (const link of links) {
+                        const y = link.rect[1];
+                        const lineItems = textContent.items
+                            .filter(item => Math.abs(item.transform[5] - y) < 5)
+                            .sort((a, b) => a.transform[4] - b.transform[4]); 
+
+                        if (lineItems.length === 0) continue;
+                        
+                        const lineText = lineItems.map(item => item.str).join('');
+                        const cleanRow = lineText.replace(/\s+/g, ' ').replace(/Ver$/, '').trim();
+                        
+                        const numMatch = cleanRow.match(/^(\d+)\s/);
+                        if (!numMatch) continue;
+
+                        const num = numMatch[1];
+                        let textAfterNum = cleanRow.substring(numMatch[0].length).trim();
+                        
+                        const emisorKeywords = ['SHANGHAI', 'XIZI', 'TRANSPORTE', 'SEGUROS', 'COMPAÑIA', 'EMPRESA', 'SANTANDER', 'ITI', 'WEIR', 'YELLOW', 'INDUSTRIAL', 'CPL', 'EDISON', 'HUMMINGBIRD', 'ALMACENERA', 'NEW YORK', 'DEZE'];
+                        const emisorRegex = new RegExp(`(${emisorKeywords.join('|')})`, 'i');
+                        const emisorMatch = textAfterNum.match(emisorRegex);
+                        
+                        let tipoAndNumero;
+                        if (emisorMatch) {
+                            tipoAndNumero = textAfterNum.substring(0, emisorMatch.index).trim();
+                        } else {
+                            const dateMatch = textAfterNum.match(/\s\d{2}\/\d{2}\/\d{4}/);
+                            if (dateMatch) tipoAndNumero = textAfterNum.substring(0, dateMatch.index).trim();
+                            else tipoAndNumero = textAfterNum;
+                        }
+
+                        const parts = tipoAndNumero.split(' ');
+                        const numeroDoc = parts.pop() || 'SN';
+                        const tipo = parts.join(' ').trim();
+                        const uuidMatch = link.url.match(/[a-f0-9-]{36}/i);
+
+                        if (tipo && uuidMatch) {
+                            const url = baseUrl + uuidMatch[0];
+                            if (!documentsMap.has(url)) {
+                                documentsMap.set(url, { num, tipo, numeroDoc, url });
+                            }
+                        }
+                    }
+                }
+            }
+            
+            const finalLinksArray = Array.from(documentsMap.values()).sort((a, b) => parseInt(a.num) - parseInt(b.num));
+            return { rawText, orderedText, links: finalLinksArray };
+        }
+
+        function extractValue(text, labelRegexStr) {
+            const regex = new RegExp(labelRegexStr + '[:\\s]*([\\S\\s]*?)(?=\\n|A\\d\\.|F\\d\\.|E\\d\\.|B\\d\\.|O\\.I\\.|O\\.C\\.|PEDIDO|FACTURA|\\n\\n|$)', 'i');
+            const match = text.match(regex);
+            return match ? match[1].trim() : '';
+        }
+
+        function extractCommercialInvoice(text) {
+            const m1 = text.match(/E3\.[\s]*N[°º\.]?[\s]*de[\s]*la[\s]*factura[\s:\-]*([A-Z0-9\-\/]+)/i);
+            if (m1) return m1[1];
+            const m2 = text.match(/FACTURA\s*COMERCIAL\s*[:\s]*([A-Z0-9\-\/]+)/i);
+            return m2 ? m2[1] : '-';
+        }
+
+        function extractSimple(text, regexStr, def='-') {
+            const m = text.match(new RegExp(regexStr, 'i'));
+            return m ? m[1].trim() : def;
+        }
+
+        function extractNIT(text) {
+            const regex = /B1\.\s*Importador[\s\S]*?NIT\s*(\d+)/i;
+            const match = text.match(regex);
+            return match ? match[1] : '-';
+        }
+
+        function extractRazonSocial(text) {
+            const regex = /B1\.\s*Importador[\s\S]*?NIT\s*\d+\s+([^\n]+?)(?=\s+OEA|\s+DOMICILIO|\s+TARIJA|\s*,)/i;
+            const match = text.match(regex);
+            if(match) return match[1].trim();
+            const regexSimple = /B1\.\s*Importador[\s\S]*?NIT\s*\d+\s+([^\n]+)/i;
+            const matchSimple = text.match(regexSimple);
+            return matchSimple ? matchSimple[1].trim() : '-';
+        }
+
+        function extractTaxValue(text, keywordStr) {
+            const regex = new RegExp(`^.*?(?:${keywordStr}).*?$`, 'im');
+            const match = text.match(regex);
+            if (!match) return "0";
+            
+            const numbers = match[0].match(/[\d.,]+/g);
+            if (!numbers || numbers.length === 0) return "0";
+            return numbers[numbers.length - 1]; 
+        }
+
+        function extractGuia(text) {
+            let m = text.match(/(?:GU[IÍ]A\s*A[EÉ]REA\s*\(AWB\)|GU[IÍ]A\s*COURIER|HAWB[\s:]*|MAWB[\s:]*)[\s\n]*([A-Z0-9\-\/]{5,})/i);
+            if (m) return m[1].trim();
+            return '-';
+        }
+
+        function extractExamenPrevio(text) {
+            let m = text.match(/FORMULARIO\s+DE\s+EXAMEN\s+PREVIO[\s\n\r]*EP-\d{4}-\d{3}-([0-9]+)/i);
+            if (m) return m[1].trim();
+            return '-';
+        }
+
+        function parseData(texts, fileName) {
+            const cleanRawText = texts.rawText.replace(/ {2,}/g, ' ');
+            const cleanOrderedText = texts.orderedText.replace(/ {2,}/g, ' ');
+
+            const gaStr = extractTaxValue(cleanOrderedText, "GRAVAMEN\\s+ARANCELARIO");
+            const ivaStr = extractTaxValue(cleanOrderedText, "IMPUESTO\\s+AL\\s+VALOR\\s+AGREGADO");
+            const totalStr = extractTaxValue(cleanOrderedText, "Total\\s*tributos\\s*a\\s*pagar");
+
+            const parseNum = (str) => parseFloat(str.replace(/,/g, '')) || 0;
+            const sumaCalculada = parseNum(gaStr) + parseNum(ivaStr);
+            const cuadra = Math.abs(sumaCalculada - parseNum(totalStr)) <= 1;
+
+            return {
+                declarationNumber: extractValue(cleanRawText, "A1\\.\\s*N[°º\\.]?\\s*de\\s*declaraci[óo]n") || '-',
+                acceptanceDate: extractValue(cleanRawText, "A2\\.\\s*Fecha\\s*de\\s*aceptaci[óo]n") || '-',
+                referenceNumber: extractValue(cleanRawText, "A3\\.\\s*N[°º\\.]?\\s*de\\s*referencia") || '-',
+                customsOffice: extractValue(cleanRawText, "A4\\.\\s*Aduana\\s*de\\s*despacho") || '-',
+                totalItems: extractValue(cleanRawText, "F2\\.\\s*Total\\s*N[°º\\.]?\\s*de\\s*[IíI]tems") || '0',
+                totalCIFValue: extractSimple(cleanRawText, "F10\\.\\s*Total\\s*valor\\s*CIF\\s*aduana\\s*\\(BOB\\)[\\s:]*([\\d.,]+)", "0.00"),
+                
+                customsTax: gaStr,
+                vatTax: ivaStr,
+                totalTributos: totalStr,
+                tributosCuadran: cuadra,
+                sumaCalculada: sumaCalculada,
+
+                commercialInvoice: extractCommercialInvoice(cleanRawText),
+                providerData: cleanProveedor(extractSimple(cleanRawText, "E1\\.\\s*Datos\\s*del\\s*Proveedor\\s*[:\\s]*([^\\n]+)")),
+                
+                dispatchMode: (() => {
+                    const m = cleanRawText.match(/A7\.\s*Modalidad\s*de\s*despacho\s*[\n\r\s]*(01\s*-\s*GENERAL|02\s*-\s*ANTICIPADO)/i);
+                    if(m && m[1].includes("GENERAL")) return "GENERAL";
+                    if(m && m[1].includes("ANTICIPADO")) return "ANTICIPADO";
+                    return '-';
+                })(),
+                
+                pedido: extractSimple(cleanRawText, "(?:^|\\s)(?:\\bPEDIDO\\b|PEDIDO\\s+DE\\s+ORDEN|N[°º\\.]?\\s*PEDIDO)[\\s.:]+([A-Z0-9\\-\\/]+)"),
+                oi: extractSimple(cleanRawText, "(?:^|\\s)(?:O\\.?I\\.?|ΟΙ|ORDEN\\s+DE\\s+IMPORTACI[OÓ]N)[\\s.:]+([A-Z0-9\\-\\/]{4,})"),
+                oc: extractSimple(cleanRawText, "(?:^|\\s)(?:O\\.?C\\.?|ORDEN\\s+DE\\s+COMPRA)[\\s.:]+([A-Z0-9\\-\\/]{4,})"),
+                nitImportador: extractNIT(cleanRawText),
+                razonSocial: cleanRazonSocial(extractRazonSocial(cleanRawText)),
+                guiaEmbarque: extractGuia(cleanRawText),
+                examenPrevio: extractExamenPrevio(cleanRawText),
+                sourceFile: fileName
+            };
+        }
+
+        // --- DIBUJADO DE LA TABLA DE CARGA DE ARCHIVOS ---
+        function renderRow(data, index) {
+            const tbody = document.getElementById('tableBody');
+            const validacionHtml = data.tributosCuadran 
+                ? `` 
+                : `<i class="fa-solid fa-triangle-exclamation text-custom-orange ml-1 animate-pulse" title="Discrepancia: Suman ${data.sumaCalculada}"></i>`;
+            const isAnticipado = data.dispatchMode.includes('ANTICIPADO');
+            const enlacesMagicosLength = data.enlaces_magicos ? data.enlaces_magicos.length : 0;
+
+            const row = `
+                <tr class="border-b border-slate-200 dark:border-slate-800/50 animate-fade-in-up hover:bg-slate-100 dark:hover:bg-[#1e293b]/50 transition-colors group" style="animation-delay: ${index * 20}ms">
+                    <td class="sticky left-0 z-10 bg-slate-50 dark:bg-[#0f172a] px-4 py-2.5 text-[10px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap shadow-[1px_0_0_0_#e2e8f0] dark:shadow-[1px_0_0_0_#1e293b] transition-colors">${data.declarationNumber}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-bold text-custom-blue whitespace-nowrap">${data.referenceNumber}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-bold text-center">
+                        <span class="${enlacesMagicosLength > 0 ? 'bg-custom-orange/20 text-custom-orange' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'} px-2 py-1 rounded-lg">
+                            ${enlacesMagicosLength}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-[10px] font-mono text-custom-purple whitespace-nowrap">${data.nitImportador}</td>
+                    <td class="px-4 py-2.5 text-[9px] uppercase font-bold text-slate-700 dark:text-slate-200 max-w-[200px] truncate transition-colors" title="${data.razonSocial}">${data.razonSocial}</td>
+                    
+                    <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-[#1e293b] rounded transition-colors">${data.commercialInvoice}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-bold text-custom-blue whitespace-nowrap">${data.pedido}</td>
+                    <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${data.oi}</td>
+                    <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${data.oc}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap transition-colors">${data.guiaEmbarque}</td>
+                    <td class="px-4 py-2.5 text-[10px] text-slate-500 dark:text-slate-400 max-w-[140px] truncate transition-colors" title="${data.providerData}">${data.providerData}</td>
+                    <td class="px-4 py-2.5 text-[9px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#1e293b] max-w-[120px] truncate rounded px-2 transition-colors" title="${data.customsOffice}">${data.customsOffice}</td>
+                    <td class="px-4 py-2.5 text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap transition-colors">${data.acceptanceDate}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-bold text-center text-slate-700 dark:text-slate-300 transition-colors">${data.totalItems}</td>
+                    <td class="px-4 py-2.5 text-[10px] font-bold text-right text-slate-700 dark:text-slate-300 whitespace-nowrap transition-colors">${data.totalCIFValue}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">
+                        <div class="flex flex-col space-y-0.5">
+                            <span class="text-[8px] text-slate-400 dark:text-slate-500 flex justify-between w-16 transition-colors"><span class="font-bold">GA:</span> <span class="text-slate-600 dark:text-slate-300">${data.customsTax}</span></span>
+                            <span class="text-[8px] text-slate-400 dark:text-slate-500 flex justify-between w-16 transition-colors"><span class="font-bold">IVA:</span> <span class="text-slate-600 dark:text-slate-300">${data.vatTax}</span></span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-[11px] font-black text-right text-custom-red whitespace-nowrap">
+                        <div class="flex items-center justify-end">
+                            ${data.totalTributos} ${validacionHtml}
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 whitespace-nowrap">
+                        <span class="px-1.5 py-0.5 inline-flex text-[8px] font-bold rounded uppercase ${isAnticipado ? 'bg-custom-orange/20 text-custom-orange' : 'bg-custom-green/20 text-custom-green'} border border-transparent">
+                            ${data.dispatchMode}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap bg-slate-100 dark:bg-[#1e293b] rounded transition-colors">${data.examenPrevio}</td>
+                </tr>`;
+            tbody.insertAdjacentHTML('beforeend', row);
+        }
+
+        function showToast(msg, isError = false, icon = "info-circle") {
+            const toast = document.getElementById('toast');
+            const msgSpan = document.getElementById('toastMsg');
+            const iconSpan = document.getElementById('toastIcon');
+            
+            msgSpan.innerText = msg;
+            iconSpan.className = `fa-solid fa-${isError ? 'triangle-exclamation' : icon} mr-3 text-lg`;
+            
+            toast.className = `fixed bottom-6 right-6 bg-white dark:bg-[#0f172a] px-4 py-3 rounded-lg border transition-all duration-300 z-[140] transform flex items-center max-w-sm shadow-lg
+                ${isError ? 'border-custom-red text-custom-red' : 'border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'}`;
+            
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 3000);
+        }
+
+        async function saveToSupabase() {
+            if (!supabaseClient) {
+                try { init(); } catch(e) {}
+                if (!supabaseClient) return showToast("Sin conexión a la base.", true);
+            }
+
+            if (!extractedData || extractedData.length === 0) {
+                return showToast("Nada que guardar, jefe.", true);
+            }
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "Validando papelería...";
+
+            const newDecls = extractedData.map(d => d.declarationNumber);
+            
+            const { data: existing, error: checkErr } = await supabaseClient
+                .from(TABLE_NAME)
+                .select('n_declaracion')
+                .in('n_declaracion', newDecls);
+
+            if (checkErr) { 
+                document.getElementById('loading').classList.add('hidden'); 
+                return showToast("Error validando.", true); 
+            }
+            
+            const existingSet = new Set(existing ? existing.map(i => i.n_declaracion) : []);
+            const toInsert = extractedData.filter(d => !existingSet.has(d.declarationNumber));
+            
+            if (toInsert.length === 0) {
+                document.getElementById('loading').classList.add('hidden');
+                return showToast("Esos registros ya existen, valedor.", true);
+            }
+
+            document.getElementById('loadingText').innerText = "Guardando en la nube...";
+
+            const dbData = toInsert.map(d => ({
+                n_declaracion: d.declarationNumber,
+                fecha_aceptacion: d.acceptanceDate,
+                n_referencia: d.referenceNumber,
+                aduana: d.customsOffice,
+                items: d.totalItems,
+                total_cif: d.totalCIFValue, 
+                gravamen: d.customsTax,
+                iva: d.vatTax,
+                total_tributos: d.totalTributos, 
+                factura: d.commercialInvoice,
+                proveedor: d.providerData,
+                modalidad: d.dispatchMode,
+                pedido: d.pedido,
+                oi: d.oi,
+                oc: d.oc,
+                guia_embarque: d.guiaEmbarque,
+                examen_previo: d.examenPrevio,
+                nit_importador: d.nitImportador,
+                razon_social: d.razonSocial,
+                archivo_origen: d.sourceFile,
+                documentos_enlaces: d.enlaces_magicos // AQUÍ VAN LOS ENLACES PÁ EL BAT
+            }));
+
+            const { error } = await supabaseClient.from(TABLE_NAME).insert(dbData);
+            
+            document.getElementById('loading').classList.add('hidden');
+            
+            if (error) {
+                showToast("Fallo al guardar.", true);
+            } else {
+                showToast(`Guardados ${toInsert.length} nuevos chingonazos.`, false, "check");
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>

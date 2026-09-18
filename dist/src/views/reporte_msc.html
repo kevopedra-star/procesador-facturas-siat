@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilla MSC - Minera San Cristóbal</title>
+    
+    <!-- CDNs de soporte -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- SheetJS para procesamiento de Excel -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    
+    <!-- Iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Fuentes Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;550;600;750;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    
+    <!-- Estilos de Tailwind y Diseño Unificado -->
+    
+    <style>
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Estilos de Tabla Planilla - Rediseño Dark AMOLED */
+        .planilla-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-size: 10px;
+            --tw-bg-opacity: 1;
+            background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+            --tw-text-opacity: 1;
+            color: rgb(51 65 85 / var(--tw-text-opacity, 1));
+        }
+        .planilla-table:is(.dark *) { --tw-bg-opacity: 1; background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(203 213 225 / var(--tw-text-opacity, 1)); }
+        
+        .planilla-table th { white-space: nowrap; border-width: 1px; --tw-border-opacity: 1; border-color: rgb(226 232 240 / var(--tw-border-opacity, 1)); --tw-bg-opacity: 1; background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1)); padding: 0.5rem; text-align: center; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; --tw-text-opacity: 1; color: rgb(51 65 85 / var(--tw-text-opacity, 1)); }
+        
+        .planilla-table th:is(.dark *) { --tw-border-opacity: 1; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)); --tw-bg-opacity: 1; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(251 146 60 / var(--tw-text-opacity, 1)); }
+        
+        /* Cabeceras Grupales - Formato Dark Amoled */
+        .head-general { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-general:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(226 232 240 / var(--tw-text-opacity, 1)) !important; }
+        .head-albo { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-albo:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important; }
+        .head-previa { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-previa:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important; }
+        .head-guias { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-guias:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important; }
+        .head-puertos { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-puertos:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important; }
+        .head-otros { --tw-border-opacity: 1 !important; border-color: rgb(203 213 225 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(30 41 59 / var(--tw-text-opacity, 1)) !important; }
+        .head-otros:is(.dark *) { --tw-border-opacity: 1 !important; border-color: rgb(34 34 38 / var(--tw-border-opacity, 1)) !important; --tw-bg-opacity: 1 !important; background-color: rgb(20 20 22 / var(--tw-bg-opacity, 1)) !important; --tw-text-opacity: 1 !important; color: rgb(251 146 60 / var(--tw-text-opacity, 1)) !important; }
+        
+        .planilla-table td { white-space: nowrap; border-width: 1px; --tw-border-opacity: 1; border-color: rgb(226 232 240 / var(--tw-border-opacity, 1)); padding: 0.5rem; vertical-align: top; transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+        
+        .planilla-table td:is(.dark *) { border-color: rgb(34 34 38 / 0.6); }
+
+        /* Colores dinámicos para filas en tema oscuro */
+        .row-anticipada-pending td { --tw-bg-opacity: 1; background-color: rgb(254 242 242 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(185 28 28 / var(--tw-text-opacity, 1)); }
+        .row-anticipada-pending td:is(.dark *) { background-color: rgb(69 10 10 / 0.2); --tw-text-opacity: 1; color: rgb(252 165 165 / var(--tw-text-opacity, 1)); }
+        .row-anticipada-pending:hover td { --tw-bg-opacity: 1; background-color: rgb(254 226 226 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(127 29 29 / var(--tw-text-opacity, 1)); }
+        .row-anticipada-pending:hover td:is(.dark *) { background-color: rgb(69 10 10 / 0.4); --tw-text-opacity: 1; color: rgb(255 255 255 / var(--tw-text-opacity, 1)); }
+
+        .row-anticipada-done td { --tw-bg-opacity: 1; background-color: rgb(236 253 245 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(234 88 12 / var(--tw-text-opacity, 1)); }
+
+        .row-anticipada-done td:is(.dark *) { background-color: rgb(2 44 34 / 0.2); --tw-text-opacity: 1; color: rgb(253 186 116 / var(--tw-text-opacity, 1)); }
+        .row-anticipada-done:hover td { background-color: rgb(249 115 22 / 0.1); --tw-text-opacity: 1; color: rgb(6 78 59 / var(--tw-text-opacity, 1)); }
+        .row-anticipada-done:hover td:is(.dark *) { background-color: rgb(2 44 34 / 0.4); --tw-text-opacity: 1; color: rgb(255 255 255 / var(--tw-text-opacity, 1)); }
+
+        .row-general td { --tw-bg-opacity: 1; background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(51 65 85 / var(--tw-text-opacity, 1)); }
+
+        .row-general td:is(.dark *) { --tw-bg-opacity: 1; background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(203 213 225 / var(--tw-text-opacity, 1)); }
+        .row-general:hover td { --tw-bg-opacity: 1; background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(15 23 42 / var(--tw-text-opacity, 1)); }
+        .row-general:hover td:is(.dark *) { --tw-bg-opacity: 1; background-color: rgb(28 28 34 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(255 255 255 / var(--tw-text-opacity, 1)); }
+        
+        /* Celdas Multilínea */
+        .multi-cell div { display: flex; min-height: 19px; align-items: center; border-bottom-width: 1px; border-style: dashed; --tw-border-opacity: 1; border-color: rgb(226 232 240 / var(--tw-border-opacity, 1)); padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .multi-cell div:is(.dark *) { border-color: rgb(30 41 59 / 0.6); }
+        .multi-cell div:last-child { border-bottom-width: 0px; }
+        
+        /* Tooltip simple */
+        .tooltip-cell { position: relative; cursor: help; }
+        .tooltip-cell:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            right: 0px;
+            z-index: 50;
+            white-space: nowrap;
+            border-radius: 0.25rem;
+            border-width: 1px;
+            --tw-border-opacity: 1;
+            border-color: rgb(226 232 240 / var(--tw-border-opacity, 1));
+            --tw-bg-opacity: 1;
+            background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            padding-top: 0.25rem;
+            padding-bottom: 0.25rem;
+            font-size: 10px;
+            --tw-text-opacity: 1;
+            color: rgb(30 41 59 / var(--tw-text-opacity, 1));
+            --tw-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
+            box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+        }
+        .tooltip-cell:hover:is(.dark *)::after { --tw-border-opacity: 1; border-color: rgb(30 41 59 / var(--tw-border-opacity, 1)); --tw-bg-opacity: 1; background-color: rgb(15 23 42 / var(--tw-bg-opacity, 1)); --tw-text-opacity: 1; color: rgb(255 255 255 / var(--tw-text-opacity, 1)); }
+    </style>
+  <script type="module" crossorigin src="/assets/reporte_msc-C33vRAeV.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DztbwT6Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-D9p2b7RA.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-weG9gO3Z.css">
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-[#f1f3f6] dark:bg-[#000000] text-slate-800 dark:text-slate-100 antialiased">
+
+    <!-- Header con Filtros -->
+    <header class="bg-white/90 dark:bg-[#0d0d0d] border-b border-slate-200 dark:border-[#222226] p-4 flex flex-col gap-3 shrink-0 z-20 backdrop-blur-xl shadow-md animate-fade-in">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-500/10 text-orange-500 p-2 rounded-xl border border-orange-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-industry text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Planilla <span class="text-orange-500">Minera San Cristóbal S.A.</span>
+                    </h1>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 flex-wrap">
+                <div id="loader" class="hidden flex items-center gap-2 text-orange-500 dark:text-orange-400 text-xs font-bold mr-4 animate-pulse">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...
+                </div>
+                
+                <button onclick="promptMasivoDimReg()" class="btn-primary bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500">
+                    <i class="fa-solid fa-layer-group"></i> Carga Masiva DIMs
+                </button>
+
+                <input type="file" id="excelInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                
+                <button onclick="document.getElementById('excelInput').click()" class="btn-primary bg-[#121215] hover:bg-[#1c1c22] text-white shadow-slate-900/50 border border-slate-700/50">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> Cargar Estado Cuentas
+                </button>
+
+                <button onclick="saveExcelToBD()" id="btnSaveExcel" class="hidden btn-success shadow-emerald-950/50 animate-pulse">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar en Historial
+                </button>
+
+                <button onclick="loadData()" class="btn-secondary" title="Recargar Datos">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+                
+                <button onclick="exportToExcel()" class="btn-success">
+                    <i class="fa-solid fa-file-excel"></i> Descargar
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Herramientas de Filtros -->
+        <div class="flex flex-wrap items-center gap-3 bg-slate-100/50 dark:bg-[#09090b] p-3 rounded-2xl border border-slate-200 dark:border-[#222226] text-xs shadow-inner">
+            <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-calendar text-slate-500"></i>
+                <select id="monthFilter" onchange="filterAndRender()" class="premium-select bg-white dark:bg-[#111114] border border-slate-200 dark:border-[#222226] rounded-xl px-3 py-2 text-xs">
+                    <option value="all">Todos los Meses</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-[#222226] pl-3">
+                <i class="fa-solid fa-arrow-down-short-wide text-slate-500"></i>
+                <select id="sortFilter" onchange="filterAndRender()" class="premium-select bg-white dark:bg-[#111114] border border-slate-200 dark:border-[#222226] rounded-xl px-3 py-2 text-xs">
+                    <option value="fecha_desc">Fecha Validación (Desc)</option>
+                    <option value="fecha_asc">Fecha Validación (Asc)</option>
+                    <option value="dim_desc">DIM N° (Desc)</option>
+                    <option value="dim_asc">DIM N° (Asc)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-[#222226] pl-3">
+                <i class="fa-solid fa-file-signature text-slate-500"></i>
+                <select id="regFilter" onchange="filterAndRender()" class="premium-select bg-white dark:bg-[#111114] border border-slate-200 dark:border-[#222226] rounded-xl px-3 py-2 text-xs">
+                    <option value="all">Todas las DIMs</option>
+                    <option value="pending">Anticipadas - Falta Regularizar</option>
+                    <option value="done">Anticipadas - Ya Regularizadas</option>
+                    <option value="general">Generales (No Anticipadas)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-[#222226] pl-3 flex-1">
+                <i class="fa-solid fa-magnifying-glass text-slate-500"></i>
+                <input type="text" id="searchFilter" onkeyup="filterAndRender()" placeholder="Buscar por DIM, Ref o Interno..." class="premium-input bg-white dark:bg-[#111114] border border-slate-200 dark:border-[#222226] rounded-xl px-3 py-2 text-xs font-mono placeholder:font-sans text-slate-800 dark:text-slate-100">
+            </div>
+            
+            <div class="px-3 py-1 bg-slate-200 dark:bg-[#141416] border border-slate-300 dark:border-[#222226] rounded-full font-black text-slate-700 dark:text-slate-300 text-[11px] shadow-sm">
+                <span id="countDisplay" class="text-orange-500">0</span> Reg.
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabla Contenedor -->
+    <main class="flex-1 overflow-auto p-4 flex flex-col gap-4 bg-slate-50 dark:bg-[#000000]">
+        <!-- Tarjetas de Totales -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2.5 shrink-0">
+            <!-- Comisión -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+5.4%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q15,10 30,25 T60,5 T90,15 T100,10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Comisión</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiComision">0.00</div>
+                </div>
+            </div>
+            
+            <!-- ALBO / DAB -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+10.2%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,15 Q20,25 40,5 T80,20 T100,8" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">ALBO / DAB</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiAlbo">0.00</div>
+                </div>
+            </div>
+
+            <!-- Insp. Previa -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+4.8%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,22 Q15,5 35,25 T70,8 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-455 dark:text-slate-400 uppercase tracking-wider">Insp. Previa</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiIp">0.00</div>
+                </div>
+            </div>
+
+            <!-- Guías -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+9.6%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q10,15 30,5 T70,25 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Guías</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiGuia">0.00</div>
+                </div>
+            </div>
+
+            <!-- Puertos -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">+2.5%</span>
+                    <svg class="w-12 h-6 text-amber-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,10 Q25,5 50,25 T90,10 T100,18" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Puertos</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiPuerto">0.00</div>
+                </div>
+            </div>
+
+            <!-- Otros -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#141416] text-slate-600 dark:text-slate-350">+0.0%</span>
+                    <svg class="w-12 h-6 text-slate-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,20 Q30,10 60,25 T100,15" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Otros</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiOtros">0.00</div>
+                </div>
+            </div>
+
+            <!-- Total Gastos -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400">+12.1%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,5 Q20,25 50,5 T80,20 T100,10" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-450 dark:text-slate-400 uppercase tracking-wider">Total Gastos</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 tabular-nums" id="kpiTotalGastos">0.00</div>
+                </div>
+            </div>
+
+            <!-- Gran Total -->
+            <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-500 dark:text-orange-400 animate-pulse">+14.8%</span>
+                    <svg class="w-12 h-6 text-orange-500 stroke-2 fill-none flex-shrink-0" viewBox="0 0 100 30">
+                        <path d="M0,25 Q15,5 30,22 T60,8 T90,25 T100,2" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="text-[9px] font-bold text-slate-455 dark:text-slate-400 uppercase tracking-wider">GRAN TOTAL</div>
+                    <div class="text-sm font-black text-slate-800 dark:text-white mt-1.5 text-orange-500 dark:text-orange-400 animate-pulse tabular-nums" id="kpiGranTotal">0.00</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="table-container flex-1 border border-slate-200 dark:border-[#222226] bg-white dark:bg-[#000000]">
+            <table class="planilla-table" id="planillaTable">
+                <thead>
+                    <tr>
+                        <th colspan="13" class="head-general text-center border-b border-slate-200 dark:border-[#222226]">DATOS DE LA DIM</th>
+                        <th colspan="8" class="head-albo text-center border-b border-slate-200 dark:border-[#222226]">ALBO / DAB</th>
+                        <th colspan="8" class="head-previa text-center border-b border-slate-200 dark:border-[#222226]">Insp. Previa</th>
+                        <th colspan="8" class="head-guias text-center border-b border-slate-200 dark:border-[#222226]">Guías</th>
+                        <th colspan="5" class="head-puertos text-center border-b border-slate-200 dark:border-[#222226]">Puertos</th>
+                        <th colspan="5" class="head-otros text-center border-b border-slate-200 dark:border-[#222226]">Otros</th>
+                        <th colspan="1" class="head-general text-center border-b border-slate-200 dark:border-[#222226]">TOTAL</th>
+                    </tr>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>N°</th>
+                        <th>Fecha Val.</th>
+                        <th>Fecha DIM</th>
+                        <th class="bg-slate-50 dark:bg-[#141416] text-orange-500 border-l border-slate-200 dark:border-[#222226]">Nº (Ref)</th>
+                        <th class="bg-slate-50 dark:bg-[#141416] text-orange-500">Fecha</th>
+                        <th>Interno</th>
+                        <th>DIM Nº</th>
+                        <th class="bg-slate-50 dark:bg-[#141416] text-slate-700 dark:text-slate-350">Modalidad</th>
+                        <th class="bg-slate-50 dark:bg-[#141416] text-orange-500 border-l border-slate-200 dark:border-[#222226]">DIM Reg.</th>
+                        <th class="text-orange-500">OI</th>
+                        <th>Valor CIF Bs.</th>
+                        <th class="text-orange-500 bg-orange-500/10">Comisión</th>
+                        
+                        <th class="head-albo">Cód.</th>
+                        <th class="head-albo">Factura</th>
+                        <th class="head-albo">Fecha</th>
+                        <th class="head-albo text-right">Monto</th>
+                        <th class="head-albo text-center">Link</th>
+                        <th class="head-albo">n_declaracion (importaciones)</th>
+                        <th class="head-albo">doc_aduanero (facturas)</th>
+                        <th class="head-albo">verificado albo</th>
+                        
+                        <th class="head-previa">Cód.</th>
+                        <th class="head-previa">Factura</th>
+                        <th class="head-previa">Fecha</th>
+                        <th class="head-previa text-right">Monto</th>
+                        <th class="head-previa text-center">Link</th>
+                        <th class="head-previa">examen_previo (importaciones)</th>
+                        <th class="head-previa">doc_aduanero (facturas)</th>
+                        <th class="head-previa">verificado ip</th>
+ 
+                        <th class="head-guias">Cód.</th>
+                        <th class="head-guias">Factura</th>
+                        <th class="head-guias">Fecha</th>
+                        <th class="head-guias text-right">Monto</th>
+                        <th class="head-guias text-center">Link</th>
+                        <th class="head-guias">guia_embarque (importaciones)</th>
+                        <th class="head-guias">ref_guia (facturas)</th>
+                        <th class="head-guias">verificado guia</th>
+ 
+                        <th class="head-puertos">Cód.</th>
+                        <th class="head-puertos">Comp.</th>
+                        <th class="head-puertos">Fecha</th>
+                        <th class="head-puertos text-right">Monto</th>
+                        <th class="head-puertos text-center">Link</th>
+ 
+                        <th class="head-otros">Cód.</th>
+                        <th class="head-otros">Comp.</th>
+                        <th class="head-otros">Fecha</th>
+                        <th class="head-otros text-right">Monto</th>
+                        <th class="head-otros text-center">Link</th>
+ 
+                        <th class="bg-slate-850 text-white text-right">Total Gastos</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="100" class="px-6 py-24 text-center text-slate-500">
+                            <div class="ring-loader mx-auto mb-6"></div>
+                            <p class="font-bold text-lg tracking-wide animate-pulse">Conectando con la base de datos...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</body>
+</html>

@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilla MSC - Minera San Cristóbal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS para Excel -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+    <!-- Iconos -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@300;400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 600: '#2563eb' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .mono { font-family: 'Roboto Mono', monospace; }
+        
+        /* Estilos de Tabla Planilla */
+        .planilla-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-size: 10px;
+            color: #1e293b;
+            background: white;
+        }
+        
+        .planilla-table th {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            padding: 4px 6px;
+            border: 1px solid #cbd5e1;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        /* Colores de Cabeceras Grupales - MSC Style */
+        .head-general { background-color: #334155 !important; color: #f8fafc; } /* Gris Oscuro */
+        .head-albo { background-color: #dbeafe !important; color: #1e40af; }
+        .head-previa { background-color: #f3e8ff !important; color: #6b21a8; }
+        .head-guias { background-color: #ffedd5 !important; color: #9a3412; }
+        .head-puertos { background-color: #fef9c3 !important; color: #854d0e; }
+        .head-otros { background-color: #f1f5f9 !important; color: #475569; }
+
+        .planilla-table td {
+            padding: 4px 6px;
+            border: 1px solid #e2e8f0;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        /* ----- COLORES DINÁMICOS DE FILAS ----- */
+        .row-anticipada-pending td { background-color: #fff1f2; } 
+        .row-anticipada-pending:hover td { background-color: #ffe4e6; } 
+
+        .row-anticipada-done td { background-color: #ecfdf5; } 
+        .row-anticipada-done:hover td { background-color: #d1fae5; }
+
+        .row-general td { background-color: #ffffff; } 
+        .row-general:hover td { background-color: #f1f5f9; }
+        /* ----------------------------------------------------- */
+        
+        /* Celdas Multilínea */
+        .multi-cell div { 
+            border-bottom: 1px dashed #e2e8f0; 
+            padding: 2px 0; 
+            min-height: 19px; 
+            display: flex;
+            align-items: center;
+        }
+        .multi-cell div:last-child { border-bottom: none; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Estilo Tarjetas */
+        .kpi-card {
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 0.5rem; border-radius: 0.5rem; border: 1px solid;
+            min-width: 100px; flex: 1;
+        }
+        .kpi-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .kpi-value { font-family: 'Roboto Mono', monospace; font-size: 0.9rem; font-weight: 700; }
+        
+        /* Tooltip simple */
+        .tooltip-cell { position: relative; cursor: help; }
+        .tooltip-cell:hover::after {
+            content: attr(data-tooltip);
+            position: absolute; bottom: 100%; right: 0;
+            background: #333; color: #fff;
+            padding: 4px 8px; border-radius: 4px;
+            font-size: 10px; white-space: nowrap; z-index: 50;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Header con Filtros -->
+    <header class="bg-white border-b border-slate-200 p-2 flex flex-col gap-2 shrink-0 z-20 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-800 text-white p-1.5 rounded shadow-sm">
+                    <i class="fa-solid fa-industry"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-slate-800 uppercase tracking-tight">Planilla <span class="text-blue-700">Minera San Cristóbal S.A.</span></h1>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                 <div id="loader" class="hidden flex items-center gap-2 text-emerald-600 text-xs font-bold mr-4">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...
+                </div>
+                
+                <button onclick="promptMasivoDimReg()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded shadow-sm transition-colors border border-cyan-700">
+                    <i class="fa-solid fa-layer-group mr-1"></i> Carga Masiva DIMs
+                </button>
+
+                <input type="file" id="excelInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+                
+                <button onclick="document.getElementById('excelInput').click()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded shadow-sm transition-colors border border-indigo-700">
+                    <i class="fa-solid fa-file-invoice-dollar mr-1"></i> Cargar Estado Cuentas
+                </button>
+
+                <button onclick="saveExcelToBD()" id="btnSaveExcel" class="hidden px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow-sm transition-colors animate-pulse">
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar en Historial
+                </button>
+
+                <button onclick="loadData()" class="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded shadow-sm transition-colors">
+                    <i class="fa-solid fa-rotate mr-1"></i>
+                </button>
+                <button onclick="exportToExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded shadow-sm transition-colors">
+                    <i class="fa-solid fa-file-excel mr-1"></i> Descargar
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de Herramientas de Filtros -->
+        <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded border border-slate-200 text-xs">
+            <div class="flex items-center gap-1">
+                <i class="fa-solid fa-calendar text-slate-400"></i>
+                <select id="monthFilter" onchange="filterAndRender()" class="border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500">
+                    <option value="all">Todos los Meses</option>
+                </select>
+            </div>
+            
+            <div class="flex items-center gap-1 border-l border-slate-300 pl-2">
+                <i class="fa-solid fa-arrow-down-short-wide text-slate-400"></i>
+                <select id="sortFilter" onchange="filterAndRender()" class="border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500">
+                    <option value="fecha_desc">Fecha Validación (Desc)</option>
+                    <option value="fecha_asc">Fecha Validación (Asc)</option>
+                    <option value="dim_desc">DIM N° (Desc)</option>
+                    <option value="dim_asc">DIM N° (Asc)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-1 border-l border-slate-300 pl-2">
+                <i class="fa-solid fa-file-signature text-slate-400"></i>
+                <select id="regFilter" onchange="filterAndRender()" class="border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500">
+                    <option value="all">Todas las DIMs</option>
+                    <option value="pending">Anticipadas - Falta Regularizar</option>
+                    <option value="done">Anticipadas - Ya Regularizadas</option>
+                    <option value="general">Generales (No Anticipadas)</option>
+                </select>
+            </div>
+
+            <div class="flex items-center gap-1 border-l border-slate-300 pl-2 flex-1">
+                <i class="fa-solid fa-magnifying-glass text-slate-400"></i>
+                <input type="text" id="searchFilter" onkeyup="filterAndRender()" placeholder="Buscar DIM, Ref o Interno..." class="border border-slate-300 rounded px-2 py-1 w-full outline-none focus:border-blue-500 font-mono placeholder:font-sans">
+            </div>
+            
+            <div class="px-2 font-bold text-slate-600">
+                <span id="countDisplay">0</span> Reg.
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabla Contenedor -->
+    <main class="flex-1 overflow-auto bg-slate-50 p-4 flex flex-col gap-4">
+        
+        <!-- Tarjetas de Totales -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 shrink-0">
+            <div class="kpi-card bg-indigo-50 border-indigo-200 text-indigo-800">
+                <div class="kpi-title text-indigo-500">Comisión</div>
+                <div class="kpi-value" id="kpiComision">0.00</div>
+            </div>
+            <div class="kpi-card bg-blue-50 border-blue-200 text-blue-800">
+                <div class="kpi-title text-blue-500">ALBO / DAB</div>
+                <div class="kpi-value" id="kpiAlbo">0.00</div>
+            </div>
+            <div class="kpi-card bg-purple-50 border-purple-200 text-purple-800">
+                <div class="kpi-title text-purple-500">Insp. Previa</div>
+                <div class="kpi-value" id="kpiIp">0.00</div>
+            </div>
+            <div class="kpi-card bg-orange-50 border-orange-200 text-orange-800">
+                <div class="kpi-title text-orange-500">Guías</div>
+                <div class="kpi-value" id="kpiGuia">0.00</div>
+            </div>
+            <div class="kpi-card bg-yellow-50 border-yellow-200 text-yellow-800">
+                <div class="kpi-title text-yellow-600">Puertos</div>
+                <div class="kpi-value" id="kpiPuerto">0.00</div>
+            </div>
+            <div class="kpi-card bg-slate-100 border-slate-300 text-slate-700">
+                <div class="kpi-title text-slate-500">Otros</div>
+                <div class="kpi-value" id="kpiOtros">0.00</div>
+            </div>
+            <div class="kpi-card bg-slate-800 border-slate-600 text-white">
+                <div class="kpi-title text-slate-400">Total Gastos</div>
+                <div class="kpi-value" id="kpiTotalGastos">0.00</div>
+            </div>
+            <div class="kpi-card bg-emerald-100 border-emerald-300 text-emerald-900">
+                <div class="kpi-title text-emerald-600">GRAN TOTAL</div>
+                <div class="kpi-value" id="kpiGranTotal">0.00</div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="bg-white rounded shadow-sm border border-slate-200 inline-block min-w-full flex-1">
+            <table class="planilla-table" id="planillaTable">
+                <thead>
+                    <tr>
+                        <th colspan="13" class="head-general text-center border-b-2 border-slate-500">DATOS DE LA DIM</th>
+                        <th colspan="5" class="head-albo text-center border-b-2 border-blue-400">ALBO / DAB</th>
+                        <th colspan="5" class="head-previa text-center border-b-2 border-purple-400">Insp. Previa</th>
+                        <th colspan="5" class="head-guias text-center border-b-2 border-orange-400">Guías</th>
+                        <th colspan="5" class="head-puertos text-center border-b-2 border-yellow-400">Puertos</th>
+                        <th colspan="5" class="head-otros text-center border-b-2 border-slate-400">Otros</th>
+                        <th colspan="1" class="head-general text-center border-b-2 border-slate-500">TOTAL</th>
+                    </tr>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>N°</th>
+                        <th>Fecha Val.</th>
+                        <th>Fecha DIM</th>
+                        <th class="bg-indigo-50 text-indigo-700 border-l-2 border-indigo-300">Nº (Ref)</th>
+                        <th class="bg-indigo-50 text-indigo-700">Fecha</th>
+                        <th>Interno</th>
+                        <th>DIM Nº</th>
+                        <th class="bg-slate-100 text-slate-800">Modalidad</th>
+                        <th class="bg-slate-100 text-indigo-700 border-l-2 border-indigo-300">DIM Reg.</th>
+                        <th class="text-blue-700">OI</th>
+                        <th>Valor CIF Bs.</th>
+                        <th class="text-indigo-700 bg-indigo-50">Comisión</th>
+                        
+                        <th class="head-albo">Cód.</th>
+                        <th class="head-albo">Factura</th>
+                        <th class="head-albo">Fecha</th>
+                        <th class="head-albo text-right">Monto</th>
+                        <th class="head-albo text-center">Link</th>
+                        
+                        <th class="head-previa">Cód.</th>
+                        <th class="head-previa">Factura</th>
+                        <th class="head-previa">Fecha</th>
+                        <th class="head-previa text-right">Monto</th>
+                        <th class="head-previa text-center">Link</th>
+
+                        <th class="head-guias">Cód.</th>
+                        <th class="head-guias">Factura</th>
+                        <th class="head-guias">Fecha</th>
+                        <th class="head-guias text-right">Monto</th>
+                        <th class="head-guias text-center">Link</th>
+
+                        <th class="head-puertos">Cód.</th>
+                        <th class="head-puertos">Comp.</th>
+                        <th class="head-puertos">Fecha</th>
+                        <th class="head-puertos text-right">Monto</th>
+                        <th class="head-puertos text-center">Link</th>
+
+                        <th class="head-otros">Cód.</th>
+                        <th class="head-otros">Comp.</th>
+                        <th class="head-otros">Fecha</th>
+                        <th class="head-otros text-right">Monto</th>
+                        <th class="head-otros text-center">Link</th>
+
+                        <th class="bg-slate-800 text-white text-right">Total Gastos</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <!-- Data aquí -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIGURACIÓN SUPABASE ---
+        const SUPABASE_URL = 'https://sfqpptquojlsbeheguff.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Variables Globales
+        let globalRawData = [];
+        let monthSet = new Set();
+        let excelMatchData = {}; 
+
+        // Utils
+        const formatMoney = (amount) => {
+            if (amount === null || amount === undefined || isNaN(amount)) return '0.00';
+            return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+        };
+        
+        const cleanName = (val) => {
+            if (!val) return '';
+            return String(val).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        };
+
+        const cleanNitNumeric = (val) => {
+            if (val === null || val === undefined) return '';
+            return String(val).replace(/[^0-9]/g, '');
+        };
+
+        const cleanNumber = (str) => (!str || typeof str !== 'string') ? '' : str.replace(/[^0-9]/g, '');
+        
+        const parseDate = (str) => {
+            if(!str || str === '-') return 0;
+            const parts = str.split(' ')[0].split('/'); 
+            if(parts.length !== 3) return 0;
+            return new Date(parts[2], parts[1]-1, parts[0]).getTime();
+        };
+        
+        const safeVal = (val) => {
+            if (val === null || val === undefined) return '-';
+            const str = String(val).trim();
+            if (str === '' || str.toLowerCase() === 'undefined' || str.toLowerCase() === 'null') return '-';
+            return str;
+        };
+
+        window.openPopup = (url) => {
+            if(!url) return;
+            const width = 900; const height = 800;
+            const left = (screen.width - width) / 2;
+            const top = (screen.height - height) / 2;
+            window.open(url, 'Comprobante', `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no`);
+            return false;
+        }
+
+        // =========================================================
+        // FUNCIÓN DEL REVISOR VISUAL DE FACTURAS SOSPECHOSAS
+        // =========================================================
+        window.verRevisar = (dimId) => {
+            const row = globalRawData.find(r => r.id === dimId);
+            if(!row || !row.revisar || row.revisar.length === 0) return;
+
+            let html = `<div class="text-[13px] text-left">`;
+            html += `<p class="mb-3 text-slate-600">El sistema detectó que estas facturas están asignadas al Interno <b>${row.interno}</b>, pero el <b>Registro Aduanero</b> no pasó la validación estricta.</p>`;
+            html += `<div class="overflow-x-auto"><table class="w-full border-collapse border border-slate-300">
+                <tr class="bg-slate-100"><th class="border p-2">Factura</th><th class="border p-2">Monto Bs</th><th class="border p-2 text-orange-600">Alerta (Lo que buscaba)</th><th class="border p-2 text-red-600">Reg. Aduanero</th></tr>`;
+            
+            row.revisar.forEach(f => {
+                html += `<tr>
+                    <td class="border p-1.5 font-bold">${safeVal(f.n_factura)}</td>
+                    <td class="border p-1.5 font-mono text-right font-bold text-slate-700">${formatMoney(f.monto)}</td>
+                    <td class="border p-1.5 text-[11px] text-orange-700">${f.causa_alerta || 'No coincide'}</td>
+                    <td class="border p-1.5 font-mono text-red-600 font-bold bg-red-50">${safeVal(f.registro_aduanero || f.doc_aduanero)}</td>
+                </tr>`;
+            });
+            html += `</table></div></div>`;
+
+            Swal.fire({
+                title: '⚠️ Revisión de Facturas',
+                html: html,
+                icon: 'warning',
+                width: '600px',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981', // Verde Esmeralda
+                cancelButtonColor: '#64748b', // Gris
+                confirmButtonText: '<i class="fa-solid fa-check-double"></i> Todo está OK, omitir alerta',
+                cancelButtonText: 'Cerrar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('loader').classList.remove('hidden');
+                    try {
+                        const { error } = await supabaseClient
+                            .from('historial_datos_minera')
+                            .upsert({ dim_id: dimId, interno: row.interno, revision_ok: true }, { onConflict: 'dim_id' });
+                        
+                        if (error) throw error;
+                        
+                        Swal.fire('¡A huevo!', 'La alerta se apagó para este trámite.', 'success');
+                        loadData(); 
+                    } catch (e) {
+                        Swal.fire('Error', e.message, 'error');
+                    } finally {
+                        document.getElementById('loader').classList.add('hidden');
+                    }
+                }
+            });
+        };
+
+        async function promptMasivoDimReg() {
+            const { value: textInput } = await Swal.fire({
+                title: 'Carga Masiva de Regularizadas',
+                html: `
+                    <p class="text-xs text-slate-500 mb-2">Copia y pega puro número de INTERNO desde tu Excel (uno por línea).</p>
+                    <textarea id="masivo-textarea" class="swal2-textarea" placeholder="Ejemplo:&#10;0547-26&#10;0548-26" style="font-family: monospace; font-size: 13px; height: 180px; width: 90%; margin: 0 auto; display: block; border: 1px solid #cbd5e1;"></textarea>
+                `,
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa-solid fa-floppy-disk"></i> Guardar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0891b2', 
+                preConfirm: () => {
+                    return document.getElementById('masivo-textarea').value;
+                }
+            });
+
+            if (textInput) {
+                const lines = textInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                const updates = lines.map(interno => ({ interno: interno, dim_regularizada: 'OK' }));
+
+                if (updates.length === 0) {
+                    return Swal.fire('Aguanta', 'No metiste ni un Interno válido carnal.', 'warning');
+                }
+
+                document.getElementById('loader').classList.remove('hidden');
+
+                try {
+                    const { error } = await supabaseClient
+                        .from('regularizaciones_dims')
+                        .upsert(updates, { onConflict: 'interno' });
+
+                    if (error) throw error;
+
+                    Swal.fire({ title: '¡A huevo!', html: `Se marcaron como regularizados <b>${updates.length}</b> trámites.`, icon: 'success' });
+                    loadData(); 
+
+                } catch (error) {
+                    console.error("Error al guardar masivo:", error);
+                    Swal.fire('Chale', 'Hubo un error al guardar en la base de datos: ' + error.message, 'error');
+                } finally {
+                    document.getElementById('loader').classList.add('hidden');
+                }
+            }
+        }
+
+        async function promptDimReg(interno, isReg) {
+            if (isReg) {
+                const { isConfirmed } = await Swal.fire({
+                    title: '¿Quitar Regularización?',
+                    text: `El trámite ${interno} ya está regularizado. ¿Quieres quitarle la palomita?`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, quitar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#ef4444'
+                });
+
+                if (isConfirmed) {
+                    document.getElementById('loader').classList.remove('hidden');
+                    try {
+                        await supabaseClient.from('regularizaciones_dims').delete().eq('interno', interno);
+                        Swal.fire({ icon: 'success', title: '¡Listo!', text: 'Se le dio cran.', timer: 1500, showConfirmButton: false });
+                        loadData();
+                    } catch (error) {
+                        Swal.fire('Error', 'No se pudo quitar.', 'error');
+                    } finally {
+                        document.getElementById('loader').classList.add('hidden');
+                    }
+                }
+            } else {
+                const { isConfirmed } = await Swal.fire({
+                    title: 'Marcar Regularizada',
+                    text: `¿Confirmas que el trámite Anticipado ${interno} ya se regularizó?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '¡A huevo, guardar!',
+                    cancelButtonText: 'Nel, me equivoqué',
+                    confirmButtonColor: '#10b981'
+                });
+
+                if (isConfirmed) {
+                    document.getElementById('loader').classList.remove('hidden');
+                    try {
+                        const { error } = await supabaseClient
+                            .from('regularizaciones_dims')
+                            .upsert({ interno: interno, dim_regularizada: 'OK' }, { onConflict: 'interno' });
+
+                        if (error) throw error;
+                        
+                        Swal.fire({ icon: 'success', title: '¡Fierro!', text: 'Se guardó al centavo.', timer: 1500, showConfirmButton: false });
+                        loadData();
+                    } catch (error) {
+                        Swal.fire('Error', 'No se pudo guardar.', 'error');
+                    } finally {
+                        document.getElementById('loader').classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        async function promptComision(dimId, interno, actualVal) {
+            const result = await Swal.fire({
+                title: 'Ajustar Comisión',
+                html: `¿Quieres fijar la comisión de <b>${interno}</b> en la base de datos?<br><br><span class="text-xs text-slate-500">Si borras el dato, el sistema volverá a jalarla solito de <b>reporte_unificado_data</b>.</span>`,
+                input: 'number',
+                inputValue: actualVal,
+                inputAttributes: { step: '0.01' },
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: '<i class="fa-solid fa-floppy-disk"></i> Guardar',
+                denyButtonText: '<i class="fa-solid fa-eraser"></i> Borrar (Usar DB)',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#4f46e5',
+                denyButtonColor: '#ef4444' 
+            });
+
+            if (result.isConfirmed) {
+                const finalVal = parseFloat(result.value);
+                if(isNaN(finalVal)) return;
+                
+                document.getElementById('loader').classList.remove('hidden');
+                try {
+                    const { error } = await supabaseClient
+                        .from('historial_datos_minera')
+                        .upsert({ dim_id: dimId, interno: interno, comision: finalVal }, { onConflict: 'dim_id' });
+                    
+                    if (error) throw error;
+                    loadData();
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                } finally {
+                    document.getElementById('loader').classList.add('hidden');
+                }
+            } else if (result.isDenied) {
+                document.getElementById('loader').classList.remove('hidden');
+                try {
+                    const { error } = await supabaseClient
+                        .from('historial_datos_minera')
+                        .update({ comision: null })
+                        .eq('dim_id', dimId);
+                        
+                    if (error) throw error;
+                    loadData();
+                } catch (e) {
+                    Swal.fire('Error', e.message, 'error');
+                } finally {
+                    document.getElementById('loader').classList.add('hidden');
+                }
+            }
+        }
+
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                let headerIdx = -1;
+                for(let i=0; i<jsonData.length; i++) {
+                    const rowStr = JSON.stringify(jsonData[i]).toUpperCase();
+                    if(rowStr.includes('TRAMITE') && rowStr.includes('NRO. FAC.')) { headerIdx = i; break; }
+                }
+                if(headerIdx === -1) return Swal.fire('Error', 'No encontré las columnas TRAMITE o NRO. FAC.', 'error');
+                const headers = jsonData[headerIdx].map(h => String(h).toUpperCase().trim());
+                const idxTramite = headers.indexOf('TRAMITE');
+                const idxFactura = headers.indexOf('NRO. FAC.');
+                const idxFecha = headers.indexOf('FECHA');
+                const idxDebito = headers.indexOf('DEBITO');
+                if(idxTramite === -1) return Swal.fire('Error', 'Falta columna TRAMITE', 'error');
+                let matchesCount = 0;
+                for(let i=headerIdx+1; i<jsonData.length; i++) {
+                    const row = jsonData[i];
+                    const tramite = String(row[idxTramite] || '').trim();
+                    if(!tramite) continue;
+                    let fechaRaw = row[idxFecha];
+                    let fechaStr = '';
+                    if(typeof fechaRaw === 'number') {
+                        const dateObj = new Date(Math.round((fechaRaw - 25569)*86400*1000));
+                        dateObj.setMinutes(dateObj.getMinutes() + dateObj.getTimezoneOffset());
+                        fechaStr = dateObj.toLocaleDateString('es-ES'); 
+                    } else { fechaStr = String(fechaRaw || '').trim(); }
+                    excelMatchData[tramite] = { ref: String(row[idxFactura] || '').trim(), fecha: fechaStr, debito: parseFloat(row[idxDebito] || 0) };
+                    matchesCount++;
+                }
+                Swal.fire('Éxito', `Excel procesado. ${matchesCount} filas leídas.`, 'success');
+                document.getElementById('btnSaveExcel').classList.remove('hidden');
+                filterAndRender(); 
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function saveExcelToBD() {
+            const matchedRows = globalRawData.filter(row => excelMatchData[row.interno]);
+            if (matchedRows.length === 0) return Swal.fire('Info', 'No hay coincidencias.', 'info');
+            const rowsWithErrors = matchedRows.filter(row => Math.abs(row.total - excelMatchData[row.interno].debito) > 1);
+            if (rowsWithErrors.length > 0) {
+                const itemsError = rowsWithErrors.map(r => r.interno).join(', ');
+                return Swal.fire({ icon: 'error', title: '¡No se puede guardar!', html: `Diferencias en: <b>${itemsError}</b>. Todo debe estar verde.` });
+            }
+            let updates = [];
+            matchedRows.forEach(row => {
+                const excelData = excelMatchData[row.interno];
+                updates.push({ dim_id: row.id, interno: row.interno, ref_excel: excelData.ref, fecha_excel: excelData.fecha, debito_excel: excelData.debito });
+            });
+            document.getElementById('loader').classList.remove('hidden');
+            const { error } = await supabaseClient.from('historial_datos_minera').upsert(updates, {onConflict: 'dim_id'});
+            document.getElementById('loader').classList.add('hidden');
+            if(error) { console.error(error); Swal.fire('Error', 'Falló el guardado.', 'error'); } 
+            else { Swal.fire('¡Fierro!', `Guardados ${updates.length} registros.`, 'success'); loadData(); }
+        }
+
+        function exportToExcel() {
+            const originalTable = document.getElementById("planillaTable");
+            const tableClone = originalTable.cloneNode(true);
+            const rows = tableClone.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td, th');
+                cells.forEach(cell => {
+                    const multiDivs = cell.querySelectorAll('.multi-cell div');
+                    if (multiDivs.length > 0) {
+                        let textParts = []; multiDivs.forEach(div => textParts.push(div.innerText));
+                        cell.innerText = textParts.join('\n'); cell.style.whiteSpace = 'pre-wrap';
+                    }
+                    if (cell.querySelector('.fa-check')) cell.innerText = cell.innerText.trim() + " (OK)";
+                    if (cell.querySelector('a') && cell.querySelector('a').innerHTML.includes('fa-arrow-up')) cell.innerText = "Ver Link"; 
+                    cell.innerText = cell.innerText.trim();
+                });
+            });
+            const wb = XLSX.utils.table_to_book(tableClone, {sheet: "Planilla MSC", raw: true});
+            const ws = wb.Sheets["Planilla MSC"];
+            if(!ws['!cols']) ws['!cols'] = [];
+            for(let i=0; i<30; i++) ws['!cols'][i] = {wpx: 120};
+            XLSX.writeFile(wb, `Reporte_Minera_San_Cristobal_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        async function loadData() {
+            document.getElementById('loader').classList.remove('hidden');
+            try {
+                const fetchAll = async (table) => {
+                    let allData = [];
+                    let from = 0;
+                    const step = 999;
+                    while (true) {
+                        const { data, error } = await supabaseClient.from(table).select('*').range(from, from + step);
+                        if (error) throw error;
+                        allData.push(...data);
+                        if (data.length <= step) break; 
+                        from += step + 1;
+                    }
+                    return allData;
+                };
+
+                let resRegMasivas = [];
+                try {
+                    resRegMasivas = await fetchAll('regularizaciones_dims');
+                } catch(e) { console.warn("Aún no has creado la tabla de regularizaciones en Supabase, compa."); }
+
+                const [dimsData, facturasData, reporteData, historialData, nitsData] = await Promise.all([
+                    fetchAll('importaciones'),
+                    fetchAll('facturas'),
+                    fetchAll('reporte_unificado_data'),
+                    fetchAll('historial_datos_minera'),
+                    fetchAll('config_nits')
+                ]);
+                
+                const TARGET_CLIENT = "MINERA SAN CRISTOBAL";
+                let dimsFiltered = dimsData.filter(d => (d.razon_social || '').toUpperCase().includes(TARGET_CLIENT));
+
+                const facturas = facturasData;
+                const savedReportData = reporteData || [];
+                
+                const savedMap = {}; 
+                const savedMapRef = {};
+                savedReportData.forEach(r => {
+                    if (r.dim_id) savedMap[r.dim_id] = r;
+                    if (r.n_referencia) savedMapRef[r.n_referencia] = r;
+                });
+                
+                const historialMap = {}; 
+                (historialData || []).forEach(h => historialMap[h.dim_id] = h);
+
+                const regsMasivasMap = {};
+                resRegMasivas.forEach(r => regsMasivasMap[r.interno] = r.dim_regularizada);
+
+                const nitMapNumeric = {}; 
+                const nameMap = {};       
+                if(nitsData) {
+                    nitsData.forEach(n => {
+                        if(n.nit) nitMapNumeric[cleanNitNumeric(n.nit)] = n.codigo;
+                        const nombre = n.razon_social || n.nombre;
+                        if(nombre) nameMap[cleanName(nombre)] = n.codigo;
+                    });
+                }
+
+                monthSet.clear();
+
+                globalRawData = dimsFiltered.map((dim) => {
+                    const saved = savedMap[dim.id] || savedMapRef[dim.n_referencia] || {};
+                    const historial = historialMap[dim.id] || {}; 
+                    const dimClean = cleanNumber(dim.n_declaracion);
+                    const dimSuffix = dimClean.length > 7 ? dimClean.slice(-7) : dimClean;
+                    const dimRefInterna = String(dim.n_referencia || '').trim().toUpperCase();
+                    
+                    const dimExamenPrevio = String(dim.examen_previo || '').trim().toUpperCase();
+                    const dimGuiaEmbarque = String(dim.guia_embarque || '').trim();
+                    const dimGuiaCourier = String(dim.guia_courier || '').trim();
+
+                    const enrichFactura = (f) => {
+                        let dbNit = f.nit ? String(f.nit) : '';
+                        let qrNit = '';
+                        if (f.codigo_qr) {
+                            try { let url = new URL(f.codigo_qr); qrNit = url.searchParams.get('nit'); } 
+                            catch(e) { const match = f.codigo_qr.match(/[?&]nit=([^&]+)/); if(match) qrNit = match[1]; }
+                        }
+
+                        const cleanDb = cleanNitNumeric(dbNit);
+                        const cleanQr = cleanNitNumeric(qrNit);
+                        const rawName = f.proveedor || f.emisor || f.razon_social || f.nombre || '';
+                        const cleanProvName = cleanName(rawName);
+
+                        let code = '';
+                        if (cleanQr) code = nitMapNumeric[cleanQr];
+                        if (!code && cleanDb) code = nitMapNumeric[cleanDb];
+                        if (!code && cleanQr && cleanQr.length > 4) { for (const masterNit in nitMapNumeric) { if (cleanQr.includes(masterNit) || masterNit.includes(cleanQr)) { code = nitMapNumeric[masterNit]; break; } } }
+                        if (!code && cleanDb && cleanDb.length > 4) { for (const masterNit in nitMapNumeric) { if (cleanDb.includes(masterNit) || masterNit.includes(cleanDb)) { code = nitMapNumeric[masterNit]; break; } } }
+                        if (!code && cleanProvName.length > 3) { code = nameMap[cleanProvName]; if (!code) { for (const masterName in nameMap) { if (cleanProvName.includes(masterName)) { code = nameMap[masterName]; break; } } } }
+
+                        const factNum = f.n_factura || f.folio || f.numero || '-';
+                        const debugInfo = `DB:${dbNit} | QR:${qrNit || '-'} | Prov:${rawName}`; 
+                        return { ...f, cod_contable: code || '-', n_factura: factNum, debug_attr: `title="${debugInfo}"` };
+                    };
+
+                    // === 1. NUEVO ENRUTADOR INTELIGENTE A LO MEXICANO ===
+                    let facturasAlboDab = [];
+                    let facturasIP = [];
+                    let facturasGuia = [];
+
+                    facturas.forEach(f => {
+                        const fInterno = String(f.interno_archivo || '').trim().toUpperCase();
+                        const dInterno = dimRefInterna.toUpperCase();
+                        
+                        const regAduanero = String(f.registro_aduanero || f.doc_aduanero || '').trim();
+                        const docRef = cleanNumber(regAduanero);
+                        
+                        // ¿Pertenece al trámite?
+                        let pertenece = false;
+                        
+                        if (fInterno.length >= 3 && dInterno.length >= 3 && (fInterno === dInterno || fInterno.includes(dInterno) || dInterno.includes(fInterno))) {
+                            pertenece = true;
+                        }
+                        if (docRef.length > 4 && docRef.includes(dimSuffix)) {
+                            pertenece = true;
+                        }
+                        
+                        // Filtro para Guías
+                        if (f.tipo === 'GUIA') {
+                            const fRefGuia = cleanNumber(f.ref_guia || '') + cleanNumber(f.interno_archivo || '');
+                            const cleanE = cleanNumber(dimGuiaEmbarque);
+                            const cleanC = cleanNumber(dimGuiaCourier);
+                            
+                            if (cleanE.length >= 4 && (fRefGuia.includes(cleanE) || regAduanero.toUpperCase().includes(dimGuiaEmbarque.toUpperCase()))) pertenece = true;
+                            if (cleanC.length >= 4 && (fRefGuia.includes(cleanC) || regAduanero.toUpperCase().includes(dimGuiaCourier.toUpperCase()))) pertenece = true;
+                        }
+
+                        if (!pertenece) return; 
+
+                        // Mandar a su carril correspondiente
+                        if (f.tipo === 'GUIA') {
+                            facturasGuia.push(f);
+                        } else {
+                            if (regAduanero.includes('-')) {
+                                facturasIP.push(f);
+                            } else {
+                                facturasAlboDab.push(f);
+                            }
+                        }
+                    });
+
+                    // Limpiador de duplicados
+                    const removeDuplicates = (list) => {
+                        const seen = new Set();
+                        return list.filter(item => {
+                            const key = String(item.n_factura || '').trim();
+                            if(!key || key === '-') return true; 
+                            if (seen.has(key)) return false;
+                            seen.add(key); return true;
+                        });
+                    };
+
+                    let listAlbo = removeDuplicates(facturasAlboDab).map(enrichFactura);
+                    let listIP = removeDuplicates(facturasIP).map(enrichFactura);
+                    let listGuia = removeDuplicates(facturasGuia).map(enrichFactura);
+
+                    // === 2. VERIFICACIÓN ESTRICTA (CHISMOSO Y ALERTAS) ===
+                    let listRevisar = [];
+                    const revisionOk = historial.revision_ok === true; // <- Aquí validamos tu decisión de ignorar alertas
+
+                    listAlbo.forEach(f => {
+                        const regAduaneroNums = cleanNumber(f.registro_aduanero || f.doc_aduanero || '');
+                        if (!(dimSuffix.length >= 5 && regAduaneroNums.endsWith(dimSuffix))) {
+                            if (!revisionOk) { f.requiere_revision = true; f.causa_alerta = `DIM pide el final: <b>${dimSuffix}</b> | Trae: <b>${f.registro_aduanero || 'Vacío'}</b>`; }
+                            listRevisar.push(f);
+                        }
+                    });
+
+                    listIP.forEach(f => {
+                        const regAd = String(f.registro_aduanero || f.doc_aduanero || '').trim().toUpperCase();
+                        if (!(dimExamenPrevio.length >= 3 && (regAd.includes(dimExamenPrevio) || dimExamenPrevio.includes(cleanNumber(regAd))))) {
+                            if (!revisionOk) { f.requiere_revision = true; f.causa_alerta = `DIM pide Examen Previo: <b>${dimExamenPrevio || 'Vacío'}</b> | Trae: <b>${regAd || 'Vacío'}</b>`; }
+                            listRevisar.push(f);
+                        }
+                    });
+
+                    listGuia.forEach(f => {
+                        const regAd = String(f.registro_aduanero || f.doc_aduanero || '').trim().toUpperCase();
+                        const regAduaneroNums = cleanNumber(regAd);
+                        
+                        let matchGuia = false;
+                        const guiaE = dimGuiaEmbarque.toUpperCase();
+                        const guiaC = dimGuiaCourier.toUpperCase();
+                        
+                        if (guiaE.length >= 4 && (regAd === guiaE || regAd.includes(guiaE) || regAduaneroNums.includes(cleanNumber(guiaE)))) matchGuia = true;
+                        if (guiaC.length >= 4 && (regAd === guiaC || regAd.includes(guiaC) || regAduaneroNums.includes(cleanNumber(guiaC)))) matchGuia = true;
+                        
+                        if (!matchGuia) {
+                            if (!revisionOk) { 
+                                const expected = (guiaE ? guiaE : '') + (guiaE && guiaC ? ' o ' : '') + (guiaC ? guiaC : '');
+                                f.requiere_revision = true; f.causa_alerta = `DIM pide Guía: <b>${expected || 'Vacío'}</b> | Trae: <b>${regAd || 'Vacío'}</b>`; 
+                            }
+                            listRevisar.push(f);
+                        }
+                    });
+
+                    const showWarning = listRevisar.some(f => f.requiere_revision);
+                    // ===============================================================
+
+                    const jsonPuerto = saved.gastos_puerto_json || {};
+                    const jsonOtros = saved.otros_gastos_json || {};
+                    const valPuerto = saved.gastos_puerto !== undefined ? saved.gastos_puerto : (dim.gastos_puerto || 0);
+                    const valOtros = saved.otros_gastos !== undefined ? saved.otros_gastos : (dim.otros_gastos || 0);
+                    
+                    let comisionView = 0;
+                    if (saved.comision !== undefined && saved.comision !== null && saved.comision !== '') {
+                        comisionView = parseFloat(saved.comision) || 0;
+                    }
+
+                    const comisionGuardada = historial.comision;
+                    const tieneComisionFija = (comisionGuardada !== undefined && comisionGuardada !== null && comisionGuardada !== '');
+                    const comisionFinal = tieneComisionFija ? parseFloat(comisionGuardada) : comisionView;
+
+                    const sumAlbo = listAlbo.reduce((a,b)=>a+(b.monto||0),0);
+                    const sumIP = listIP.reduce((a,b)=>a+(b.monto||0),0);
+                    const sumGuia = listGuia.reduce((a,b)=>a+(b.monto||0),0);
+                    
+                    const totalGastos = sumAlbo + sumIP + sumGuia + valPuerto + valOtros;
+
+                    const fechaRaw = dim.fecha_aceptacion ? dim.fecha_aceptacion.split(' ')[0] : '-';
+                    if(fechaRaw !== '-') {
+                        const parts = fechaRaw.split('/');
+                        if(parts.length === 3) monthSet.add(`${parts[1]}/${parts[2]}`);
+                    }
+
+                    const isRegularizada = !!regsMasivasMap[dim.n_referencia] || !!historial.dim_regularizada;
+
+                    return {
+                        id: dim.id,
+                        cliente: dim.razon_social,
+                        fecha_val: fechaRaw,
+                        n_ref_excel: historial.ref_excel || '', 
+                        fecha_excel: historial.fecha_excel || '', 
+                        interno: dim.n_referencia,
+                        dim_n: dim.n_declaracion,
+                        oi: dim.oi, 
+                        cif: dim.total_cif,
+                        modalidad: dim.modalidad, 
+                        dim_reg: isRegularizada, 
+                        comision: comisionFinal, 
+                        comision_fija: tieneComisionFija,
+                        albo: listAlbo,
+                        ip: listIP,
+                        guia: listGuia,
+                        revisar: listRevisar, 
+                        showWarning: showWarning, 
+                        puerto: { monto: valPuerto, cod: jsonPuerto.cod, fecha: jsonPuerto.fecha, nfact: jsonPuerto.nfact },
+                        otros: { monto: valOtros, cod: jsonOtros.cod, fecha: jsonOtros.fecha, nfact: jsonOtros.nfact, link: jsonOtros.link },
+                        total: totalGastos 
+                    };
+                });
+
+                const monthSelect = document.getElementById('monthFilter');
+                monthSelect.innerHTML = '<option value="all">Todos los Meses</option>';
+                Array.from(monthSet).sort().reverse().forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m; opt.innerText = m; monthSelect.appendChild(opt);
+                });
+
+                filterAndRender();
+
+            } catch(e) { console.error(e); Swal.fire('Error', 'Falla al cargar: ' + e.message, 'error'); }
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        function filterAndRender() {
+            const monthVal = document.getElementById('monthFilter').value;
+            const sortVal = document.getElementById('sortFilter').value;
+            const searchVal = document.getElementById('searchFilter').value.toUpperCase().trim();
+            const regVal = document.getElementById('regFilter').value; 
+
+            let filtered = globalRawData.filter(row => {
+                let passMonth = true;
+                if(monthVal !== 'all') passMonth = row.fecha_val.includes(monthVal);
+                let passSearch = true;
+                if(searchVal) {
+                    const txt = `${row.dim_n} ${row.interno} ${row.oi}`.toUpperCase();
+                    passSearch = txt.includes(searchVal);
+                }
+                
+                let passReg = true;
+                const esAnticipada = safeVal(row.modalidad).toLowerCase().includes('anticipad');
+                if(regVal === 'pending') passReg = esAnticipada && !row.dim_reg; 
+                else if (regVal === 'done') passReg = esAnticipada && !!row.dim_reg; 
+                else if (regVal === 'general') passReg = !esAnticipada;
+
+                return passMonth && passSearch && passReg;
+            });
+
+            filtered.sort((a, b) => {
+                if(sortVal === 'fecha_desc') return parseDate(b.fecha_val) - parseDate(a.fecha_val);
+                if(sortVal === 'fecha_asc') return parseDate(a.fecha_val) - parseDate(b.fecha_val);
+                if(sortVal === 'dim_desc') return b.dim_n.localeCompare(a.dim_n);
+                if(sortVal === 'dim_asc') return a.dim_n.localeCompare(b.dim_n);
+                return 0;
+            });
+
+            let sComision=0, sAlbo=0, sIP=0, sGuia=0, sPuerto=0, sOtros=0, sTotalGastos=0;
+            filtered.forEach(r => {
+                sComision += (r.comision || 0); 
+                sAlbo += r.albo.reduce((acc, i) => acc + (i.monto||0), 0);
+                sIP += r.ip.reduce((acc, i) => acc + (i.monto||0), 0);
+                sGuia += r.guia.reduce((acc, i) => acc + (i.monto||0), 0);
+                sPuerto += (r.puerto.monto || 0);
+                sOtros += (r.otros.monto || 0);
+                sTotalGastos += r.total; 
+            });
+
+            document.getElementById('kpiComision').innerText = formatMoney(sComision);
+            document.getElementById('kpiAlbo').innerText = formatMoney(sAlbo);
+            document.getElementById('kpiIp').innerText = formatMoney(sIP);
+            document.getElementById('kpiGuia').innerText = formatMoney(sGuia);
+            document.getElementById('kpiPuerto').innerText = formatMoney(sPuerto);
+            document.getElementById('kpiOtros').innerText = formatMoney(sOtros);
+            document.getElementById('kpiTotalGastos').innerText = formatMoney(sTotalGastos);
+            document.getElementById('kpiGranTotal').innerText = formatMoney(sTotalGastos + sComision);
+
+            renderTable(filtered.map((row, idx) => ({...row, idx: idx + 1})));
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            document.getElementById('countDisplay').innerText = data.length;
+            tbody.innerHTML = '';
+
+            const renderGroup = (list) => {
+                if(!list || list.length === 0) return { cod: '-', fact: '-', fecha: '-', monto: '-', link: '-' };
+                const cods = list.map(f => `<div ${f.debug_attr}><span class="font-bold text-slate-700 cursor-help">${safeVal(f.cod_contable)}</span></div>`).join('');
+                const facts = list.map(f => `<div><span class="text-[9px] text-slate-500">${safeVal(f.n_factura)}</span></div>`).join('');
+                const fechas = list.map(f => `<div>${safeVal(f.fecha)}</div>`).join('');
+                
+                const montos = list.map(f => {
+                    if (f.requiere_revision) {
+                        return `<div class="text-red-600 font-bold bg-red-50" title="⚠️ ${f.causa_alerta}">${formatMoney(f.monto)}</div>`;
+                    }
+                    return `<div>${formatMoney(f.monto)}</div>`;
+                }).join('');
+
+                const links = list.map(f => {
+                    if(f.codigo_qr && f.codigo_qr.startsWith('http')) return `<div><a href="javascript:void(0)" onclick="openPopup('${f.codigo_qr}')" class="text-blue-600 hover:text-blue-800 transition-colors"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></div>`;
+                    return `<div>-</div>`;
+                }).join('');
+                
+                return { 
+                    cod: `<div class="multi-cell">${cods}</div>`, 
+                    fact: `<div class="multi-cell">${facts}</div>`,
+                    fecha: `<div class="multi-cell">${fechas}</div>`, 
+                    monto: `<div class="multi-cell mono text-right">${montos}</div>`, 
+                    link: `<div class="multi-cell text-center">${links}</div>` 
+                };
+            };
+
+            data.forEach(row => {
+                let displayRef = safeVal(row.n_ref_excel);
+                let displayFecha = safeVal(row.fecha_excel);
+                // Le agregamos el "!" para forzar el color oscuro y la letra blanca (evita que se vuelva invisible)
+                let totalClass = "!bg-slate-800 !text-white"; 
+                let totalTooltip = "";
+
+                const excelRow = excelMatchData[row.interno];
+                if (excelRow) {
+                    displayRef = `<span class="text-blue-600 font-bold">${excelRow.ref}</span>`;
+                    displayFecha = `<span class="text-blue-600 font-bold">${excelRow.fecha}</span>`;
+                    const diff = Math.abs(row.total - excelRow.debito);
+                    if (diff < 1) { 
+                        totalClass = "!bg-emerald-600 !text-white";
+                        totalTooltip = "Coincide con Excel ✅";
+                    } else {
+                        totalClass = "!bg-red-600 !text-white animate-pulse";
+                        totalTooltip = `Diferencia! Excel: ${formatMoney(excelRow.debito)}`;
+                    }
+                } else if (row.n_ref_excel) {
+                    totalClass = "!bg-slate-700 !text-white";
+                    totalTooltip = "Verificado Históricamente";
+                }
+
+                const alboCells = renderGroup(row.albo);
+                const ipCells = renderGroup(row.ip);
+                const guiaCells = renderGroup(row.guia);
+                
+                const puertoLink = row.puerto.link ? `<a href="javascript:void(0)" onclick="openPopup('${row.puerto.link}')" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : '-';
+                const otrosLink = row.otros.link ? `<a href="javascript:void(0)" onclick="openPopup('${row.otros.link}')" class="text-blue-600 hover:text-blue-800"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>` : '-';
+
+                const mod = safeVal(row.modalidad);
+                const modStyle = mod.toLowerCase().includes('anticipado') ? 'font-bold text-blue-600' : 'text-slate-500';
+                const esAnticipada = mod.toLowerCase().includes('anticipad');
+
+                let filaColorClass = "row-general";
+                if (esAnticipada) {
+                    filaColorClass = row.dim_reg ? "row-anticipada-done" : "row-anticipada-pending";
+                }
+
+                let dimRegCell = `<td class="text-center text-[9px] text-slate-400 border-l-2 border-indigo-300">-</td>`;
+                if (esAnticipada) {
+                    if (row.dim_reg) {
+                        dimRegCell = `
+                            <td class="text-center relative group cursor-pointer border-l-2 border-indigo-300 bg-emerald-50 hover:bg-emerald-100 transition-colors" onclick="promptDimReg('${row.interno}', true)" title="Clic para quitar regularización">
+                                <span class="font-bold text-emerald-700 text-[10px]">OK</span>
+                                <i class="fa-solid fa-check-double text-emerald-500 ml-1"></i>
+                            </td>`;
+                    } else {
+                        dimRegCell = `
+                            <td class="text-center relative border-l-2 border-indigo-300">
+                                <button onclick="promptDimReg('${row.interno}', false)" class="text-[9px] bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded shadow-sm transition-colors w-full">
+                                    <i class="fa-solid fa-check mr-1"></i> Reg.
+                                </button>
+                            </td>`;
+                    }
+                }
+
+                const puertoCod = `<div class="font-bold text-xs">${safeVal(row.puerto.cod)}</div>`;
+                const puertoFact = `<div class="text-[9px]">${safeVal(row.puerto.nfact)}</div>`;
+                const otrosCod = `<div class="font-bold text-xs">${safeVal(row.otros.cod)}</div>`;
+                const otrosFact = `<div class="text-[9px]">${safeVal(row.otros.nfact)}</div>`;
+
+                const styleComision = row.comision_fija 
+                    ? "bg-indigo-100 text-indigo-900 border-indigo-300" 
+                    : "text-indigo-700 bg-indigo-50"; 
+                    
+                const titleComision = row.comision_fija 
+                    ? "Guardada Manualmente en BD. Clic para editar." 
+                    : "Viene de reporte_unificado_data. Clic para fijar.";
+                    
+                const iconComision = row.comision_fija 
+                    ? `<i class="fa-solid fa-lock text-[8px] ml-1 text-indigo-400"></i>` 
+                    : '';
+
+                // === EL BOTÓN DE LA ALERTA ⚠️ ===
+                let btnRevisar = '';
+                if (row.showWarning) {
+                    const fallas = row.revisar.filter(f => f.requiere_revision).length;
+                    btnRevisar = `<button onclick="verRevisar('${row.id}')" class="ml-1 bg-orange-500 hover:bg-orange-600 text-white text-[8px] px-1.5 py-0.5 rounded shadow-sm animate-pulse whitespace-nowrap" title="Verificar Facturas">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Revisar (${fallas})
+                    </button>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = filaColorClass; 
+                
+                tr.innerHTML = `
+                    <td class="font-bold text-slate-600 text-[9px] truncate max-w-[120px]" title="${row.cliente}">${row.cliente || '-'}</td>
+                    <td class="text-center font-bold text-slate-500">${row.idx}</td>
+                    <td>${row.fecha_val}</td>
+                    <td>${row.fecha_val}</td>
+                    <td class="text-center font-mono font-bold border-l-2 border-indigo-300">${displayRef}</td> 
+                    <td class="text-center text-[9px]">${displayFecha}</td> 
+                    <td class="font-bold text-blue-700 whitespace-nowrap">${row.interno}<br>${btnRevisar}</td>
+                    <td class="mono text-slate-500 text-[9px]">${row.dim_n}</td>
+                    <td class="text-[9px] text-center ${modStyle}">${mod}</td>
+                    ${dimRegCell}
+                    <td class="text-[9px] font-bold text-slate-700">${safeVal(row.oi)}</td> 
+                    <td class="mono text-right font-medium">${formatMoney(row.cif)}</td>
+                    <td class="mono text-right font-bold cursor-pointer hover:bg-indigo-200 transition-colors ${styleComision}" onclick="promptComision('${row.id}', '${row.interno}', ${row.comision})" title="${titleComision}">
+                        ${formatMoney(row.comision)}${iconComision}
+                    </td>
+                    <td class="border-l-2 border-blue-400">${alboCells.cod}</td>
+                    <td>${alboCells.fact}</td>
+                    <td>${alboCells.fecha}</td>
+                    <td class="font-mono text-right font-bold">${alboCells.monto}</td>
+                    <td>${alboCells.link}</td>
+                    <td class="border-l-2 border-purple-400">${ipCells.cod}</td>
+                    <td>${ipCells.fact}</td>
+                    <td>${ipCells.fecha}</td>
+                    <td class="font-mono text-right font-bold">${ipCells.monto}</td>
+                    <td>${ipCells.link}</td>
+                    <td class="border-l-2 border-orange-400">${guiaCells.cod}</td>
+                    <td>${guiaCells.fact}</td>
+                    <td>${guiaCells.fecha}</td>
+                    <td class="font-mono text-right font-bold">${guiaCells.monto}</td>
+                    <td>${guiaCells.link}</td>
+                    <td class="border-l-2 border-yellow-400">${puertoCod}</td>
+                    <td>${puertoFact}</td>
+                    <td>${safeVal(row.puerto.fecha)}</td>
+                    <td class="mono text-right ${row.puerto.monto ? 'font-bold' : ''}">${row.puerto.monto ? formatMoney(row.puerto.monto) : '-'}</td>
+                    <td class="text-center">${puertoLink}</td>
+                    <td class="border-l-2 border-slate-400">${otrosCod}</td>
+                    <td>${otrosFact}</td>
+                    <td>${safeVal(row.otros.fecha)}</td>
+                    <td class="mono text-right ${row.otros.monto ? 'font-bold' : ''}">${row.otros.monto ? formatMoney(row.otros.monto) : '-'}</td>
+                    <td class="text-center">${otrosLink}</td>
+                    <td class="mono text-right font-bold ${totalClass} border-l-2 border-slate-600 tooltip-cell" data-tooltip="${totalTooltip}">
+                        ${formatMoney(row.total)}
+                        ${excelRow && Math.abs(row.total - excelRow.debito) < 1 ? '<i class="fa-solid fa-check ml-1 text-xs"></i>' : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.onload = loadData;
+
+    </script>
+</body>
+</html>

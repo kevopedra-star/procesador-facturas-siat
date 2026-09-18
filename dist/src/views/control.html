@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seguridad, Auditoría y Producción | Sistema Aduanero</title>
+    
+    <!-- Estilos de Tailwind Compilados por Vite -->
+    
+    <!-- Fuentes e Iconos -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SheetJS para exportar a Excel y SweetAlert2 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    </style>
+  <script type="module" crossorigin src="/assets/control-DYwLRBdb.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DztbwT6Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-D9p2b7RA.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-weG9gO3Z.css">
+</head>
+<body class="bg-slate-50 dark:bg-[#0a0d14] text-slate-800 dark:text-[#f8fafc] min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Header / Banner -->
+    <header class="bg-white dark:bg-[#121722] border-b border-slate-200 dark:border-[#1e2638] shadow-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-500/15 p-2.5 rounded-xl border border-orange-500/30 text-orange-500 shadow-cyber-orange">
+                    <i class="fa-solid fa-shield-halved text-2xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Centro de Seguridad & Producción</h1>
+                        <span class="px-2 py-0.5 text-[10px] font-extrabold bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-full uppercase">RA/dev Certified</span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Control de accesos, políticas RLS, respaldo de datos y mitigación de riesgos</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="ejecutarBackupModal()" class="btn-primary shadow-lg">
+                    <i class="fa-solid fa-database"></i> <span>Hacé Backup Ahora</span>
+                </button>
+                <button onclick="exportToExcel()" class="btn-secondary">
+                    <i class="fa-solid fa-file-excel"></i> <span>Exportar Auditoría</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-8">
+
+        <!-- ================================================================= -->
+        <!-- 🛡️ SECCIÓN 1: PANEL DE CHECKLIST DE PRODUCCIÓN Y RECOMENDACIONES -->
+        <!-- ================================================================= -->
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-orange-500"></i> Checklist de Seguridad en Producción
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Prácticas esenciales de arquitectura para garantizar rendimiento y protección completa de tu aplicación</p>
+                </div>
+                <div id="backup-status-pill" class="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500/10 text-orange-500 dark:text-orange-400 border border-orange-500/30 shadow-sm">
+                    <i class="fa-solid fa-circle-check"></i> <span id="backup-status-text">Analizando estado del sistema...</span>
+                </div>
+            </div>
+
+            <!-- GRID DE 5 RECOMENDACIONES DE LAS IMÁGENES -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- 1. AUTENTICACIÓN -->
+                <div class="glass-card flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/50">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-orange-500/10 rounded-full blur-xl group-hover:bg-orange-500/20 transition-all"></div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">Checklist / 02</span>
+                            <span class="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-500 border border-orange-500/30 flex items-center gap-1">
+                                <i class="fa-solid fa-lock text-[10px]"></i> CON AUTH
+                            </span>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-user-shield text-orange-500"></i> 1. AUTENTICACIÓN
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed font-medium">
+                            No confíes en que el frontend protege tu aplicación. Toda acción importante requiere token JWT firmado y sesión cifrada HttpOnly + Secure.
+                        </p>
+                        <div class="bg-slate-100 dark:bg-[#0d111a] p-3 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2 text-[11px] font-mono">
+                            <div class="flex items-center justify-between text-orange-500 dark:text-orange-400">
+                                <span><i class="fa-solid fa-check text-[10px] mr-1"></i> Token JWT:</span>
+                                <span class="font-bold">Generado y Firmado</span>
+                            </div>
+                            <div class="flex items-center justify-between text-orange-500 dark:text-orange-400">
+                                <span><i class="fa-solid fa-check text-[10px] mr-1"></i> Sesión Servidor:</span>
+                                <span class="font-bold">HttpOnly Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-[#1e2638] flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                        <span>SIN AUTH NO HAY SEGURIDAD</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- 2. ACTIVÁ RLS -->
+                <div class="glass-card flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/50">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-orange-500/10 rounded-full blur-xl group-hover:bg-orange-500/20 transition-all"></div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">Checklist / 03</span>
+                            <span class="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-500 border border-orange-500/30 flex items-center gap-1">
+                                <i class="fa-solid fa-shield text-[10px]"></i> CON RLS
+                            </span>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-table-list text-orange-500"></i> 2. ACTIVÁ RLS
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed font-medium">
+                            En Supabase, Row Level Security asegura que cada usuario solo acceda a sus propias filas sin exponer la base de datos al exterior.
+                        </p>
+                        <div class="bg-slate-100 dark:bg-[#0d111a] p-3 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-1.5 text-[11px]">
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-mono">
+                                <span>public.facturas</span>
+                                <span class="text-orange-500 font-bold"><i class="fa-solid fa-lock text-[10px]"></i> RLS Activo</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-mono">
+                                <span>public.importaciones</span>
+                                <span class="text-orange-500 font-bold"><i class="fa-solid fa-lock text-[10px]"></i> RLS Activo</span>
+                            </div>
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-mono">
+                                <span>public.gastos</span>
+                                <span class="text-orange-500 font-bold"><i class="fa-solid fa-lock text-[10px]"></i> RLS Activo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-[#1e2638] flex items-center justify-between text-[11px] font-bold text-orange-500 dark:text-orange-400">
+                        <span>LA SEGURIDAD ES DEL BACKEND</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- 3. RATE LIMITING -->
+                <div class="glass-card flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/50">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-xl group-hover:bg-amber-500/20 transition-all"></div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">Protección API</span>
+                            <span class="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-500 border border-orange-500/30 flex items-center gap-1">
+                                <i class="fa-solid fa-gauge-high text-[10px]"></i> 100 REQ/MIN
+                            </span>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-[#f97316] fa-bolt text-amber-500"></i> 3. RATE LIMITING
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed font-medium">
+                            Limitá la cantidad de peticiones que puede hacer un usuario. Protegés tu servidor y también evitás abusos o ataques de sobrecarga.
+                        </p>
+                        <div class="bg-slate-100 dark:bg-[#0d111a] p-3 rounded-xl border border-slate-200 dark:border-[#1e2638] space-y-2 text-[11px]">
+                            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                                <span>Throttling Servidor:</span>
+                                <span class="font-bold text-orange-500 font-mono">100 req/min/IP</span>
+                            </div>
+                            <div class="w-full bg-slate-200 dark:bg-[#182030] h-2 rounded-full overflow-hidden">
+                                <div class="bg-gradient-to-r from-emerald-500 to-orange-500 h-full w-[28%] rounded-full"></div>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                                <span>CPU: 28%</span>
+                                <span>RAM: 32%</span>
+                                <span>Resp: 120ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-[#1e2638] flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                        <span>PROTEGÉS TAMBIÉN TU BOLSILLO</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- 4. HACÉ BACKUPS -->
+                <div class="glass-card flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/50 md:col-span-2 lg:col-span-1">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-sky-500/10 rounded-full blur-xl group-hover:bg-sky-500/20 transition-all"></div>
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">Respaldo Total</span>
+                            <span id="backup-badge-live" class="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-500 border border-orange-500/30 flex items-center gap-1">
+                                <i class="fa-solid fa-box text-[10px]"></i> PLAN B LISTO
+                            </span>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-box-archive text-sky-500"></i> 4. HACÉ BACKUPS
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed font-medium">
+                            Los errores ocurren. Los backups existen para que un problema de base de datos no se convierta en una catástrofe.
+                        </p>
+                        
+                        <div class="grid grid-cols-4 gap-2 mb-3 text-center text-[10px] font-bold font-mono">
+                            <div class="p-2 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638]">
+                                <span class="text-slate-400 block text-[8px] uppercase">Yesterday</span>
+                                <i class="fa-solid fa-database text-orange-500 my-1"></i>
+                                <span class="text-orange-500 block">OK</span>
+                            </div>
+                            <div class="p-2 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638]">
+                                <span class="text-slate-400 block text-[8px] uppercase">Today</span>
+                                <i class="fa-solid fa-database text-orange-500 my-1"></i>
+                                <span class="text-orange-500 block">OK</span>
+                            </div>
+                            <div class="p-2 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638]">
+                                <span class="text-slate-400 block text-[8px] uppercase">Backup</span>
+                                <i class="fa-solid fa-box text-orange-500 my-1"></i>
+                                <span class="text-orange-500 block">Seguro</span>
+                            </div>
+                            <div class="p-2 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638]">
+                                <span class="text-slate-400 block text-[8px] uppercase">Restore</span>
+                                <i class="fa-solid fa-rotate-left text-sky-500 my-1"></i>
+                                <span class="text-sky-500 block">Listo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-[#1e2638] flex items-center justify-between">
+                        <button onclick="ejecutarBackupModal()" class="w-full btn-primary text-xs py-2">
+                            <i class="fa-solid fa-download"></i> Descargar Respaldo JSON Completo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 5. CHECKLIST DE PRODUCCIÓN -->
+                <div class="glass-card flex flex-col justify-between relative overflow-hidden group hover:border-orange-500/50 md:col-span-2 lg:col-span-2">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg bg-orange-500/10 text-orange-500 border border-orange-500/20">Deploy Pipeline</span>
+                            <span class="px-2 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-500 border border-orange-500/30 flex items-center gap-1">
+                                <i class="fa-solid fa-rocket text-[10px]"></i> PRODUCCIÓN SEGURA
+                            </span>
+                        </div>
+                        <h3 class="text-base font-black text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-rocket text-purple-500"></i> 5. NO PUBLIQUES TU APP SIN HACER ESTO
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed font-medium">
+                            Antes de subir una aplicación a producción hay una checklist de salud de servicios que nunca deberías ignorar.
+                        </p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                            <div class="p-3 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638] flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 font-bold">API Python</span>
+                                <span class="text-orange-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Operativo</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638] flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 font-bold">Base de Datos</span>
+                                <span class="text-orange-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Operativo</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638] flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 font-bold">Storage</span>
+                                <span class="text-orange-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Operativo</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-slate-100 dark:bg-[#0d111a] border border-slate-200 dark:border-[#1e2638] flex items-center justify-between">
+                                <span class="text-slate-700 dark:text-slate-300 font-bold">Bitácora</span>
+                                <span class="text-orange-500 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span> Operativo</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-[#1e2638] flex items-center justify-between text-[11px] font-bold text-slate-500">
+                        <span>PUBLICAR ES FÁCIL. PUBLICAR DE FORMA SEGURA ES OTRA HISTORIA.</span>
+                        <span class="text-orange-500 font-black">RA/dev</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- 📊 SECCIÓN 2: TARJETAS DE RESUMEN DE AUDITORÍA -->
+        <!-- ================================================================= -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-card p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Consultas Hoy</p>
+                        <h3 class="text-3xl font-black text-slate-900 dark:text-white mt-1" id="stat-today">0</h3>
+                    </div>
+                    <div class="bg-blue-500/10 text-blue-500 p-3 rounded-xl border border-blue-500/20"><i class="fa-solid fa-eye text-xl"></i></div>
+                </div>
+            </div>
+            <div class="glass-card p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Usuarios Activos</p>
+                        <h3 class="text-3xl font-black text-slate-900 dark:text-white mt-1" id="stat-users">0</h3>
+                    </div>
+                    <div class="bg-purple-500/10 text-purple-500 p-3 rounded-xl border border-purple-500/20"><i class="fa-solid fa-users text-xl"></i></div>
+                </div>
+            </div>
+            <div class="glass-card p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Módulo Más Visitado</p>
+                        <h3 class="text-lg font-black text-slate-900 dark:text-white mt-1 truncate" id="stat-top-module">-</h3>
+                    </div>
+                    <div class="bg-orange-500/10 text-orange-500 p-3 rounded-xl border border-orange-500/20"><i class="fa-solid fa-fire text-xl"></i></div>
+                </div>
+            </div>
+            <div class="glass-card p-5">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Alertas de Intrusión</p>
+                        <h3 class="text-3xl font-black text-rose-500 mt-1" id="stat-alerts">0</h3>
+                    </div>
+                    <div class="bg-rose-500/10 text-rose-500 p-3 rounded-xl border border-rose-500/20"><i class="fa-solid fa-shield-cat text-xl"></i></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- 🔍 SECCIÓN 3: FILTROS Y TABLA DE AUDITORÍA DE REGISTROS -->
+        <!-- ================================================================= -->
+        <div class="glass-card p-6 flex flex-col gap-6">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-[#1e2638]">
+                <h3 class="text-base font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-orange-500"></i> Bitácora de Accesos y Consultas
+                </h3>
+                <span class="text-xs font-mono text-slate-500">Actualización en tiempo real</span>
+            </div>
+
+            <!-- Filtros -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Buscar Usuario</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400 text-xs"></i>
+                        </div>
+                        <input type="text" id="filter-user" placeholder="Ej. usuario@ejemplo.com" class="premium-input pl-9">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Módulo</label>
+                    <select id="filter-module" class="premium-select">
+                        <option value="">Todos los módulos</option>
+                        <option value="Declaraciones de Importaciones">Declaraciones de Importaciones</option>
+                        <option value="Facturas">Facturas</option>
+                        <option value="Dashboard & Gastos Despachos 2026">Dashboard & Gastos Despachos 2026</option>
+                        <option value="Reporte MSC">Reporte MSC</option>
+                        <option value="Reporte MSC Premium">Reporte MSC Premium</option>
+                        <option value="Detalle de Despachos MSC">Detalle de Despachos MSC</option>
+                        <option value="Seguridad & Control">Seguridad & Control</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Fecha</label>
+                    <input type="date" id="filter-date" class="premium-input">
+                </div>
+                <div>
+                    <button onclick="applyFilters()" class="w-full btn-primary py-2.5">
+                        <i class="fa-solid fa-filter"></i> Aplicar Filtros
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabla de Registro -->
+            <div class="table-container shadow-xl">
+                <table class="premium-table" id="auditTable">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="premium-th">Fecha y Hora</th>
+                            <th scope="col" class="premium-th">Usuario</th>
+                            <th scope="col" class="premium-th">Acción</th>
+                            <th scope="col" class="premium-th">Módulo</th>
+                            <th scope="col" class="premium-th">Detalle del Registro</th>
+                            <th scope="col" class="premium-th">IP Cliente</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <!-- Las filas se renderizan dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginador Footer -->
+            <div class="flex items-center justify-between pt-2 text-xs font-medium text-slate-500">
+                <span>Mostrando <strong id="showing-count" class="text-orange-500 font-bold">0</strong> registros recientes</span>
+                <span class="font-mono text-[11px]">Servidor protegido con RLS & Rate Limiting</span>
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

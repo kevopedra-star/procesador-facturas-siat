@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard & Gastos Despachos 2026</title>
+    
+    <!-- Fuentes Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS para Carga y Exportación de Excel -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Estilos de Tailwind / Proyecto -->
+    
+    <style>
+        :root {
+            --bg-color: #f4f5f8;
+            --text-color: #0f172a;
+            --header-bg: rgba(255, 255, 255, 0.95);
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.15);
+            --th-bg: #f1f5f9;
+            --th-text: #ea580c;
+            --row-even: #ffffff;
+            --row-odd: #f8fafc;
+            --row-hover: #e2e8f0;
+            --text-muted: #475569;
+        }
+
+        html.dark {
+            --bg-color: #000000;
+            --text-color: #f1f5f9;
+            --header-bg: rgba(9, 9, 11, 0.95);
+            --border-color: #222226;
+            --card-bg: #0d0d0d;
+            --accent-color: #f97316;
+            --accent-glow: rgba(249, 115, 22, 0.2);
+            --th-bg: #141416;
+            --th-text: #f97316;
+            --row-even: #08080a;
+            --row-odd: #000000;
+            --row-hover: #1c1c22;
+            --text-muted: #a1a1aa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header-compact {
+            background: var(--header-bg);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-tab {
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-tab.active {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: #ffffff;
+            border-color: rgba(249, 115, 22, 0.5);
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-tab:not(.active) {
+            background: var(--th-bg);
+            color: var(--text-muted);
+        }
+        .btn-tab:not(.active):hover {
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+
+        .badge-completado {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-proceso {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        .mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .dense-table th, .dense-table td {
+            padding: 5px 10px !important;
+            font-size: 11px !important;
+            line-height: 1.2 !important;
+        }
+
+        .sortable-header {
+            cursor: pointer;
+            -webkit-user-select: none;
+               -moz-user-select: none;
+                    user-select: none;
+            transition: color 0.15s ease;
+        }
+        .sortable-header:hover {
+            color: #ffffff !important;
+        }
+
+        /* Estilos de Paginación */
+        .page-btn {
+            min-width: 28px;
+            height: 28px;
+            padding: 0 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 11px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        .page-btn:hover:not(.disabled):not(.active) {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+        .page-btn.active {
+            background: #f97316;
+            color: #ffffff;
+            border-color: #f97316;
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+        }
+        .page-btn.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/dashboard_despachos_2026-ee2KQDph.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DztbwT6Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-D9p2b7RA.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-weG9gO3Z.css">
+</head>
+<body class="h-screen flex flex-col p-2 sm:p-2.5 space-y-2 overflow-hidden">
+
+    <!-- ========================================== -->
+    <!-- 🔝 HEADER ULTRA COMPACTO CON BOTÓN DE CARGA EXCEL -->
+    <!-- ========================================== -->
+    <header class="header-compact px-3 py-1.5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-2 shrink-0">
+        <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white text-sm shadow-sm">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <h1 class="text-xs sm:text-sm font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
+                GASTOS & DASHBOARD <span class="text-orange-500">2026</span>
+            </h1>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <!-- BOTÓN CARGAR EXCEL GASTOS -->
+            <label class="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-[11px] font-extrabold transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-file-excel text-xs"></i> Cargar Excel Gastos
+                <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+            </label>
+
+            <!-- TABS SWITCHER COMPACTO -->
+            <div class="flex items-center bg-[#0d111a] p-1 rounded-lg border border-slate-700/60">
+                <button id="btnViewDashboard" onclick="switchView('dashboard')" class="btn-tab active px-3 py-1 rounded-md font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-chart-line"></i> Dashboard
+                </button>
+                <button id="btnViewTable" onclick="switchView('table')" class="btn-tab px-3 py-1 rounded-md font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-table-list"></i> Despachos Detallados
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================== -->
+    <!-- 📊 VISTA 1: EXECUTIVE DASHBOARD (Totales + 4 Gráficos) -->
+    <!-- ========================================== -->
+    <section id="viewDashboard" class="flex-1 flex flex-col min-h-0 space-y-2 overflow-y-auto custom-scrollbar">
+
+        <!-- FILTROS DE DASHBOARD -->
+        <div class="card-panel p-2 flex flex-wrap gap-2 items-center justify-between shrink-0">
+            <div class="flex flex-wrap gap-2 items-center w-full md:w-auto">
+                <div class="relative min-w-[210px]">
+                    <i class="fa-solid fa-building absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <select id="dashFilterCliente" onchange="renderDashboard()" class="w-full bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-xs font-semibold pl-8 pr-6 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CLIENTES</option>
+                    </select>
+                </div>
+                
+                <div class="relative min-w-[150px]">
+                    <i class="fa-solid fa-calendar-days absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <select id="dashFilterMes" onchange="renderDashboard()" class="w-full bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-xs font-semibold pl-8 pr-6 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS MESES</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="fetchDashboardData()" class="px-3 py-1 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/40 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-rotate text-xs"></i> Recargar Datos
+            </button>
+        </div>
+
+        <!-- TARJETAS KPI EXECUTIVE -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            <!-- KPI 1: TOTAL DESPACHOS -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-orange-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Despachos</p>
+                    <h3 id="kpiDespachos" class="text-lg font-black text-white mono">0</h3>
+                    <p id="kpiDeclaraciones" class="text-[10px] text-orange-400 font-semibold">0 Declaraciones</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+            </div>
+
+            <!-- KPI 2: ESTADO TRÁMITES -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-emerald-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Procesados / Pendientes</p>
+                    <div class="flex items-baseline gap-1">
+                        <h3 id="kpiCompletados" class="text-lg font-black text-emerald-400 mono">0</h3>
+                        <span class="text-[10px] text-slate-400 font-bold">/ <span id="kpiEnProceso" class="text-amber-400">0 proc</span></span>
+                    </div>
+                    <p id="kpiPorcentaje" class="text-[10px] text-emerald-400 font-semibold">0% Avance</p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+            </div>
+
+            <!-- KPI 3: MONTO TOTAL FACTURA GENERAL -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-orange-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Total Facturas General</p>
+                    <h3 id="kpiMontoFactura" class="text-base font-black text-orange-400 mono">Bs 0.00</h3>
+                    <p id="kpiPlanillaSub" class="text-[10px] text-slate-400">Planillas: <span class="text-orange-300 font-bold" id="kpiPlanillaSubVal">Bs 0.00</span></p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+            </div>
+
+            <!-- KPI 4: TOTAL TRIBUTOS & CIF -->
+            <div class="card-panel p-2 flex items-center justify-between hover:border-purple-500/50 transition-all">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase">Tributos Aduana & CIF</p>
+                    <h3 id="kpiTributos" class="text-base font-black text-purple-400 mono">Bs 0.00</h3>
+                    <p id="kpiCif" class="text-[10px] text-slate-400">CIF: <span class="text-purple-300 font-bold" id="kpiCifVal">Bs 0.00</span></p>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-landmark"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE 4 GRÁFICOS CON OPCIÓN DE AMPLIAR (CLICK O BOTÓN) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            <div class="card-panel p-2 space-y-1 hover:border-orange-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-chart-column text-orange-500"></i> Facturación por Cliente
+                    </h4>
+                    <button onclick="openChartModal('clientes')" class="text-slate-500 hover:text-orange-500 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('clientes')" title="Haz click para ampliar">
+                    <canvas id="chartClientes"></canvas>
+                    <div class="absolute inset-0 bg-orange-500/0 group-hover:bg-orange-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-emerald-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-pie-chart text-emerald-500"></i> Avance de Trámites
+                    </h4>
+                    <button onclick="openChartModal('estados')" class="text-slate-500 hover:text-emerald-500 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative flex items-center justify-center cursor-pointer group" onclick="openChartModal('estados')" title="Haz click para ampliar">
+                    <canvas id="chartEstados"></canvas>
+                    <div class="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-cyan-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-cubes text-cyan-400"></i> Items Declarados
+                    </h4>
+                    <button onclick="openChartModal('items')" class="text-slate-500 hover:text-cyan-400 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('items')" title="Haz click para ampliar">
+                    <canvas id="chartItems"></canvas>
+                    <div class="absolute inset-0 bg-cyan-500/0 group-hover:bg-cyan-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-panel p-2 space-y-1 hover:border-purple-500/40 transition-all">
+                <div class="flex justify-between items-center border-b border-slate-200 dark:border-[#222226] pb-1">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                        <i class="fa-solid fa-chart-line text-purple-400"></i> Evolución Mensual (Bs)
+                    </h4>
+                    <button onclick="openChartModal('evolucion')" class="text-slate-500 hover:text-purple-400 transition-all p-1 cursor-pointer" title="Ampliar gráfica">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                    </button>
+                </div>
+                <div class="h-36 relative cursor-pointer group" onclick="openChartModal('evolucion')" title="Haz click para ampliar">
+                    <canvas id="chartEvolucion"></canvas>
+                    <div class="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/5 transition-all rounded-lg flex items-center justify-center pointer-events-none">
+                        <span class="opacity-0 group-hover:opacity-100 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-lg transition-opacity flex items-center gap-1">
+                            <i class="fa-solid fa-magnifying-glass-plus"></i> Ampliar
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLA RESUMEN EJECUTIVA DE TOTALES -->
+        <div class="card-panel p-2 flex-1 flex flex-col min-h-0 space-y-1.5">
+            <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-1 gap-2 shrink-0">
+                <h4 class="font-bold text-xs text-white flex items-center gap-1.5">
+                    <i class="fa-solid fa-list-check text-orange-500"></i> Resumen de Totales por Cliente y Mes (`TOTALES_CLIENTES_DASHBOARD_2026`)
+                </h4>
+                
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <select id="dashSortSelect" onchange="renderDashboard()" class="bg-[#070a0f] border border-slate-700/60 text-white rounded-lg text-[11px] font-semibold px-2 py-0.5 outline-none focus:border-orange-500">
+                            <option value="mes_desc">📅 Mes (Más reciente)</option>
+                            <option value="mes_asc">📅 Mes (Más antiguo)</option>
+                            <option value="desp_desc">📦 Despachos (Mayor a Menor)</option>
+                            <option value="cif_desc">💰 Valor CIF (Mayor a Menor)</option>
+                            <option value="fact_desc">💵 Monto Factura (Mayor a Menor)</option>
+                            <option value="plan_desc">📋 Total Planilla (Mayor a Menor)</option>
+                        </select>
+                    </div>
+
+                    <button onclick="exportDashboardExcel()" class="px-2.5 py-0.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-file-excel"></i> Exportar
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-auto custom-scrollbar flex-1 min-h-0">
+                <table class="w-full text-left border-collapse dense-table">
+                    <thead class="sticky top-0 bg-[#182030] text-orange-400 font-bold z-10 border-b border-slate-700 shadow-sm">
+                        <tr>
+                            <th>Cliente / Razón Social</th>
+                            <th>Mes Fact. (DB)</th>
+                            <th class="text-center">Despachos</th>
+                            <th class="text-center">Completados</th>
+                            <th class="text-center">En Proceso</th>
+                            <th class="text-right">Total CIF (Bs)</th>
+                            <th class="text-right">Total Tributos (Bs)</th>
+                            <th class="text-right">Monto Total Factura (Bs)</th>
+                            <th class="text-right">Total Planilla (Bs)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashTableBody" class="divide-y divide-slate-800/60 font-medium">
+                        <tr><td colspan="9" class="p-6 text-center text-slate-500">Cargando resumen de totales...</td></tr>
+                    </tbody>
+                    <tfoot id="dashTableFoot" class="sticky bottom-0 bg-[#182030] font-black text-orange-300 border-t-2 border-orange-500/40">
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 📄 VISTA 2: TABLA DE CONTENIDO DETALLADO CON FECHA DE FACTURACIÓN UNIFICADA -->
+    <!-- ========================================== -->
+    <section id="viewTable" class="flex-1 flex flex-col min-h-0 space-y-2 hidden">
+
+        <!-- 5 TARJETAS KPI DE RESUMEN COMPACTO SUPERIOR -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 shrink-0">
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Despachos</p>
+                <p id="tblKpiTotal" class="text-xs font-black text-white mono">0</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Completados / Proc</p>
+                <p class="text-[11px] font-black mono text-emerald-400"><span id="tblKpiComp">0</span> <span class="text-slate-400">/</span> <span id="tblKpiProc" class="text-amber-400">0</span></p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Facturas General</p>
+                <p id="tblKpiMontoFactura" class="text-[11px] font-black text-orange-400 mono">Bs 0.00</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Planilla</p>
+                <p id="tblKpiPlanilla" class="text-[11px] font-black text-cyan-400 mono">Bs 0.00</p>
+            </div>
+            <div class="card-panel px-2.5 py-1.5">
+                <p class="text-[9px] font-bold text-slate-400 uppercase">Total Tributos</p>
+                <p id="tblKpiTributos" class="text-[11px] font-black text-purple-400 mono">Bs 0.00</p>
+            </div>
+        </div>
+
+        <!-- BARRA DE BÚSQUEDA, FILTROS Y ORDENAMIENTO DE LA TABLA DETALLADA -->
+        <div class="card-panel p-2 flex flex-wrap gap-2 items-center justify-between shrink-0">
+            <div class="flex flex-wrap gap-2 items-center w-full lg:w-auto">
+                <!-- BUSCADOR TEXTO -->
+                <div class="relative min-w-[170px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2 text-slate-400 text-xs"></i>
+                    <input type="text" id="tblSearchInput" onkeyup="resetPageAndFilter()" placeholder="Buscar Ref, DIM, Cliente..." class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-medium pl-8 pr-2.5 py-1 outline-none focus:border-orange-500">
+                </div>
+
+                <!-- FILTRO N° REFERENCIA -->
+                <div class="relative min-w-[130px]">
+                    <input type="text" id="tblFilterReferencia" onkeyup="resetPageAndFilter()" placeholder="N° Referencia..." class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2.5 py-1 outline-none focus:border-orange-500">
+                </div>
+
+                <!-- FILTRO ESTADO -->
+                <div class="relative min-w-[125px]">
+                    <select id="tblFilterEstado" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS ESTADOS</option>
+                        <option value="COMPLETADO">SOLO COMPLETADOS</option>
+                        <option value="EN PROCESO" selected>SOLO EN PROCESO</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO MESES -->
+                <div class="relative min-w-[125px]">
+                    <select id="tblFilterMes" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS MESES</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO CLIENTE -->
+                <div class="relative min-w-[160px]">
+                    <select id="tblFilterCliente" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white rounded-lg text-xs font-semibold px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CLIENTES</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO CANAL -->
+                <div class="relative min-w-[155px]">
+                    <select id="tblFilterCanal" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-emerald-600 dark:text-emerald-400 font-bold rounded-lg text-xs px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="">TODOS LOS CANALES</option>
+                        <option value="CON_CANAL">✨ SOLO CON CANAL</option>
+                        <option value="VERDE">🟢 SOLO CANAL VERDE</option>
+                        <option value="AMARILLO">🟡 SOLO CANAL AMARILLO</option>
+                        <option value="ROJO">🔴 SOLO CANAL ROJO</option>
+                        <option value="SIN_CANAL">⚪ SIN CANAL</option>
+                    </select>
+                </div>
+
+                <!-- FILTRO DE ORDENAMIENTO -->
+                <div class="relative min-w-[170px]">
+                    <select id="tblSortSelect" onchange="resetPageAndFilter()" class="w-full bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-orange-600 dark:text-orange-400 font-bold rounded-lg text-xs px-2 py-1 outline-none focus:border-orange-500">
+                        <option value="fecha_desc">📅 Fecha (Recientes primero)</option>
+                        <option value="fecha_asc">📅 Fecha (Antiguos primero)</option>
+                        <option value="ref_asc">🔤 N° Referencia (A-Z)</option>
+                        <option value="ref_desc">🔤 N° Referencia (Z-A)</option>
+                        <option value="aduana_asc">🏛️ Aduana (A-Z)</option>
+                        <option value="aduana_desc">🏛️ Aduana (Z-A)</option>
+                        <option value="cif_desc">💰 CIF (Mayor a Menor)</option>
+                        <option value="cif_asc">💰 CIF (Menor a Mayor)</option>
+                        <option value="factura_desc">💵 Total Factura (Mayor a Menor)</option>
+                        <option value="factura_asc">💵 Total Factura (Menor a Mayor)</option>
+                        <option value="planilla_desc">📋 Total Planilla (Mayor a Menor)</option>
+                        <option value="planilla_asc">📋 Total Planilla (Menor a Mayor)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="exportDetalleExcel()" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-file-excel"></i> Exportar
+                </button>
+            </div>
+        </div>
+
+        <!-- CONTENEDOR FLEX-1 QUE EXPANDE LA TABLA HASTA ABAJO -->
+        <div class="card-panel p-2 flex-1 flex flex-col min-h-0 space-y-2">
+            <div class="overflow-auto custom-scrollbar flex-1 min-h-0 relative">
+                <table class="w-full text-left border-collapse dense-table">
+                    <thead class="sticky top-0 bg-[#f1f5f9] dark:bg-[#141416] text-orange-600 dark:text-orange-400 font-bold z-10 border-b border-slate-300 dark:border-[#222226] shadow-md">
+                        <tr>
+                            <th>Estado</th>
+                            <th>N° Referencia</th>
+                            <th>N° Declaración</th>
+                            <th class="sortable-header" onclick="toggleSort('fecha')">Fecha Facturación <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th>Mes Fact. (DB)</th>
+                            <th>Cliente / Razón Social</th>
+                            <th class="sortable-header" onclick="toggleSort('aduana')">Aduana <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th>Proveedor</th>
+                            <th class="text-right sortable-header" onclick="toggleSort('cif')">Total CIF (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th class="text-right">Total Tributos (Bs)</th>
+                            <th class="text-right sortable-header" onclick="toggleSort('factura')">Monto Total Factura (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                            <th class="text-right sortable-header" onclick="toggleSort('planilla')">Total Planilla (Bs) <i class="fa-solid fa-sort text-[10px] opacity-60"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tblDetalleBody" class="divide-y divide-slate-200 dark:divide-[#222226]/60 font-medium">
+                        <tr><td colspan="12" class="p-6 text-center text-slate-500">Cargando despachos detallados...</td></tr>
+                    </tbody>
+                    <tfoot id="tblDetalleFoot" class="sticky bottom-0 bg-[#f1f5f9] dark:bg-[#141416] font-black text-orange-600 dark:text-orange-300 border-t-2 border-orange-500/40 shadow-lg">
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- CONTROLES DE PAGINACIÓN AL PIE DE PANTALLA -->
+            <div id="paginationBar" class="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1 px-1 border-t border-slate-200 dark:border-[#222226] text-xs shrink-0">
+                <div class="flex items-center gap-3">
+                    <span id="lblPaginationStats" class="font-bold text-slate-700 dark:text-slate-300 text-[11px]">Mostrando 0-0 de 0 Registros</span>
+                    
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">FILAS POR PÁGINA:</span>
+                        <select id="tblPageSizeSelect" onchange="changePageSize(this.value)" class="bg-white dark:bg-[#111114] border border-slate-300 dark:border-[#222226] text-slate-900 dark:text-white text-[11px] font-bold rounded-lg px-2 py-0.5 outline-none focus:border-orange-500 cursor-pointer">
+                            <option value="20">20</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="250">250</option>
+                            <option value="ALL">TODOS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- BOTONES DE NAVEGACIÓN DE PÁGINAS -->
+                <div id="tblPaginationControls" class="flex items-center gap-1">
+                    <!-- Inyectado dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- 🔍 MODAL OVERLAY PARA AMPLIAR GRÁFICAS -->
+    <!-- ========================================== -->
+    <div id="chartModalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-[#0d0d0d] border border-slate-200 dark:border-[#222226] rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-200 dark:border-[#222226] flex items-center justify-between bg-slate-50 dark:bg-[#141416] shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-500 flex items-center justify-center text-base">
+                        <i id="modalChartIcon" class="fa-solid fa-chart-column"></i>
+                    </div>
+                    <div>
+                        <h3 id="modalChartTitle" class="text-base font-black text-slate-900 dark:text-white">Gráfica Ampliada</h3>
+                        <p id="modalChartSubtitle" class="text-xs font-semibold text-slate-500 dark:text-slate-400">Vista detallada de datos</p>
+                    </div>
+                </div>
+                <button onclick="closeChartModal()" class="w-8 h-8 rounded-lg bg-slate-200 dark:bg-[#222226] hover:bg-rose-500 hover:text-white text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all cursor-pointer">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <!-- Modal Body Canvas -->
+            <div class="p-6 flex-1 min-h-0 relative flex items-center justify-center bg-white dark:bg-[#08080a]">
+                <canvas id="modalChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 📜 JAVASCRIPT DE LOGICA DE NEGOCIO & SUPABASE -->
+    <!-- ========================================== -->
+</body>
+</html>

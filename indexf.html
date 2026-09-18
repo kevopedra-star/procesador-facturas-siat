@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Facturas Pro + IA V10.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        midnight: { 950: '#020617', 900: '#0f172a', 800: '#1e293b', 700: '#334155' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- LIBRERÍAS -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        html.dark {
+            color-scheme: dark;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                border-color: #ef4444;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            50% {
+                border-color: #f87171;
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+            }
+        }
+
+        .border-missing {
+            animation: pulse-red 2s infinite;
+            border-width: 2px !important;
+        }
+
+        .glass-panel {
+            @apply backdrop-blur-md border transition-colors duration-300;
+        }
+
+        html.dark .glass-panel {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .input-theme {
+            @apply bg-transparent border-b transition-all duration-300 outline-none w-full px-2 py-1.5;
+        }
+
+        html.dark .input-theme {
+            border-color: #475569;
+            color: #f1f5f9;
+            background-color: rgba(30, 41, 59, 0.5);
+        }
+
+        .tab-active {
+            @apply border-b-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold bg-slate-100 dark:bg-slate-800/80;
+        }
+
+        .loader {
+            border-top-color: currentColor;
+            animation: spinner 1s linear infinite;
+        }
+
+        @keyframes spinner {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 dark:bg-midnight-950 dark:text-slate-200 min-h-screen flex flex-col">
+
+    <header class="sticky top-0 glass-panel shadow-sm dark:shadow-none z-50">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg shadow-lg text-white"><i class="ph-bold ph-brain text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide text-slate-900 dark:text-white">Facturas <span
+                            class="text-indigo-600 dark:text-indigo-400">Pro + IA</span></h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">V10.4 | Conexión Blindada &
+                        Buscador</p>
+                </div>
+            </div>
+            <button id="theme-toggle"
+                class="p-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-yellow-400 transition-all">
+                <i id="theme-icon" class="ph-fill ph-sun text-xl"></i>
+            </button>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 md:px-6 mt-2">
+            <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+                <button onclick="switchTab('scanner')" id="tab-btn-scanner"
+                    class="tab-active px-6 py-3 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2">
+                    <i class="ph-bold ph-sparkle"></i> IA Escáner
+                </button>
+                <button onclick="switchTab('history')" id="tab-btn-history"
+                    class="px-6 py-3 text-sm font-medium transition-all rounded-t-lg text-slate-400 flex items-center gap-2">
+                    <i class="ph-bold ph-database"></i> Historial Cloud
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-[1400px] mx-auto w-full p-4 md:p-8">
+        <!-- VISTA SCANNER -->
+        <div id="view-scanner" class="space-y-8">
+            <div id="dropzone"
+                class="relative group cursor-pointer border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-10 text-center hover:border-indigo-500 transition-all">
+                <input type="file" id="fileInput" multiple accept="application/pdf,image/png,image/jpeg" class="hidden">
+                <i class="ph-duotone ph-magic-wand text-3xl text-indigo-600 mb-4 block mx-auto"></i>
+                <h2 class="text-xl font-bold dark:text-white">Arrastra tus Facturas Aquí</h2>
+                <p class="text-sm text-slate-500">Analizaremos el texto, aduana e ítems por lotes.</p>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <div class="flex gap-4">
+                    <span
+                        class="bg-indigo-600 text-white text-xs font-bold px-4 py-1 rounded-full shadow-lg shadow-indigo-500/20">En
+                        Cola: <span id="count-badge">0</span></span>
+                    <span class="text-xs font-bold dark:text-slate-400 uppercase tracking-widest">Siguiente N°: <span
+                            id="next-consecutivo-badge" class="text-indigo-400">...</span></span>
+                </div>
+                <div class="flex gap-3">
+                    <button id="btn-manual"
+                        class="px-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl text-sm font-bold">Manual</button>
+                    <button id="btn-save"
+                        class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/30">Guardar
+                        Todo</button>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-sm">
+                        <thead class="bg-slate-100 dark:bg-slate-800 text-xs uppercase text-slate-500 font-bold">
+                            <tr>
+                                <th class="px-3 py-3 text-center w-12">N°</th>
+                                <th class="px-3 py-3">Tipo</th>
+                                <th class="px-3 py-3">Interno</th>
+                                <th class="px-3 py-3">Fecha</th>
+                                <th class="px-3 py-3">NIT Emisor</th>
+                                <th class="px-3 py-3">Cliente</th>
+                                <th class="px-3 py-3">Factura</th>
+                                <th class="px-3 py-3 text-right">Monto (Bs)</th>
+                                <th class="px-3 py-3">Reg. Aduana</th>
+                                <th class="px-3 py-3 text-center">Items</th>
+                                <th class="px-3 py-3">QR Link</th>
+                                <th class="px-3 py-3 text-center">X</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-200 dark:divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA HISTORIAL -->
+        <div id="view-history" class="hidden space-y-6">
+            <div
+                class="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-100 dark:bg-slate-800/50 p-5 rounded-2xl">
+                <div class="relative w-full md:w-[500px]">
+                    <i
+                        class="ph ph-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                    <input type="text" id="history-search"
+                        placeholder="Buscar por cliente, NIT, N° interno, factura o aduana..."
+                        class="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm">
+                </div>
+                <button id="btn-refresh-history"
+                    class="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-500 shadow-lg shadow-indigo-500/20">
+                    <i class="ph ph-arrows-clockwise text-lg"></i> Refrescar
+                </button>
+            </div>
+            <div class="glass-panel rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto max-h-[650px]">
+                    <table class="min-w-full text-left text-sm">
+                        <thead
+                            class="sticky top-0 bg-slate-200 dark:bg-slate-800 text-xs uppercase text-slate-600 dark:text-slate-300 font-bold z-10 border-b border-slate-300 dark:border-slate-700">
+                            <tr>
+                                <th class="px-4 py-4 text-center">N°</th>
+                                <th class="px-4 py-4">Tipo</th>
+                                <th class="px-4 py-4">Interno</th>
+                                <th class="px-4 py-4">Fecha</th>
+                                <th class="px-4 py-4">Cliente</th>
+                                <th class="px-4 py-4 text-right">Monto</th>
+                                <th class="px-4 py-4">Aduana</th>
+                                <th class="px-4 py-4 text-center">Items</th>
+                                <th class="px-4 py-4 text-center">QR</th>
+                                <th class="px-4 py-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="divide-y divide-slate-200 dark:divide-slate-700/50">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL PRODUCTOS -->
+    <div id="products-modal"
+        class="hidden fixed inset-0 bg-black/70 flex flex-col items-center justify-center z-[100] p-4 backdrop-blur-sm">
+        <div
+            class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-slate-200 dark:border-slate-800">
+            <div class="p-5 bg-indigo-600 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="ph-bold ph-list-dashes"></i> Conceptos
+                    Extraídos</h3>
+                <button onclick="document.getElementById('products-modal').classList.add('hidden')"
+                    class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 text-2xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr
+                            class="border-b border-slate-200 dark:border-slate-700 text-slate-400 uppercase text-[10px] font-bold tracking-widest">
+                            <th class="pb-3">Descripción</th>
+                            <th class="pb-3 text-center">Cant.</th>
+                            <th class="pb-3 text-right">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-table-body" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="loader"
+        class="hidden fixed inset-0 bg-slate-900/90 flex flex-col items-center justify-center z-[200] backdrop-blur-md">
+        <div class="relative mb-6">
+            <div class="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+            <div class="absolute inset-0 flex items-center justify-center"><i
+                    class="ph-fill ph-sparkle text-indigo-400 text-2xl animate-pulse"></i></div>
+        </div>
+        <p id="loader-text" class="text-white text-lg font-bold tracking-wider uppercase">Analizando con IA...</p>
+    </div>
+
+    <div id="toast"
+        class="hidden fixed bottom-8 right-8 z-[300] transform translate-y-20 opacity-0 transition-all duration-300">
+        <div id="toast-container"
+            class="bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl border-l-4 border-indigo-500 flex items-center gap-4">
+            <i id="toast-icon" class="ph-fill ph-info text-2xl"></i>
+            <span id="toast-message" class="font-semibold"></span>
+        </div>
+    </div>
+
+    <canvas id="hidden-canvas" class="hidden"></canvas>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+
+        const SUPABASE_URL = 'https://sfqpptquojlsbeheguff.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
+
+        // Lista de API Keys de Gemini
+        const apiKeys = [
+            "AIzaSyCxdtnbahbgKT5Cc8B10nzGJtX977O8kAs",
+            "AIzaSyBVwWQ3-L6IpTmgR3ugQu1IoUYQZ69azHM",
+            "AIzaSyCYXBErU9Clw6KCtJ34vj6JNP1_RWjTrKg"
+        ];
+        let apiKey = apiKeys[Math.floor(Math.random() * apiKeys.length)];
+
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
+
+        let supabase = null;
+        try { if (SUPABASE_URL && SUPABASE_KEY) supabase = createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { }
+
+        let invoices = [];
+        let historyInvoices = [];
+        let dbCount = 0;
+        const tableBody = document.getElementById('table-body');
+        const historyTableBody = document.getElementById('history-table-body');
+        const hiddenCanvas = document.getElementById('hidden-canvas');
+        const hiddenCtx = hiddenCanvas.getContext('2d');
+
+        const showLoader = (show, text) => {
+            if (text) document.getElementById('loader-text').textContent = text;
+            document.getElementById('loader').classList.toggle('hidden', !show);
+        };
+
+        const showToast = (msg, type = 'info') => {
+            const t = document.getElementById('toast');
+            const cont = document.getElementById('toast-container');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-message').textContent = msg;
+            cont.className = `px-6 py-4 rounded-2xl shadow-2xl border-l-4 flex items-center gap-4 text-white ${type === 'error' ? 'bg-red-900 border-red-500' : 'bg-slate-800 border-indigo-500'}`;
+            icon.className = `ph-fill ${type === 'error' ? 'ph-warning-circle' : 'ph-info'} text-2xl`;
+            t.classList.remove('hidden', 'translate-y-20', 'opacity-0');
+            setTimeout(() => { t.classList.add('translate-y-20', 'opacity-0'); }, 4000);
+        };
+
+        const formatCurrency = (val) => isNaN(parseFloat(val)) ? "0.00" : parseFloat(val).toFixed(2);
+
+        const handlePasteQR = (event, inputElement) => {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.kind === 'file' && item.type.includes('image/')) {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = async () => {
+                            hiddenCanvas.width = img.naturalWidth;
+                            hiddenCanvas.height = img.naturalHeight;
+                            hiddenCtx.drawImage(img, 0, 0);
+                            const imageData = hiddenCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+                            const code = window.jsQR(imageData.data, img.naturalWidth, img.naturalHeight, { inversionAttempts: "dontInvert" });
+                            if (code) {
+                                if (invoices.some(i => i.id !== inputElement.dataset.id && i.qr === code.data)) {
+                                    showToast("Este QR ya está asignado a otra factura en la lista.", "error");
+                                    return;
+                                }
+
+                                const inv = invoices.find(i => i.id === inputElement.dataset.id);
+
+                                if (inv && inv.db_id == null) {
+                                    showLoader(true, "Verificando QR...");
+                                    const { data: dbData } = await supabase.from('facturas').select('id, n_factura').eq('codigo_qr', code.data).maybeSingle();
+                                    showLoader(false);
+                                    if (dbData) {
+                                        showToast(`Este QR pertenece a la Factura N°${dbData.n_factura} que ya está registrada en la nube.`, "error");
+                                        return;
+                                    }
+                                }
+
+                                inputElement.value = code.data;
+                                if (inv) inv.qr = code.data;
+                                inputElement.classList.remove('border-missing');
+                                showToast("¡QR capturado perfectamente!");
+                            } else {
+                                showToast("QR no detectado carnal, pega una imagen más nítida.", 'error');
+                            }
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        };
+
+        const updateDbCount = async () => {
+            if (!supabase) return;
+            const { count } = await supabase.from('facturas').select('*', { count: 'exact', head: true });
+            dbCount = count || 0;
+            document.getElementById('next-consecutivo-badge').textContent = dbCount + invoices.length + 1;
+            document.getElementById('count-badge').textContent = invoices.length;
+        };
+        updateDbCount();
+
+        const renderTable = () => {
+            tableBody.innerHTML = invoices.length ? invoices.map(inv => `
+                <tr class="hover:bg-slate-800/30 border-b border-slate-700/50 transition-colors">
+                    <td class="px-3 py-4 text-center font-bold text-indigo-400">${inv.consecutivo}</td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.tipo}" class="input-theme w-16" data-id="${inv.id}" data-field="tipo"></td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.internoArchivo}" class="input-theme w-20 font-mono text-xs" data-id="${inv.id}" data-field="internoArchivo"></td>
+                    <td class="px-3 py-4"><input type="date" value="${inv.fecha}" class="input-theme w-28 text-xs" data-id="${inv.id}" data-field="fecha"></td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.nit}" class="input-theme w-24 text-xs" data-id="${inv.id}" data-field="nit"></td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.cliente}" class="input-theme w-40 text-xs font-medium" data-id="${inv.id}" data-field="cliente"></td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.n_factura}" class="input-theme w-16 text-xs font-mono" data-id="${inv.id}" data-field="n_factura"></td>
+                    <td class="px-3 py-4 text-right"><input type="text" value="${inv.monto}" class="input-theme w-20 text-right font-bold text-emerald-500" data-id="${inv.id}" data-field="monto"></td>
+                    <td class="px-3 py-4"><input type="text" value="${inv.registro}" class="input-theme w-24 font-mono text-[10px]" data-id="${inv.id}" data-field="registro"></td>
+                    <td class="px-3 py-4 text-center">
+                        <button class="btn-items p-2 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all" data-id="${inv.id}">
+                            <i class="ph ph-list-magnifying-glass text-lg"></i>
+                        </button>
+                    </td>
+                    <td class="px-3 py-4">
+                        <input type="text" value="${inv.qr}" placeholder="Pega imagen QR" 
+                               class="qr-input input-theme w-24 text-[10px] ${!inv.qr ? 'border-missing' : ''}" 
+                               data-id="${inv.id}" data-field="qr">
+                    </td>
+                    <td class="px-3 py-4 text-center"><button class="btn-del text-red-400 hover:text-red-300 transition-colors" data-id="${inv.id}"><i class="ph ph-trash text-lg"></i></button></td>
+                </tr>
+            `).join('') : '<tr><td colspan="12" class="p-12 text-center text-slate-500 italic">Sin facturas en cola. Arrastra archivos arriba.</td></tr>';
+            bindTableEvents();
+        };
+
+        const bindTableEvents = () => {
+            tableBody.querySelectorAll('input').forEach(inp => {
+                inp.oninput = (e) => {
+                    const inv = invoices.find(i => i.id === e.target.dataset.id);
+                    if (inv) inv[e.target.dataset.field] = e.target.value;
+                };
+            });
+            tableBody.querySelectorAll('.qr-input').forEach(inp => inp.onpaste = (e) => handlePasteQR(e, inp));
+            tableBody.querySelectorAll('.btn-del').forEach(btn => btn.onclick = (e) => {
+                invoices = invoices.filter(i => i.id !== e.currentTarget.dataset.id); renderTable();
+                updateDbCount();
+            });
+            tableBody.querySelectorAll('.btn-items').forEach(btn => btn.onclick = (e) => {
+                const inv = invoices.find(i => i.id === e.currentTarget.dataset.id);
+                if (inv) {
+                    const tbody = document.getElementById('products-table-body');
+                    let total = 0;
+                    const rows = inv.productos.length ? inv.productos.map(p => {
+                        total += parseFloat(p.subtotal) || 0;
+                        return `<tr><td class="py-4 text-slate-200">${p.descripcion || p.description}</td><td class="py-4 text-center text-slate-400">${p.cantidad || p.quantity || 1}</td><td class="py-4 text-right font-bold text-indigo-400">Bs. ${formatCurrency(p.subtotal)}</td></tr>`;
+                    }).join('') : '<tr><td colspan="3" class="p-6 text-center text-slate-500">Sin ítems extraídos.</td></tr>';
+                    const totalRow = inv.productos.length ? `<tr class="border-t-2 border-slate-700 bg-slate-800/30"><td colspan="2" class="py-4 text-right font-bold text-slate-300">TOTAL ÍTEMS:</td><td class="py-4 text-right font-bold text-emerald-400 text-lg">Bs. ${formatCurrency(total)}</td></tr>` : '';
+                    tbody.innerHTML = rows + totalRow;
+                    document.getElementById('products-modal').classList.remove('hidden');
+                }
+            });
+        };
+
+        const fetchGemini = async (base64, mime, name, retries = 5) => {
+            const delays = [3000, 5000, 10000, 15000];
+
+            const prompt = `Analiza esta factura de Bolivia. Nombre archivo: "${name}". Extrae los siguientes datos en formato JSON: nit (emisor), factura (numero), fecha (formato AAAA-MM-DD), cliente (razon social), monto (total numero), registro (aduanero HAWB/AWB/DI/EP), y productos (lista con descripcion, cantidad y subtotal).`;
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mime, data: base64 } }] }],
+                systemInstruction: { parts: [{ text: "Eres un experto contable aduanero boliviano. Extrae siempre JSON puro con las siguientes claves exactas: nit (string), factura (string), fecha (string YYYY-MM-DD), cliente (string), monto (number), registro (string), productos (array de objetos con descripcion:string, cantidad:number, subtotal:number)." }] },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                    const res = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+                    if (!res.ok) {
+                        if (res.status === 429) {
+                            // Rotar clave agresivamente en caso de límite de uso
+                            apiKey = apiKeys.find(k => k !== apiKey) || apiKeys[0];
+                            console.warn(`Límite de cuota alcanzado (429). Rotando a la clave secundaria y esperando ${delays[i] || 15000}ms...`);
+                        }
+                        throw new Error(`Status ${res.status}`);
+                    }
+                    const d = await res.json();
+                    return JSON.parse(d.candidates[0].content.parts[0].text);
+                } catch (e) {
+                    if (i === retries - 1) {
+                        showToast(`Se agotó el límite gratuito de Gemini para analizar ${name}. Espera 1 minuto y vuelve a intentar.`, 'error');
+                        throw e;
+                    }
+                    await new Promise(r => setTimeout(r, delays[i] || 15000));
+                }
+            }
+        };
+
+        const handleFiles = async (files) => {
+            const fileArray = Array.from(files);
+            if (!fileArray.length) return;
+            showLoader(true, "Extrayendo datos...");
+
+            let quotaExhausted = false;
+
+            for (let file of fileArray) {
+                if (quotaExhausted) break;
+
+                try {
+                    const reader = new FileReader();
+                    const b64 = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
+
+                    let localQr = '';
+                    if (file.type === 'application/pdf') {
+                        try {
+                            const ab = await file.arrayBuffer();
+                            const pdf = await pdfjsLib.getDocument(ab).promise;
+                            const page = await pdf.getPage(1);
+                            const viewport = page.getViewport({ scale: 2.5 });
+                            const cvs = document.createElement('canvas');
+                            cvs.width = viewport.width; cvs.height = viewport.height;
+                            await page.render({ canvasContext: cvs.getContext('2d'), viewport }).promise;
+                            const code = window.jsQR(cvs.getContext('2d').getImageData(0, 0, cvs.width, cvs.height).data, cvs.width, cvs.height);
+                            if (code) localQr = code.data;
+                        } catch (e) { }
+                    }
+
+                    // Validación de duplicidad PREVIA a gastar cuota de la IA
+                    let existingDb = null;
+                    if (localQr) {
+                        // 1. Verificar si ya está en la lista pendiente de guardar
+                        if (invoices.some(inv => inv.qr === localQr)) {
+                            showToast(`El archivo ${file.name} ya está en la lista actual.`, 'warning');
+                            continue;
+                        }
+
+                        // 2. Verificar si ya está guardado en la Base de Datos (Supabase)
+                        const { data: dbData } = await supabase
+                            .from('facturas')
+                            .select('*')
+                            .eq('codigo_qr', localQr)
+                            .maybeSingle();
+
+                        existingDb = dbData;
+
+                        if (existingDb) {
+                            let dbProductos = [];
+                            try { dbProductos = JSON.parse(existingDb.productos || '[]'); } catch (e) { }
+
+                            // Verificar qué tan "completa" está la factura (si la tiene todo no escanea)
+                            const isComplete = existingDb.nit && existingDb.cliente && existingDb.fecha && existingDb.monto && existingDb.n_factura && dbProductos.length > 0;
+
+                            if (isComplete) {
+                                showToast(`El archivo ${file.name} (Factura N°${existingDb.n_factura}) ya está guardado y completo en el historial.`, 'warning');
+                                continue;
+                            } else {
+                                showToast(`Factura incompleta en BD. Analizando ${file.name} para rellenar datos faltantes...`, 'info');
+                            }
+                        }
+                    }
+
+                    const aiData = await fetchGemini(b64, file.type, file.name);
+                    const interno = (file.name.match(/(\d{4}-\d{2})/) || [])[1] || '';
+
+                    // Extraer número de factura del QR (ejemplo: ...&numero=850...)
+                    let qrNumero = '';
+                    if (localQr) {
+                        const match = localQr.match(/[?&]numero=(\d+)/i);
+                        if (match) qrNumero = match[1];
+                    }
+
+                    // Validación: Si el QR tiene número de factura, tiene que coincidir con el de la IA
+                    if (qrNumero && aiData.factura && qrNumero !== aiData.factura) {
+                        showToast(`El QR (Factura N°${qrNumero}) no coincide con la IA (N°${aiData.factura}) del archivo ${file.name}. Usaremos el Nº${qrNumero}.`, 'error');
+                        aiData.factura = qrNumero; // Forzar el uso del número del QR que es la fuente de la verdad
+                    }
+
+                    let parsedDbProductos = [];
+                    if (existingDb && existingDb.productos) {
+                        try { parsedDbProductos = JSON.parse(existingDb.productos); } catch (e) { }
+                    }
+
+                    invoices.push({
+                        id: Math.random().toString(36).substr(2, 9),
+                        db_id: existingDb ? existingDb.id : null,
+                        consecutivo: existingDb ? existingDb.consecutivo : (dbCount + invoices.length + 1),
+                        tipo: existingDb?.tipo || (/ALBO/i.test(file.name) ? 'ALBO' : /GUIA/i.test(file.name) ? 'GUIA' : 'DAB'),
+                        internoArchivo: existingDb?.interno_archivo || interno,
+                        fecha: existingDb?.fecha || aiData.fecha || '',
+                        nit: existingDb?.nit || aiData.nit || '',
+                        cliente: existingDb?.cliente || aiData.cliente || '',
+                        n_factura: existingDb?.n_factura || aiData.factura || '',
+                        monto: existingDb?.monto || aiData.monto || '',
+                        registro: existingDb?.registro_aduanero || aiData.registro || '',
+                        qr: localQr,
+                        productos: parsedDbProductos.length > 0 ? parsedDbProductos : (aiData.productos || [])
+                    });
+                    updateDbCount();
+
+                    // Esperar 4.5 segundos entre cada archivo para no exceder las 15 llamadas por minuto de la capa gratis
+                    if (fileArray.length > 1) await new Promise(r => setTimeout(r, 4500));
+                } catch (e) {
+                    console.error(e);
+                    if (e.message && e.message.includes("429")) {
+                        quotaExhausted = true;
+                        showToast(`Límite gratuito agotado totalmente. Se detuvo la lectura para el resto de archivos. Vuelve en 1 a 2 horas.`, 'error');
+                        break;
+                    }
+                    showToast(`Error: ${file.name}. Inténtalo de nuevo.`, 'error');
+                }
+            }
+            renderTable(); showLoader(false);
+        };
+
+        window.loadHistory = async () => {
+            if (!supabase) return;
+            const { data } = await supabase.from('facturas').select('*').order('created_at', { ascending: false }).limit(300);
+            if (data) { historyInvoices = data; renderHistoryTable(); }
+        };
+
+        const renderHistoryTable = (filtered = null) => {
+            const list = filtered || historyInvoices;
+            historyTableBody.innerHTML = list.map(inv => `
+                <tr class="hover:bg-slate-800/30 border-b border-slate-700/50 text-xs">
+                    <td class="px-4 py-4 text-center font-bold text-slate-500">${inv.consecutivo}</td>
+                    <td class="px-4 py-4 font-semibold text-indigo-400 uppercase">${inv.tipo}</td>
+                    <td class="px-4 py-4 font-mono text-[10px]">${inv.interno_archivo}</td>
+                    <td class="px-4 py-4">${inv.fecha}</td>
+                    <td class="px-4 py-4 font-medium text-slate-200">${inv.cliente}</td>
+                    <td class="px-4 py-4 text-right font-bold text-emerald-500">Bs. ${formatCurrency(inv.monto)}</td>
+                    <td class="px-4 py-4 font-mono text-[10px] text-slate-400">${inv.registro_aduanero || '-'}</td>
+                    <td class="px-4 py-4 text-center">
+                        <button class="btn-history-items p-2 rounded-xl bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all" data-id="${inv.id}">
+                            <i class="ph ph-list-magnifying-glass text-lg"></i>
+                        </button>
+                    </td>
+                    <td class="px-4 py-4 text-center truncate max-w-[120px] text-[10px] text-slate-500" title="${inv.codigo_qr}">${inv.codigo_qr}</td>
+                    <td class="px-4 py-4 text-center flex justify-center gap-2">
+                        <button class="btn-history-edit p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all" data-id="${inv.id}" title="Editar">
+                            <i class="ph-bold ph-pencil-simple text-sm"></i>
+                        </button>
+                        <button class="btn-history-del p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all" data-id="${inv.id}" title="Eliminar">
+                            <i class="ph-bold ph-trash text-sm"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Bind click events for the new items button in history
+            historyTableBody.querySelectorAll('.btn-history-items').forEach(btn => btn.onclick = (e) => {
+                const inv = list.find(i => i.id == e.currentTarget.dataset.id);
+                if (inv) {
+                    let productos = [];
+                    try {
+                        productos = typeof inv.productos === 'string' ? JSON.parse(inv.productos || '[]') : (inv.productos || []);
+                    } catch (err) {
+                        console.error('Error leyendo productos:', err);
+                        showToast('Hubo un error al leer los ítems de esta factura', 'error');
+                    }
+                    const tbody = document.getElementById('products-table-body');
+                    let total = 0;
+                    const rows = productos.length ? productos.map(p => {
+                        total += parseFloat(p.subtotal) || 0;
+                        return `<tr><td class="py-4 text-slate-200">${p.descripcion || p.description}</td><td class="py-4 text-center text-slate-400">${p.cantidad || p.quantity || 1}</td><td class="py-4 text-right font-bold text-indigo-400">Bs. ${formatCurrency(p.subtotal)}</td></tr>`;
+                    }).join('') : '<tr><td colspan="3" class="p-6 text-center text-slate-500">Sin ítems guardados.</td></tr>';
+                    const totalRow = productos.length ? `<tr class="border-t-2 border-slate-700 bg-slate-800/30"><td colspan="2" class="py-4 text-right font-bold text-slate-300">TOTAL ÍTEMS:</td><td class="py-4 text-right font-bold text-emerald-400 text-lg">Bs. ${formatCurrency(total)}</td></tr>` : '';
+                    tbody.innerHTML = rows + totalRow;
+                    document.getElementById('products-modal').classList.remove('hidden');
+                }
+            });
+
+            historyTableBody.querySelectorAll('.btn-history-edit').forEach(btn => btn.onclick = (e) => {
+                const inv = list.find(i => i.id == e.currentTarget.dataset.id);
+                if (!inv) return;
+
+                if (invoices.some(i => i.db_id === inv.id)) {
+                    switchTab('scanner');
+                    showToast('Esta factura ya está en edición en el escáner.', 'warning');
+                    return;
+                }
+
+                let productos = [];
+                try {
+                    productos = typeof inv.productos === 'string' ? JSON.parse(inv.productos || '[]') : (inv.productos || []);
+                } catch (err) { }
+
+                invoices.unshift({
+                    id: Math.random().toString(36).substr(2, 9),
+                    db_id: inv.id,
+                    consecutivo: inv.consecutivo,
+                    tipo: inv.tipo,
+                    internoArchivo: inv.interno_archivo,
+                    fecha: inv.fecha,
+                    nit: inv.nit,
+                    cliente: inv.cliente,
+                    n_factura: inv.n_factura,
+                    monto: inv.monto,
+                    registro: inv.registro_aduanero,
+                    qr: inv.codigo_qr,
+                    productos: productos
+                });
+                renderTable();
+                switchTab('scanner');
+                showToast('Factura movida al escáner para edición.', 'info');
+            });
+
+            historyTableBody.querySelectorAll('.btn-history-del').forEach(btn => btn.onclick = async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const result = await Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¡No podrás revertir esto! Se eliminará la factura.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#334155',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                });
+
+                if (result.isConfirmed) {
+                    showLoader(true, "Eliminando...");
+                    const { error } = await supabase.from('facturas').delete().eq('id', id);
+                    showLoader(false);
+                    if (error) {
+                        showToast('Error al eliminar factura', 'error');
+                    } else {
+                        showToast('Factura eliminada', 'info');
+                        // Si estaba en invoices de edit, la removemos
+                        invoices = invoices.filter(i => i.db_id !== id);
+                        renderTable();
+                        loadHistory();
+                        updateDbCount();
+                    }
+                }
+            });
+        };
+
+        document.getElementById('history-search').oninput = (e) => {
+            const val = e.target.value.toLowerCase();
+            const filtered = historyInvoices.filter(i =>
+                (i.cliente || '').toLowerCase().includes(val) ||
+                (i.n_factura || '').includes(val) ||
+                (i.nit || '').includes(val) ||
+                (i.registro_aduanero || '').toLowerCase().includes(val) ||
+                (i.interno_archivo || '').toLowerCase().includes(val)
+            );
+            renderHistoryTable(filtered);
+        };
+
+        // ====== AQUÍ ESTÁ LA SOLUCIÓN PERRONA ======
+        document.getElementById('btn-save').onclick = async () => {
+            if (!invoices.length) return;
+            if (invoices.some(i => !i.qr)) return Swal.fire({ title: "¡Faltan QRs!", text: "No podemos guardar facturas sin el link del QR carnal.", icon: "error" });
+
+            const qrListInScanner = invoices.map(i => i.qr);
+            const uniqueScannerQrs = new Set(qrListInScanner);
+            if (uniqueScannerQrs.size !== qrListInScanner.length) {
+                return Swal.fire({ title: "QRs Duplicados en lista", text: "Tienes facturas con el mismo enlace QR en el escaner. Cada QR debe ser único.", icon: "error" });
+            }
+
+            showLoader(true, "Guardando en la nube...");
+
+            // Verificar si hay duplicados ya guardados
+            const { data: existingQrs } = await supabase
+                .from('facturas')
+                .select('id, codigo_qr, n_factura')
+                .in('codigo_qr', qrListInScanner);
+
+            if (existingQrs && existingQrs.length > 0) {
+                let duplicateConflict = false;
+                let msjs = [];
+                for (let inv of invoices) {
+                    const found = existingQrs.find(q => q.codigo_qr === inv.qr);
+                    if (found && found.id !== inv.db_id) {
+                        duplicateConflict = true;
+                        msjs.push(`Factura DB: N°${found.n_factura}`);
+                    }
+                }
+                if (duplicateConflict) {
+                    showLoader(false);
+                    return Swal.fire({ title: "Factura Duplicada", text: "Una o más facturas ya existen en la base de datos con el mismo enlace QR: " + msjs.join(', '), icon: "error" });
+                }
+            }
+
+            // SEPARAMOS LA CHAMBA: Nuevas vs Viejas para que PostgREST no se haga bolas con los IDs
+            const toInsert = [];
+            const toUpdate = [];
+
+            invoices.forEach(i => {
+                const payload = {
+                    consecutivo: i.consecutivo, fecha: i.fecha || null, tipo: i.tipo || null,
+                    interno_archivo: i.internoArchivo || null, nit: i.nit || null, cliente: i.cliente || null,
+                    n_factura: i.n_factura || null, monto: isNaN(parseFloat(i.monto)) ? 0 : parseFloat(i.monto),
+                    codigo_qr: i.qr || null, registro_aduanero: i.registro || null,
+                    productos: JSON.stringify(i.productos || [])
+                };
+
+                if (i.db_id) {
+                    // Si ya tenía ID, se va pa' las que se actualizan
+                    payload.id = i.db_id;
+                    toUpdate.push(payload);
+                } else {
+                    // Si no tiene ID, se va limpiecita pa' que Supabase le genere uno nuevo
+                    toInsert.push(payload);
+                }
+            });
+
+            try {
+                // Ejecutamos por separado
+                if (toInsert.length > 0) {
+                    const { error: err1 } = await supabase.from('facturas').insert(toInsert);
+                    if (err1) throw err1;
+                }
+                
+                if (toUpdate.length > 0) {
+                    const { error: err2 } = await supabase.from('facturas').upsert(toUpdate);
+                    if (err2) throw err2;
+                }
+
+                showLoader(false);
+                showToast("¡Fierro! Todo guardado al 100%"); 
+                invoices = []; 
+                renderTable(); 
+                switchTab('history');
+                
+            } catch (error) {
+                showLoader(false);
+                console.error("Valió madre:", error);
+                showToast("Hubo un error al guardar en la nube", "error");
+            }
+        };
+        // ==========================================
+
+        dropzone.onclick = () => fileInput.click();
+        dropzone.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
+        dropzone.ondragover = (e) => e.preventDefault();
+        fileInput.onchange = (e) => handleFiles(e.target.files);
+        document.getElementById('btn-manual').onclick = () => {
+            invoices.push({ id: Math.random().toString(36).substr(2, 9), db_id: null, consecutivo: dbCount + invoices.length + 1, fecha: new Date().toISOString().split('T')[0], productos: [] });
+            renderTable();
+            updateDbCount();
+        };
+        document.getElementById('btn-refresh-history').onclick = loadHistory;
+
+        window.switchTab = (tab) => {
+            document.getElementById('view-scanner').classList.toggle('hidden', tab !== 'scanner');
+            document.getElementById('view-history').classList.toggle('hidden', tab === 'scanner');
+            document.getElementById('tab-btn-scanner').className = tab === 'scanner' ? 'tab-active px-6 py-3 text-sm flex items-center gap-2 rounded-t-lg transition-all' : 'px-6 py-3 text-sm text-slate-400 flex items-center gap-2 rounded-t-lg transition-all hover:text-slate-300';
+            document.getElementById('tab-btn-history').className = tab !== 'scanner' ? 'tab-active px-6 py-3 text-sm flex items-center gap-2 rounded-t-lg transition-all' : 'px-6 py-3 text-sm text-slate-400 flex items-center gap-2 rounded-t-lg transition-all hover:text-slate-300';
+            if (tab === 'history') loadHistory();
+        };
+
+        renderTable();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <!-- Preconnect para carga rápida de CDNs -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador Cliente 3.9 | Clipboard Fix</title>
+    <!-- Tailwind CSS -->
+    <!-- Supabase JS -->
+    <!-- SheetJS para Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+    <!-- Iconos -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <!-- Fuentes -->
+    <link href="https://fonts.googleapis.com/css2?display=swap&family=Roboto+Mono:wght@400;500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .mono-font { font-family: 'Roboto Mono', monospace; }
+        
+        /* TABLA TIPO EXCEL */
+        .excel-grid {
+            border-collapse: separate; 
+            border-spacing: 0;
+            width: 100%;
+            font-size: 11px;
+            color: #334155;
+            background: white;
+            table-layout: auto;
+        }
+        
+        .excel-grid th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 6px 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            border-bottom: 2px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: default;
+        }
+
+        .excel-grid th:hover { background-color: #e2e8f0; }
+
+        .excel-grid td {
+            padding: 4px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            border-right: 1px solid #f1f5f9;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .excel-grid tr:nth-child(even) { background-color: #f8fafc; }
+        html.dark .excel-grid tr:nth-child(even) { background-color: #08080a; }
+        .excel-grid tr:hover td { background-color: #ff5500/10; }
+
+        /* Estilos de Totales (Footer) */
+        .total-row td {
+            background-color: #f1f5f9 !important;
+            color: #ea580c !important;
+            font-weight: 800;
+            font-family: 'Roboto Mono', monospace;
+            border-top: 3px double #f97316;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+        html.dark .total-row td {
+            background-color: #141416 !important;
+            color: #f97316 !important;
+        }
+
+        /* Botón Copiar Columna */
+        .col-copy-btn {
+            float: right;
+            margin-left: 8px;
+            opacity: 0.2;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .excel-grid th:hover .col-copy-btn { opacity: 1; color: #f97316; }
+
+        .num-cell { text-align: right; font-family: 'Roboto Mono', monospace; }
+        .text-cell { text-align: left; }
+        
+        /* Links en tabla */
+        .link-cell a {
+            color: #f97316;
+            text-decoration: underline;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .link-cell a:hover { color: #ea580c; }
+
+        #sidebar { transition: margin-left 0.3s ease-in-out; }
+        .sidebar-hidden { margin-left: -20rem; }
+        
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #000000; }
+        html.light ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #222226; border-radius: 6px; }
+        html.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+        ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+
+        /* Scrollbar especial para las áreas de texto */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222226; border-radius: 3px; }
+        html.light .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
+    </style>
+    <!-- Estilos de Tailwind Compilados por Vite -->
+  <script type="module" crossorigin src="/assets/detalle_despachos_msc-DVseYU0w.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-DztbwT6Q.js">
+  <link rel="modulepreload" crossorigin href="/assets/supabase-D9p2b7RA.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-weG9gO3Z.css">
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-sm bg-white dark:bg-[#000000] text-slate-900 dark:text-slate-100">
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-[#0d0d0d] border-b border-gray-200 dark:border-[#222226] h-14 flex items-center px-4 justify-between shadow-sm z-20 shrink-0">
+        <div class="flex items-center gap-4">
+            <button onclick="toggleSidebar()" class="text-gray-500 hover:text-orange-500 focus:outline-none transition-colors" title="Menú">
+                <i class="fa-solid fa-bars text-xl"></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-r from-orange-600 to-amber-600 text-white p-1.5 rounded shadow-sm text-xs">
+                    <i class="fa-solid fa-layer-group"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-gray-800 dark:text-white leading-tight">Generador <span class="text-orange-500">Cliente 3.9</span></h1>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+             <div id="loader-mini" class="hidden flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-[10px] bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Procesando...
+            </div>
+            <div class="text-right hidden sm:block">
+                <div class="flex items-center justify-end gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-sm"></span>
+                    <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Conectado</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Sidebar -->
+        <aside id="module-sidebar" class="w-80 bg-[#f5f5f5] dark:bg-[#1A1918] border-r border-slate-200 dark:border-[#222226] flex flex-col shadow-xl z-30 shrink-0 h-full transition-colors">
+            <div class="p-4 flex-1 overflow-y-auto custom-scrollbar space-y-5">
+                
+                <!-- Input DIMS -->
+                <div class="bg-white dark:bg-[#1f1f22] p-3 rounded-lg border border-slate-200 dark:border-[#2e2e33] shadow-inner">
+                    <label class="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase flex items-center gap-1 mb-2">
+                        <i class="fa-solid fa-paste text-slate-600 dark:text-slate-400"></i> Pegar DIMS (H1DOC)
+                    </label>
+                    <textarea id="inputInternos" class="w-full h-32 p-2 text-[11px] mono-font border border-slate-300 dark:border-[#2e2e33] rounded focus:ring-1 focus:ring-slate-500 outline-none resize-y bg-white dark:bg-[#1A1918] text-slate-800 dark:text-slate-100 placeholder-slate-400 custom-scrollbar" placeholder="2000138&#10;2000474..."></textarea>
+                </div>
+
+                <!-- Configuración Regional -->
+                <div class="bg-white dark:bg-[#1f1f22] p-3 rounded-lg border border-slate-200 dark:border-[#2e2e33]">
+                    <label class="block text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase mb-3 border-b border-slate-200 dark:border-[#2e2e33] pb-1">
+                        <i class="fa-solid fa-globe mr-1"></i> Configuración Regional
+                    </label>
+                    
+                    <!-- Decimales -->
+                    <div class="mb-3">
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">Decimales:</span>
+                        <div class="flex bg-slate-100 dark:bg-[#1A1918] rounded border border-slate-200 dark:border-[#2e2e33] overflow-hidden p-0.5">
+                            <button onclick="setDecimalSeparator('.')" id="btnDecDot" class="flex-1 py-1 text-[10px] font-bold bg-[#1A1918] dark:bg-white text-white dark:text-[#1A1918] rounded transition-colors shadow-sm">Punto (1.00)</button>
+                            <button onclick="setDecimalSeparator(',')" id="btnDecComma" class="flex-1 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">Coma (1,00)</button>
+                        </div>
+                    </div>
+
+                    <!-- Fechas -->
+                    <div>
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">Fechas:</span>
+                        <div class="flex bg-slate-100 dark:bg-[#1A1918] rounded border border-slate-200 dark:border-[#2e2e33] overflow-hidden p-0.5">
+                            <button onclick="setDateFormat('DD/MM/YYYY')" id="btnDateDMY" class="flex-1 py-1 text-[10px] font-bold bg-[#1A1918] dark:bg-white text-white dark:text-[#1A1918] rounded transition-colors shadow-sm">DD/MM/AAAA</button>
+                            <button onclick="setDateFormat('MM/DD/YYYY')" id="btnDateMDY" class="flex-1 py-1 text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">MM/DD/AAAA</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Contrato -->
+                <div class="flex items-center gap-2 bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-[#2e2e33] p-2 rounded shadow-sm">
+                    <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase w-16">Contrato:</span>
+                    <input type="text" id="inputMesAnio" value="012026" class="flex-1 bg-transparent text-xs mono-font text-center font-bold text-slate-800 dark:text-white outline-none placeholder-slate-400" placeholder="MMYYYY">
+                </div>
+
+                <!-- Selección de Formato -->
+                <div class="bg-white dark:bg-[#1f1f22] border border-slate-200 dark:border-[#2e2e33] p-2.5 rounded shadow-sm space-y-1">
+                    <span class="block text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">Formato Reporte:</span>
+                    <select id="selectFormat" onchange="changeReportFormat(this.value)" class="w-full bg-slate-50 dark:bg-[#1A1918] border border-slate-200 dark:border-[#2e2e33] rounded p-1 text-[11px] font-bold text-slate-800 dark:text-slate-100 outline-none cursor-pointer">
+                        <option value="h1doc">Formato Unificado H1DOC (Copiar/Pegar)</option>
+                        <option value="premium">Formato Premium MSC (Doble Cabecera)</option>
+                    </select>
+                </div>
+
+                <!-- Filtro Verificados -->
+                <div class="bg-white dark:bg-[#1f1f22] p-3 rounded-lg border border-slate-200 dark:border-[#2e2e33] flex items-center justify-between">
+                    <span class="text-[10px] text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wide">Solo Verificadas</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="chkOnlyVerified" class="sr-only peer" onchange="toggleOnlyVerifiedFilter()">
+                        <div class="w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1A1918] dark:peer-checked:bg-white"></div>
+                    </label>
+                </div>
+
+                <!-- Botón Acción -->
+                <button onclick="processData()" class="group w-full bg-[#1A1918] dark:bg-white hover:bg-black dark:hover:bg-slate-200 text-white dark:text-[#1A1918] font-extrabold py-3 px-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 text-xs cursor-pointer">
+                    <i class="fa-solid fa-bolt text-amber-400 group-hover:animate-pulse"></i> 
+                    <span>GENERAR TABLA</span>
+                </button>
+                
+                <!-- Stats -->
+                <div id="statsBox" class="hidden grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                    <div class="bg-emerald-50 p-2 rounded border border-emerald-100 text-center">
+                        <span class="block text-lg font-black text-orange-500 leading-none" id="statFound">0</span>
+                        <span class="text-[9px] font-bold text-orange-600">Encontrados</span>
+                    </div>
+                    <div class="bg-rose-50 p-2 rounded border border-rose-100 text-center">
+                        <span class="block text-lg font-black text-rose-600 leading-none" id="statMissing">0</span>
+                        <span class="text-[9px] font-bold text-rose-700">Faltantes</span>
+                    </div>
+                </div>
+
+                <!-- NUEVO: Contenedor para mostrar la lista de los que no están -->
+                <div id="missingBox" class="hidden mt-2 bg-rose-50 border border-rose-200 p-2 rounded-lg shadow-inner">
+                    <label class="text-[10px] font-bold text-rose-700 uppercase flex items-center gap-1 mb-1">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Datos no encontrados
+                    </label>
+                    <textarea id="missingList" readonly class="w-full h-24 p-2 text-[10px] mono-font border border-rose-300 rounded bg-white text-rose-600 outline-none resize-y custom-scrollbar" placeholder="Aquí saldrán los que faltan..."></textarea>
+                    <button onclick="copyMissing()" class="mt-2 w-full bg-white border border-rose-300 text-rose-600 hover:bg-rose-100 hover:border-rose-400 text-[10px] font-bold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1 shadow-sm cursor-pointer">
+                        <i class="fa-solid fa-copy"></i> Copiar Faltantes
+                    </button>
+                </div>
+
+                <!-- NUEVO: Contenedor para trámites en sistema (mes actual) no pegados en la lista -->
+                <div id="unlistedInSystemBox" class="hidden mt-2 bg-amber-50 border border-amber-200 p-2 rounded-lg shadow-inner">
+                    <label class="text-[10px] font-bold text-amber-800 uppercase flex items-center justify-between mb-1">
+                        <span class="flex items-center gap-1"><i class="fa-solid fa-database text-amber-600"></i> En Sistema (Mes Actual) No Pegados</span>
+                        <span id="unlistedCountBadge" class="bg-amber-200 text-amber-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full">0</span>
+                    </label>
+                    <textarea id="unlistedInSystemList" readonly class="w-full h-24 p-2 text-[10px] mono-font border border-amber-300 rounded bg-white text-amber-900 outline-none resize-y custom-scrollbar" placeholder="Trámites en sistema que no fueron pegados..."></textarea>
+                    <button onclick="copyUnlistedInSystem()" class="mt-2 w-full bg-white border border-amber-300 text-amber-700 hover:bg-amber-100 hover:border-amber-400 text-[10px] font-bold py-1.5 px-2 rounded transition-colors flex items-center justify-center gap-1 shadow-sm cursor-pointer">
+                        <i class="fa-solid fa-copy"></i> Copiar No Pegados del Sistema
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-2 bg-slate-50 border-t border-slate-200 text-center">
+                 <button onclick="window.location.reload()" class="text-[10px] text-slate-400 hover:text-slate-600 font-medium flex items-center justify-center gap-1 mx-auto">
+                    <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                </button>
+            </div>
+        </aside>
+
+        <!-- Area Principal -->
+        <main class="flex-1 flex flex-col bg-slate-50 relative min-w-0 overflow-hidden">
+            <!-- TARJETAS DE SUMATORIAS (Top) -->
+            <div id="summaryCards" class="hidden bg-white border-b border-gray-200 p-3 shrink-0 overflow-x-auto">
+                <div class="flex gap-3 min-w-max">
+                    <!-- Tarjeta: Comisión -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-cyan-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Comisión</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiComision">0.00</span>
+                    </div>
+                    <!-- Tarjeta: ALBO / DAB -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-blue-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">ALBO / DAB</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiAlbo">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Insp. Previa -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-purple-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Insp. Previa</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiIp">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Guías -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-orange-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Guías</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiGuia">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Puertos -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-yellow-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Puertos</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiPuerto">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Otros -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[120px] transition-all hover:border-gray-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Otros</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiOtros">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Total Gastos -->
+                    <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[125px] transition-all hover:border-orange-500/30">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Total Gastos</span>
+                        <span class="text-sm font-black text-slate-800 mono-font mt-1.5" id="kpiTotalGastos">0.00</span>
+                    </div>
+                    <!-- Tarjeta: Gran Total -->
+                    <div class="bg-cyan-50/50 border border-cyan-200 p-2.5 rounded-xl shadow-sm flex flex-col justify-between min-w-[130px] transition-all hover:border-cyan-500/50">
+                        <span class="text-[9px] font-bold text-cyan-850 uppercase tracking-wider">Gran Total</span>
+                        <span class="text-sm font-black text-cyan-700 mono-font mt-1.5" id="kpiGranTotal">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar Tabla -->
+            <div class="h-10 bg-white border-b border-gray-200 flex items-center px-4 justify-between shrink-0">
+                <span id="rowCountBadge" class="hidden bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">0 Carpetas</span>
+                <div class="flex gap-2">
+                    <button onclick="copyTable()" id="btnCopy" class="hidden px-3 py-1 bg-white hover:bg-slate-50 text-slate-700 text-[10px] font-bold rounded border border-slate-300 shadow-sm flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-copy text-blue-500"></i> Copiar Tabla
+                    </button>
+                    <button onclick="downloadExcel()" id="btnExcel" class="hidden px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-[10px] font-bold rounded shadow-sm flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-file-excel"></i> Descargar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor Tabla -->
+            <div class="flex-1 overflow-auto bg-white relative" id="tableContainer">
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none">
+                    <i class="fa-solid fa-table-cells text-4xl mb-2 opacity-50"></i>
+                    <p class="text-xs font-medium">Configura y genera tu reporte</p>
+                </div>
+                <table id="resultTable" class="excel-grid hidden">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot id="tableFoot" class="total-row"></tfoot>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Lógica -->
+</body>
+</html>
