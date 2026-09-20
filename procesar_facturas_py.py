@@ -864,7 +864,30 @@ def sincronizar_a_supabase():
                 registro["detalle_items_json"] = json.loads(registro["detalle_items_json"])
             except Exception:
                 pass
-        supabase.table("facturas_cabecera").upsert(registro).execute()
+        try:
+            supabase.table("facturas_cabecera").upsert(registro).execute()
+        except Exception as e_cab:
+            print(f"⚠️ Aviso al upsert en facturas_cabecera: {e_cab}")
+
+        reg_factura = {
+            "cuf": registro.get("cuf"),
+            "tipo": registro.get("tipo_documento"),
+            "fecha": registro.get("fecha_emision"),
+            "nit": registro.get("nit_emisor"),
+            "nombre": registro.get("razon_social_emisor"),
+            "n_factura": registro.get("numero_factura"),
+            "monto": registro.get("monto_total"),
+            "ref_guia": registro.get("dato_especifico"),
+            "doc_aduanero": registro.get("nro_interno"),
+            "productos": registro.get("detalle_items_texto")
+        }
+        try:
+            supabase.table("facturas").upsert(reg_factura).execute()
+        except Exception:
+            try:
+                supabase.table("facturas").insert(reg_factura).execute()
+            except Exception:
+                pass
 
     cursor.execute("SELECT cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal FROM facturas_detalle")
     cols_det = ["cuf_factura", "codigo_producto", "descripcion", "cantidad", "precio_unitario", "subtotal"]
