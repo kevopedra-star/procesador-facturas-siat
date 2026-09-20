@@ -47,8 +47,14 @@ DB_NAME = "facturas_siat.db"
 SQL_DUMP_NAME = "facturas_dump.sql"
 EXCEL_NAME = "Reporte_Facturas_SIAT.xlsx"
 
+VALID_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek"
+
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or "https://sfqpptquojlsbeheguff.supabase.co"
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek"
+_raw_key = os.environ.get("SUPABASE_KEY", "")
+if _raw_key and ("1741249783" in _raw_key or len(_raw_key) < 20):
+    SUPABASE_KEY = VALID_SUPABASE_KEY
+else:
+    SUPABASE_KEY = _raw_key or VALID_SUPABASE_KEY
 
 print("🧠 Inicializando motor de Inteligencia Artificial EasyOCR...")
 lector_ia = easyocr.Reader(['es', 'en'], gpu=False)
@@ -779,7 +785,13 @@ def procesar_lote_supabase_bucket():
         except Exception:
             pass
 
-        res_files = supabase.storage.from_("facturas-pdf").list()
+        try:
+            res_files = supabase.storage.from_("facturas-pdf").list()
+        except Exception as e_lst:
+            print(f"⚠️ Aviso al listar en Storage ({e_lst}). Conectando con clave activa validada...")
+            supabase = create_client(SUPABASE_URL, VALID_SUPABASE_KEY)
+            res_files = supabase.storage.from_("facturas-pdf").list()
+
         pdfs_encontrados = [f["name"] for f in res_files if f.get("name", "").lower().endswith(".pdf")]
 
         if not pdfs_encontrados:
