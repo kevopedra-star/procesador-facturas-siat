@@ -376,6 +376,7 @@ def guardar_factura_en_bd(datos, metadata_archivo):
 
     conn.commit()
     conn.close()
+    return cuf
 
 
 def escapar_sql(valor):
@@ -814,7 +815,8 @@ def procesar_lote_supabase_bucket():
 
                 if datos and metadata:
                     mostrar_inspeccion_detallada(datos, metadata)
-                    guardar_factura_en_bd(datos, metadata)
+                    cuf_guardado = guardar_factura_en_bd(datos, metadata)
+                    sincronizar_registro_a_supabase(cuf_guardado)
 
                     try:
                         up_url = f"{url}/storage/v1/object/facturas-pdf/terminadas/{file_name}"
@@ -843,6 +845,67 @@ def procesar_lote_supabase_bucket():
 # =====================================================================
 # SINCRONIZACIÓN A SUPABASE
 # =====================================================================
+def sincronizar_registro_a_supabase(cuf):
+    if not SUPABASE_URL or not SUPABASE_KEY or not cuf:
+        return
+    try:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM facturas_cabecera WHERE cuf = ?", (cuf,))
+        cols_cab = [col[0] for col in cursor.description]
+        fila_cab = cursor.fetchone()
+
+        if fila_cab:
+            registro = dict(zip(cols_cab, fila_cab))
+            if registro.get("detalle_items_json"):
+                try:
+                    registro["detalle_items_json"] = json.loads(registro["detalle_items_json"])
+                except Exception:
+                    pass
+            try:
+                supabase.table("facturas_cabecera").upsert(registro).execute()
+            except Exception as e_cab:
+                print(f"⚠️ Aviso al upsert en facturas_cabecera: {e_cab}")
+
+            reg_factura = {
+                "cuf": registro.get("cuf"),
+                "tipo": registro.get("tipo_documento"),
+                "fecha": registro.get("fecha_emision"),
+                "nit": registro.get("nit_emisor"),
+                "nombre": registro.get("razon_social_emisor"),
+                "n_factura": registro.get("numero_factura"),
+                "monto": registro.get("monto_total"),
+                "ref_guia": registro.get("dato_especifico"),
+                "doc_aduanero": registro.get("nro_interno"),
+                "productos": registro.get("detalle_items_texto")
+            }
+            try:
+                supabase.table("facturas").upsert(reg_factura).execute()
+            except Exception:
+                try:
+                    supabase.table("facturas").insert(reg_factura).execute()
+                except Exception:
+                    pass
+
+        cursor.execute("SELECT cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal FROM facturas_detalle WHERE cuf_factura = ?", (cuf,))
+        cols_det = ["cuf_factura", "codigo_producto", "descripcion", "cantidad", "precio_unitario", "subtotal"]
+        filas_det = cursor.fetchall()
+
+        for fila in filas_det:
+            item = dict(zip(cols_det, fila))
+            try:
+                supabase.table("facturas_detalle").insert(item).execute()
+            except Exception:
+                pass
+
+        conn.close()
+        print(f"⚡ Factura {cuf} sincronizada en tiempo real a Supabase DB.")
+    except Exception as e_sync:
+        print(f"⚠️ Aviso al sincronizar registro individual a Supabase: {e_sync}")
+
+
 def sincronizar_a_supabase():
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("⚠️ Variables SUPABASE_URL o SUPABASE_KEY no configuradas. Omitiendo subida a Supabase.")
