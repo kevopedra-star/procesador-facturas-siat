@@ -43,6 +43,28 @@ from pyzbar import pyzbar
 import pytesseract
 from pdf2image import convert_from_path
 from supabase import create_client, Client
+import threading
+
+try:
+    from python_processor.github_service import enviar_factura_a_github
+except ImportError:
+    try:
+        from github_service import enviar_factura_a_github
+    except ImportError:
+        enviar_factura_a_github = None
+
+def _notificar_github_background(pdf_url, nombre_archivo):
+    if not enviar_factura_a_github:
+        return
+    url_final = pdf_url or f"https://sfqpptquojlsbeheguff.supabase.co/storage/v1/object/public/facturas-pdf/{nombre_archivo}"
+    try:
+        threading.Thread(
+            target=enviar_factura_a_github,
+            args=(url_final, nombre_archivo),
+            daemon=True
+        ).start()
+    except Exception:
+        pass
 
 # Configurar Tesseract si estás en Windows (Autodetectar rutas comunes)
 tesseract_paths = [
@@ -437,6 +459,7 @@ def save_to_supabase(client: Client, payload):
             payload_up.pop('consecutivo', None)
             client.table('facturas').update(payload_up).eq('id', existing['id']).execute()
             logger.info(f"ℹ️ La factura N° {payload.get('n_factura')} ya existía en Supabase. Registro actualizado con éxito.")
+            _notificar_github_background(payload.get('codigo_qr'), payload.get('nombre') or f"Factura_{payload.get('n_factura')}.pdf")
             return existing['id']
         except Exception as e_up:
             logger.warning(f"Aviso al actualizar factura existente: {e_up}")
@@ -445,6 +468,7 @@ def save_to_supabase(client: Client, payload):
     try:
         res = client.table('facturas').insert(payload).execute()
         logger.info(f"✔ Guardado con éxito: Factura N°{payload.get('n_factura')} (Monto: {payload.get('monto')})")
+        _notificar_github_background(payload.get('codigo_qr'), payload.get('nombre') or f"Factura_{payload.get('n_factura')}.pdf")
         if res.data and len(res.data) > 0:
             return res.data[0].get('id')
         return True

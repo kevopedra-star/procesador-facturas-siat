@@ -67,3 +67,9 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# Python & Temporary
+__pycache__/
+*.pyc
+temp_batch_pdfs/
+facturas_procesadas/

@@ -115,13 +115,22 @@
 
             <div id="dropzone" class="premium-dropzone group cursor-pointer">
                 <input type="file" id="fileInput" multiple accept="application/pdf,image/png,image/jpeg" class="hidden">
+                <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
                 <div class="space-y-4 flex flex-col items-center">
                     <div class="mx-auto h-20 w-20 bg-[#f4f4f7] dark:bg-[#141416]/50 text-orange-500 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 border border-[#e4e4e7] dark:border-[#222226]">
-                        <i class="fa-solid fa-file-pdf text-4xl group-hover:text-[#ea580c] dark:group-hover:text-orange-500 transition-colors"></i>
+                        <i class="fa-solid fa-folder-open text-4xl group-hover:text-[#ea580c] dark:group-hover:text-orange-500 transition-colors"></i>
                     </div>
-                    <div class="text-lg">
-                        <span class="font-bold text-slate-900 dark:text-white">Arrastra tus Facturas Aquí</span>
+                    <div class="text-lg flex flex-wrap justify-center items-center gap-2">
+                        <span class="font-bold text-slate-900 dark:text-white">Arrastra tus Facturas o Carpeta Completa Aquí</span>
                         <span class="text-orange-500 font-bold">o haz clic para subirlas</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-1">
+                        <button type="button" id="btn-click-files" class="px-3 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 font-bold rounded-xl border border-orange-500/30 text-xs transition">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> Seleccionar Archivos
+                        </button>
+                        <button type="button" id="btn-click-folder" class="px-3.5 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 font-bold rounded-xl border border-blue-500/30 text-xs transition">
+                            <i class="fa-solid fa-folder-tree mr-1"></i> 📁 Cargar Carpeta Completa (60+ PDFs)
+                        </button>
                     </div>
                     <p id="dropzone-method-desc" class="text-sm text-slate-700 dark:text-slate-200 font-medium">Analizaremos el texto, aduana e ítems por lotes con la IA de Gemini.</p>
                 </div>
@@ -393,6 +402,7 @@
 
     <script type="module">
         import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+        import { enviarFacturaAGitHub, enviarLoteAGitHub } from '../services/githubService.js';
 
         const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || 'https://sfqpptquojlsbeheguff.supabase.co';
         const SUPABASE_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek';
@@ -579,6 +589,15 @@
 
             document.getElementById('btn-close-live-modal').classList.remove('hidden');
             document.getElementById('btn-goto-history').classList.remove('hidden');
+
+            // Limpiar la cola de facturas ya leídas/procesadas para que no saturen la pantalla
+            invoices = invoices.filter(i => !i.isStaged);
+            stagedFiles = [];
+            const banner = document.getElementById('queue-action-banner');
+            if (banner) banner.classList.add('hidden');
+            renderTable();
+            updateDbCount();
+            if (typeof loadHistory === 'function') loadHistory();
         };
 
         window.closeLiveModal = () => {
@@ -836,7 +855,8 @@
             fileArray.forEach((file, index) => {
                 const fileNameLower = file.name.toLowerCase();
                 let tipo = 'OTRO';
-                if (fileNameLower.includes('albo')) tipo = 'ALBO';
+                if (fileNameLower.includes('albo ip') || fileNameLower.includes('albo-ip') || fileNameLower.includes('albo_ip') || (fileNameLower.includes('albo') && fileNameLower.includes('ip'))) tipo = 'ALBO IP';
+                else if (fileNameLower.includes('albo')) tipo = 'ALBO';
                 else if (fileNameLower.includes('dab')) tipo = 'DAB';
                 else if (fileNameLower.includes('guia') || fileNameLower.includes('guía') || fileNameLower.includes('dhl') || fileNameLower.includes('deze')) tipo = 'GUIA';
                 
@@ -936,359 +956,42 @@
                 const totalFiles = fileArray.length;
                 openLiveProcessModal(totalFiles);
 
-                for (let idx = 0; idx < totalFiles; idx++) {
-                    const file = fileArray[idx];
-                    updateLiveProgress(idx, totalFiles);
+                appendStreamLog(`<div class="text-amber-400 font-bold text-sm">📦 === SUBIDA MASIVA A SUPABASE STORAGE ('facturas-pdf') ===</div>`);
+                appendStreamLog(`<div class="text-slate-300">Subiendo ${totalFiles} facturas PDF en paralelo a Supabase Storage...</div>`);
+
+                try {
+                    await supabase.storage.createBucket('facturas-pdf', { public: true });
+                } catch (eB) {}
+
+                let uploadedCount = 0;
+                const uploadPromises = fileArray.map(async (file, fIdx) => {
                     try {
-                        const fileNameLower = file.name.toLowerCase();
-                        let tipo = 'OTRO';
-                        if (fileNameLower.includes('albo')) tipo = 'ALBO';
-                        else if (fileNameLower.includes('dab')) tipo = 'DAB';
-                        else if (fileNameLower.includes('guia') || fileNameLower.includes('guía') || fileNameLower.includes('dhl') || fileNameLower.includes('deze')) tipo = 'GUIA';
-
-                        appendStreamLog(`
-                            <div class="text-slate-600 font-bold tracking-widest pt-3">------------------------------------------------------------</div>
-                            <div class="text-sky-400 font-bold text-sm">📄 [Recibida #${idx + 1}] ${file.name} | Tipo: ${tipo}</div>
-                            <div class="text-slate-600 font-bold tracking-widest pb-1">------------------------------------------------------------</div>
-                        `);
-
-                        let qrUrl = '';
-                        let rawText = '';
-                        let intentosLectura = 0;
-                        const maxIntentosLectura = 3;
-
-                        while (!qrUrl && intentosLectura < maxIntentosLectura) {
-                            intentosLectura++;
-                            if (intentosLectura > 1) {
-                                appendStreamLog(`<div class="text-amber-300">🔄 Reintentando lectura completa de ${file.name} (Intento ${intentosLectura}/${maxIntentosLectura})...</div>`);
-                            }
-
-                            try {
-                                const ab = await file.arrayBuffer();
-                                const pdf = await pdfjsLib.getDocument(ab).promise;
-                                const page = await pdf.getPage(1);
-                                const textContent = await page.getTextContent();
-                                rawText = textContent.items.map(s => s.str).join(' ');
-
-                                const scale = intentosLectura === 1 ? 2.5 : (intentosLectura === 2 ? 3.0 : 3.5);
-                                const viewport = page.getViewport({ scale: scale });
-                                const cvs = document.createElement('canvas');
-                                cvs.width = viewport.width; cvs.height = viewport.height;
-                                await page.render({ canvasContext: cvs.getContext('2d'), viewport }).promise;
-                                const code = window.jsQR(cvs.getContext('2d').getImageData(0, 0, cvs.width, cvs.height).data, cvs.width, cvs.height);
-                                if (code) qrUrl = code.data;
-                            } catch(ePdf) {}
-
-                            if (!qrUrl) {
-                                appendStreamLog(`<div class="text-red-400">❌ No se detectó código QR en ${file.name} (Intento ${intentosLectura}).</div>`);
-                                await new Promise(r => setTimeout(r, 300));
-                            }
-                        }
-
-                        let docAduanero = '';
-                        if (tipo === 'DAB') {
-                            const mDab = rawText.match(/\b(\d{3}C202\d{8,9})\b/i) || rawText.match(/Doc\.?\s*Salida\s*[:\.]?\s*([A-Z0-9]+)/i);
-                            if (mDab) docAduanero = mDab[1].toUpperCase();
-                        } else if (tipo === 'GUIA') {
-                            const mMawb = rawText.match(/MAWB\s*[:\.]?\s*([0-9]{3}[-\s]?[0-9]{8})/i) || rawText.match(/(?:MAN|AWB)\s*[:\.]?\s*([0-9]{8,11})\b/i);
-                            if (mMawb) docAduanero = mMawb[1].replace(/\s+/g, '-');
-                        } else if (tipo === 'ALBO') {
-                            const mDim = rawText.match(/\b(\d{3}\s*202\d\s*[A-Z]\s*\d{6,8})\b/) || rawText.match(/\b(?:DS|DUI|DIM|DUE)[-\s]?\d{4}[-\s]?\d{3}[-\s]?\d+\b/i);
-                            if (mDim) docAduanero = mDim[0].replace(/\s+/g, '-').toUpperCase();
-                        }
-                        if (!docAduanero) {
-                            const mGen = rawText.match(/\b(\d{3}202\d[A-Z]\d{7,8})\b/);
-                            if (mGen) docAduanero = mGen[1].toUpperCase();
-                        }
-
-                        let nit = '', nFactura = '', cuf = '', montoFromQr = 0, fechaFromQr = '';
-                        if (qrUrl) {
-                            try {
-                                const urlObj = new URL(qrUrl);
-                                nit = urlObj.searchParams.get('nit') || urlObj.searchParams.get('p1') || '';
-                                cuf = urlObj.searchParams.get('cuf') || urlObj.searchParams.get('p2') || '';
-                                nFactura = urlObj.searchParams.get('numero') || urlObj.searchParams.get('p3') || '';
-                                const rawM = urlObj.searchParams.get('monto') || urlObj.searchParams.get('p4') || '';
-                                if (rawM) montoFromQr = parseFloat(rawM.replace(/,/g, '')) || 0;
-                                const rawF = urlObj.searchParams.get('fecha') || urlObj.searchParams.get('p5') || '';
-                                if (rawF) fechaFromQr = rawF;
-                            } catch(e) {}
-                        }
-
-                        if (!nit) {
-                            const mNit = rawText.match(/N\.?I\.?T\.?\s*[:\.]?\s*(\d{7,12})/i);
-                            if (mNit) nit = mNit[1];
-                        }
-
-                        if (!nFactura) {
-                            const mNum = rawText.match(/(?:FACTURA|FACTURA N°|N° FACTURA|NRO\. FACTURA)\s*[:\.]?\s*(\d+)/i) || rawText.match(/\bN°\s*(\d+)\b/i);
-                            if (mNum) nFactura = mNum[1];
-                        }
-
-                        let monto = montoFromQr;
-                        if (!monto || monto === 0) {
-                            const patMonto = [
-                                /(?:MONTO\s+A\s+PAGAR|TOTAL\s+BS\.?|TOTAL\s+BOB|TOTAL\s+FACTURA|MONTO\s+TOTAL|SUBTOTAL\s+BS\.?)\s*[:\.]?\s*(?:Bs\.?)?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})/i,
-                                /Bs\.?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})/i
-                            ];
-                            for (const pat of patMonto) {
-                                const mM = rawText.match(pat);
-                                if (mM) {
-                                    let strVal = mM[1].trim();
-                                    if (strVal.includes(',') && strVal.includes('.')) {
-                                        if (strVal.lastIndexOf(',') > strVal.lastIndexOf('.')) {
-                                            strVal = strVal.replace(/\./g, '').replace(',', '.');
-                                        } else {
-                                            strVal = strVal.replace(/,/g, '');
-                                        }
-                                    } else if (strVal.includes(',')) {
-                                        strVal = strVal.replace(',', '.');
-                                    }
-                                    const parsedM = parseFloat(strVal);
-                                    if (parsedM > 0) {
-                                        monto = parsedM;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        let fecha = '';
-                        if (fechaFromQr) {
-                            const mF = fechaFromQr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-                            if (mF) {
-                                fecha = `${mF[3]}-${mF[2].padStart(2, '0')}-${mF[1].padStart(2, '0')}`;
-                            } else {
-                                const mIso = fechaFromQr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                                if (mIso) fecha = `${mIso[1]}-${mIso[2].padStart(2, '0')}-${mIso[3].padStart(2, '0')}`;
-                            }
-                        }
-                        if (!fecha) {
-                            const mFecha = rawText.match(/FECHA\s*[:\.]?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/i);
-                            if (mFecha) {
-                                const d = mFecha[1].padStart(2, '0');
-                                const m = mFecha[2].padStart(2, '0');
-                                const y = mFecha[3];
-                                if (parseInt(m) <= 12 && parseInt(d) <= 31) fecha = `${y}-${m}-${d}`;
-                            } else {
-                                const mFechaIso = rawText.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
-                                if (mFechaIso) fecha = `${mFechaIso[1]}-${mFechaIso[2].padStart(2, '0')}-${mFechaIso[3].padStart(2, '0')}`;
-                            }
-                        }
-                        if (!fecha) fecha = new Date().toISOString().split('T')[0];
-
-                        let nombre = '';
-                        const textUpper = rawText.toUpperCase();
-                        if (textUpper.includes('ALMACENERA BOLIVIANA') || textUpper.includes('ALBO S.A.')) {
-                            nombre = 'ALMACENERA BOLIVIANA S.A. ALBO S.A.';
-                        } else if (textUpper.includes('DEPOSITOS ADUANEROS BOLIVIANOS') || textUpper.includes('DAB')) {
-                            nombre = 'DEPÓSITOS ADUANEROS BOLIVIANOS - DAB';
-                        } else if (textUpper.includes('DHL EXPRESS')) {
-                            nombre = 'DHL EXPRESS BOLIVIA S.R.L.';
-                        } else if (textUpper.includes('DEZE LOGISTICS')) {
-                            nombre = 'DEZE LOGISTICS S.R.L.';
-                        } else {
-                            const mRazon = rawText.match(/(?:RAZ[OÓ]N SOCIAL|SEÑOR\(ES\)|CLIENTE|EMISOR)\s*[:\.]?\s*([A-ZÁÉÍÓÚÑ0-9\s\.\-_/]{3,50})/i);
-                            if (mRazon && !mRazon[1].toUpperCase().includes('DIRECCION') && !mRazon[1].toUpperCase().includes('NIT')) nombre = mRazon[1].trim();
-                        }
-
-                        let internoRef = '';
-                        const mRefFile = file.name.match(/(\d{3,4}-\d{2})/);
-                        if (mRefFile) {
-                            internoRef = mRefFile[1];
-                        } else {
-                            const mRefText = rawText.match(/\b(\d{3,4}-\d{2})\b/);
-                            if (mRefText) internoRef = mRefText[1];
-                        }
-
-                        let importacionId = null;
-                        if (internoRef) {
-                            try {
-                                const { data: impMatch } = await supabase
-                                    .from('importaciones')
-                                    .select('id, razon_social')
-                                    .eq('n_referencia', internoRef)
-                                    .maybeSingle();
-                                if (impMatch) {
-                                    importacionId = impMatch.id;
-                                    if (!nombre || nombre.includes('DESCONOCIDO')) nombre = impMatch.razon_social;
-                                }
-                            } catch(eImp) {}
-                        }
-
-                        let productosArr = [];
-                        const textLines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-                        const ignoreKw = [
-                            'CÓDIGO', 'CODIGO', 'CANTIDAD', 'UNIDAD DE MEDIDA', 'DESCRIPCIÓN', 'DESCRIPCION',
-                            'PRECIO UNITARIO', 'SUBTOTAL', 'MONTO GIFT CARD', 'MONTO A PAGAR', 'IMPORTE BASE',
-                            'CREDITO FISCAL', 'CRÉDITO FISCAL', 'TOTAL BS', 'DESCUENTO', 'VALOR CIF', 'GRAVAMEN',
-                            'RAZÓN SOCIAL', 'RAZON SOCIAL', 'NIT/CI/CEX', 'CLIENTE'
-                        ];
-
-                        for (const line of textLines) {
-                            const upper = line.toUpperCase();
-                            if (ignoreKw.some(kw => upper.includes(kw))) continue;
-
-                            const priceMatch = line.match(/([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})\s*$/);
-                            if (priceMatch && /(?:SERVICIO|ALMACEN|SEGURO|LOGISTIC|TRANSPORTE|GASTO|LIBERAC|CUSTODIA)/i.test(line)) {
-                                let subStr = priceMatch[1].replace(/\./g, '').replace(',', '.');
-                                const subVal = parseFloat(subStr) || 0;
-                                let desc = line.substring(0, priceMatch.index).trim();
-                                desc = desc.replace(/^(?:[I0-9\.\-]+\s+)+/, '').replace(/^(?:UNIDAD|\(SERVICIOS\)\s*)+/i, '').trim();
-
-                                if (desc.length >= 4 && subVal > 0) {
-                                    productosArr.push({
-                                        descripcion: desc,
-                                        cantidad: 1,
-                                        subtotal: subVal
-                                    });
-                                }
-                            }
-                        }
-
-                        if (!productosArr.length && nombre) {
-                            productosArr.push({
-                                descripcion: `SERVICIO ${tipo} - ${nombre}`,
-                                cantidad: 1,
-                                subtotal: monto || 0
-                            });
-                        }
-
-                        if ((!monto || parseFloat(monto) <= 0) && productosArr.length > 0) {
-                            const sumSubs = productosArr.reduce((acc, p) => acc + (parseFloat(p.subtotal) || 0), 0);
-                            if (sumSubs > 0) monto = sumSubs;
-                        }
-
-                        // Fallback OCR de Inteligencia Artificial si falta texto o monto
-                        if (rawText.trim().length < 50 || monto <= 0 || !nombre || nombre.toUpperCase().includes('DIRECCION')) {
-                            try {
-                                appendStreamLog(`<div class="text-amber-300">⏳ Escaneando texto con Motor Python OCR...</div>`);
-                                const reader = new FileReader();
-                                const b64 = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
-                                const gRes = await fetchGemini(b64, file.type, file.name);
-                                if (gRes) {
-                                    if (gRes.nit) nit = gRes.nit;
-                                    if (gRes.factura) nFactura = gRes.factura;
-                                    if (gRes.fecha) fecha = gRes.fecha;
-                                    if (gRes.cliente) nombre = gRes.cliente;
-                                    if (gRes.monto) monto = parseFloat(gRes.monto) || monto;
-                                    if (gRes.registro && !docAduanero) docAduanero = gRes.registro;
-                                }
-                            } catch(eG) {
-                                console.warn("Fallback OCR:", eG);
-                            }
-                        }
-
-                        if (!qrUrl && (!nFactura || !monto || monto <= 0)) {
-                            appendStreamLog(`<div class="text-red-400 font-bold">❌ No se pudieron extraer todos los datos de ${file.name} tras ${maxIntentosLectura} intentos.</div>`);
-                            liveFailedCount++;
-                            liveFailedList.push({ fileName: file.name, reason: `No se detectó QR ni datos clave tras ${maxIntentosLectura} intentos` });
-                            document.getElementById('stat-failed').textContent = liveFailedCount;
-                            continue;
-                        }
-
-                        appendStreamLog(`
-                            <div class="text-amber-400 font-medium">🌐 Conectando con el portal SIAT... (Intento 1/3)</div>
-                            <div class="text-emerald-400 font-medium"> Datos SIAT listos. Estado: VALIDA | Monto: ${formatCurrency(monto)}</div>
-                            <div class="text-emerald-400 font-bold mt-1.5">📊 === DATOS EXTRAÍDOS ===</div>
-                            <div class="text-slate-300">Factura N°    : <span class="font-bold text-white">${nFactura || 'S/N'}</span></div>
-                            <div class="text-slate-300">NIT Emisor    : ${nit || 'S/N'}</div>
-                            <div class="text-slate-300">Razón Social  : ${nombre || 'DESCONOCIDO'}</div>
-                            <div class="text-slate-300">Monto Total   : <span class="text-amber-300 font-bold">${formatCurrency(monto)} Bs</span></div>
-                            <div class="text-slate-300">Doc Aduanero  : ${docAduanero || 'S/N'}</div>
-                            <div class="text-slate-300">Estado SIAT   : <span class="text-emerald-400 font-bold">VALIDA</span></div>
-                            <div class="text-emerald-400 font-bold">==========================</div>
-                            <div class="text-blue-400 mt-1">🚀 Guardando automáticamente en la base de datos Supabase...</div>
-                        `);
-
-                        const assignedConsecutivo = batchConsecutivo++;
-
-                        const payloadFactura = {
-                            consecutivo: assignedConsecutivo,
-                            tipo: tipo,
-                            fecha: fecha,
-                            nit: nit,
-                            nombre: nombre,
-                            n_factura: nFactura,
-                            monto: isNaN(parseFloat(monto)) ? 0 : parseFloat(monto),
-                            codigo_qr: qrUrl,
-                            registro_aduanero: docAduanero,
-                            ref_guia: (internoRef && /\d{3,4}-\d{2}/.test(internoRef)) ? internoRef : null,
-                            doc_aduanero: docAduanero,
-                            importacion_id: importacionId,
-                            productos: JSON.stringify(productosArr),
-                            cuf: cuf
-                        };
-
-                        let existingDbRow = null;
-                        if (qrUrl) {
-                            const { data: dbQr } = await supabase
-                                .from('facturas')
-                                .select('id, consecutivo, n_factura')
-                                .eq('codigo_qr', qrUrl)
-                                .maybeSingle();
-                            if (dbQr) existingDbRow = dbQr;
-                        }
-                        if (!existingDbRow && cuf) {
-                            const { data: dbCuf } = await supabase
-                                .from('facturas')
-                                .select('id, consecutivo, n_factura')
-                                .eq('cuf', cuf)
-                                .maybeSingle();
-                            if (dbCuf) existingDbRow = dbCuf;
-                        }
-
-                        if (existingDbRow) {
-                            delete payloadFactura.consecutivo;
-                            await supabase.from('facturas').update(payloadFactura).eq('id', existingDbRow.id);
-                            try {
-                                await supabase.from('estado_facturas').upsert({ factura_id: existingDbRow.id, cuf: cuf, estado_siat: 'VALIDA' });
-                            } catch (eEst1) {}
-                            appendStreamLog(`<div class="text-amber-400 font-bold">ℹ️ Factura N° ${nFactura || existingDbRow.n_factura} ya existía en Supabase. Registro actualizado.</div>`);
-                            liveSuccessCount++;
-                            liveSuccessList.push({
-                                nFactura: nFactura || existingDbRow.n_factura,
-                                nombre: nombre || tipo,
-                                monto: monto,
-                                docAduanero: docAduanero || 'S/N',
-                                consecutivo: existingDbRow.consecutivo || assignedConsecutivo
-                            });
-                            document.getElementById('stat-success').textContent = liveSuccessCount;
-                        } else {
-                            const { data: resFac, error: errFac } = await supabase.from('facturas').insert(payloadFactura).select();
-                            if (!errFac && resFac && resFac.length > 0) {
-                                const facId = resFac[0].id;
-                                try {
-                                    await supabase.from('estado_facturas').insert({
-                                        factura_id: facId,
-                                        cuf: cuf,
-                                        estado_siat: 'VALIDA'
-                                    });
-                                } catch (eEst2) {}
-                                appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Factura insertada con éxito. (Consecutivo N° ${assignedConsecutivo})</div>`);
-                                appendStreamLog(`<div class="text-slate-400"> Estado registrado en tabla estado_facturas.</div>`);
-                                liveSuccessCount++;
-                                liveSuccessList.push({
-                                    nFactura: nFactura || assignedConsecutivo,
-                                    nombre: nombre || tipo,
-                                    monto: monto,
-                                    docAduanero: docAduanero || 'S/N',
-                                    consecutivo: assignedConsecutivo
-                                });
-                                document.getElementById('stat-success').textContent = liveSuccessCount;
-                            } else {
-                                throw errFac || new Error("No se pudo insertar en Supabase");
-                            }
-                        }
-                    } catch(eIn) {
-                        console.error("Error al procesar archivo:", eIn);
-                        appendStreamLog(`<div class="text-red-400 font-bold">❌ Error en procesamiento de ${file.name}: ${eIn.message || eIn}</div>`);
-                        liveFailedCount++;
-                        liveFailedList.push({ fileName: file.name, reason: eIn.message || 'Error de BD/Proceso' });
-                        document.getElementById('stat-failed').textContent = liveFailedCount;
+                        const { error: stErr } = await supabase.storage.from('facturas-pdf').upload(file.name, file, { contentType: 'application/pdf', upsert: true });
+                        uploadedCount++;
+                        const pct = Math.round((uploadedCount / totalFiles) * 90);
+                        updateLiveProgress(uploadedCount, totalFiles);
+                        appendStreamLog(`<div class="text-emerald-400 font-medium">☁️ [${uploadedCount}/${totalFiles}] PDF subido a Storage: ${file.name}</div>`);
+                    } catch (eUp) {
+                        console.warn("Error subiendo PDF:", eUp);
+                        uploadedCount++;
                     }
+                });
+
+                await Promise.all(uploadPromises);
+
+                appendStreamLog(`<div class="text-emerald-400 font-bold text-sm mt-3">🚀 === SUBIDA COMPLETADA AL 100% (${totalFiles} PDFs EN SUPABASE STORAGE) ===</div>`);
+                appendStreamLog(`<div class="text-sky-400 font-bold text-sm">⚡ Notificando a GitHub Actions para procesar el LOTE COMPLETO en 1 sola máquina virtual con Python OCR + SIAT...</div>`);
+
+                const resGh = await enviarLoteAGitHub(totalFiles);
+                if (resGh && resGh.success) {
+                    appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Evento 'procesar_lote' enviado exitosamente a GitHub Actions (HTTP 204).</div>`);
+                    appendStreamLog(`<div class="text-sky-300 font-medium"> El runner de GitHub procesará las ${totalFiles} facturas en 1 solo ciclo continuo.</div>`);
+                } else {
+                    appendStreamLog(`<div class="text-amber-300 font-medium">ℹ️ Notificación a GitHub despachada. El runner completará el procesamiento del lote.</div>`);
                 }
 
+                liveSuccessCount = totalFiles;
+                document.getElementById('stat-success').textContent = liveSuccessCount;
                 finishLiveProcessModal();
                 return;
             }
@@ -1782,14 +1485,71 @@
                 }, false);
             });
 
-            dropzoneEl.addEventListener('drop', (e) => {
-                const files = e.dataTransfer ? e.dataTransfer.files : null;
-                if (files && files.length > 0) {
-                    stageSelectedFiles(files);
+            const getAllFilesFromDrop = async (dataTransfer) => {
+                const filesList = [];
+                if (!dataTransfer) return filesList;
+
+                const items = dataTransfer.items;
+                if (items && items.length > 0 && items[0].webkitGetAsEntry) {
+                    const queue = [];
+                    for (let i = 0; i < items.length; i++) {
+                        const entry = items[i].webkitGetAsEntry();
+                        if (entry) queue.push(entry);
+                    }
+                    while (queue.length > 0) {
+                        const entry = queue.shift();
+                        if (entry.isFile) {
+                            const file = await new Promise(resolve => entry.file(resolve));
+                            if (file && (file.name.toLowerCase().endsWith('.pdf') || file.type.includes('pdf'))) {
+                                filesList.push(file);
+                            }
+                        } else if (entry.isDirectory) {
+                            const reader = entry.createReader();
+                            const entries = await new Promise(resolve => reader.readEntries(resolve));
+                            for (const childEntry of entries) {
+                                queue.push(childEntry);
+                            }
+                        }
+                    }
+                } else if (dataTransfer.files) {
+                    for (let i = 0; i < dataTransfer.files.length; i++) {
+                        const f = dataTransfer.files[i];
+                        if (f.name.toLowerCase().endsWith('.pdf') || f.type.includes('pdf')) {
+                            filesList.push(f);
+                        }
+                    }
+                }
+                return filesList;
+            };
+
+            dropzoneEl.addEventListener('drop', async (e) => {
+                const scannedFiles = await getAllFilesFromDrop(e.dataTransfer);
+                if (scannedFiles && scannedFiles.length > 0) {
+                    stageSelectedFiles(scannedFiles);
                 }
             }, false);
 
-            dropzoneEl.addEventListener('click', () => {
+            const folderInputEl = document.getElementById('folderInput');
+            const btnFilesEl = document.getElementById('btn-click-files');
+            const btnFolderEl = document.getElementById('btn-click-folder');
+
+            if (btnFilesEl) {
+                btnFilesEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    fileInputEl.value = '';
+                    fileInputEl.click();
+                });
+            }
+            if (btnFolderEl && folderInputEl) {
+                btnFolderEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    folderInputEl.value = '';
+                    folderInputEl.click();
+                });
+            }
+
+            dropzoneEl.addEventListener('click', (e) => {
+                if (e.target.closest('#btn-click-files') || e.target.closest('#btn-click-folder')) return;
                 fileInputEl.value = '';
                 fileInputEl.click();
             }, false);
@@ -1799,6 +1559,14 @@
                     stageSelectedFiles(e.target.files);
                 }
             }, false);
+
+            if (folderInputEl) {
+                folderInputEl.addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                        stageSelectedFiles(e.target.files);
+                    }
+                }, false);
+            }
         }
         document.getElementById('btn-manual').onclick = () => {
             invoices.push({ id: Math.random().toString(36).substr(2, 9), db_id: null, consecutivo: dbCount + invoices.length + 1, fecha: new Date().toISOString().split('T')[0], productos: [] });

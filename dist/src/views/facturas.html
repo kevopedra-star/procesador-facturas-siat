@@ -48,9 +48,9 @@
             border-width: 2px !important;
         }
     </style>
-  <script type="module" crossorigin src="/assets/facturas-CLeIL6gX.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/style-dROXI-5y.js">
-  <link rel="stylesheet" crossorigin href="/assets/style-DfE0Qqwf.css">
+  <script type="module" crossorigin src="/assets/facturas-xvfgkfNo.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/style-EpyL27_D.js">
+  <link rel="stylesheet" crossorigin href="/assets/style-DskqWbjI.css">
 </head>
 
 <body class="bg-[#f4f4f7] dark:bg-[#0c0c0e] text-[#142a27] dark:text-[#ffffff] min-h-screen flex flex-col font-sans transition-colors duration-300">
@@ -117,13 +117,22 @@
 
             <div id="dropzone" class="premium-dropzone group cursor-pointer">
                 <input type="file" id="fileInput" multiple accept="application/pdf,image/png,image/jpeg" class="hidden">
+                <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
                 <div class="space-y-4 flex flex-col items-center">
                     <div class="mx-auto h-20 w-20 bg-[#f4f4f7] dark:bg-[#141416]/50 text-orange-500 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 border border-[#e4e4e7] dark:border-[#222226]">
-                        <i class="fa-solid fa-file-pdf text-4xl group-hover:text-[#ea580c] dark:group-hover:text-orange-500 transition-colors"></i>
+                        <i class="fa-solid fa-folder-open text-4xl group-hover:text-[#ea580c] dark:group-hover:text-orange-500 transition-colors"></i>
                     </div>
-                    <div class="text-lg">
-                        <span class="font-bold text-slate-900 dark:text-white">Arrastra tus Facturas Aquí</span>
+                    <div class="text-lg flex flex-wrap justify-center items-center gap-2">
+                        <span class="font-bold text-slate-900 dark:text-white">Arrastra tus Facturas o Carpeta Completa Aquí</span>
                         <span class="text-orange-500 font-bold">o haz clic para subirlas</span>
+                    </div>
+                    <div class="flex items-center gap-2 pt-1">
+                        <button type="button" id="btn-click-files" class="px-3 py-1.5 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 font-bold rounded-xl border border-orange-500/30 text-xs transition">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> Seleccionar Archivos
+                        </button>
+                        <button type="button" id="btn-click-folder" class="px-3.5 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 font-bold rounded-xl border border-blue-500/30 text-xs transition">
+                            <i class="fa-solid fa-folder-tree mr-1"></i> 📁 Cargar Carpeta Completa (60+ PDFs)
+                        </button>
                     </div>
                     <p id="dropzone-method-desc" class="text-sm text-slate-700 dark:text-slate-200 font-medium">Analizaremos el texto, aduana e ítems por lotes con la IA de Gemini.</p>
                 </div>

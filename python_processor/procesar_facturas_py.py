@@ -3,38 +3,36 @@
 
 """
 =============================================================================
-PROCESADOR AUTOMÁTICO DE FACTURAS Y SIAT (PYTHON + SUPABASE)
+PROCESADOR PROFESIONAL DE FACTURAS SIAT EN PDF (SISTEMA DE EXTRACCIÓN CON 5 REINTENTOS)
 =============================================================================
-Este script procesa facturas en PDF, lee el QR con filtros avanzados de OpenCV,
-extrae el Documento Aduanero (DAB, GUIA, ALBO), consulta el portal SIAT de Impuestos
-Nacionales con reintentos automáticos si falla la conexión, y realiza un Upsert
-en Supabase para evitar errores de duplicidad (uq_facturas_codigo_qr / 23505).
+Mantiene la estructura oficial del sistema, incorporando un mecanismo robusto de 
+hasta 5 reintentos progresivos por factura cuando algún dato (QR, SIAT o dato específico)
+no es detectado en la primera lectura.
 =============================================================================
 """
 
 import os
 import sys
-import re
-import time
-import json
-from urllib.parse import urlparse, parse_qs
-
-# Reconfigurar salida de consola a UTF-8 para evitar UnicodeEncodeError en Windows
-if hasattr(sys.stdout, 'reconfigure'):
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
-
-import pymupdf
 import cv2
+import time
+import re
+import json
+import sqlite3
+import shutil
 import numpy as np
-from pyzbar.pyzbar import decode
+import fitz  # PyMuPDF
+import easyocr
+from datetime import datetime
+import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
-import easyocr
-from supabase import create_client, Client
+
+try:
+    from pyzbar.pyzbar import decode as decode_zbar
+except Exception:
+    decode_zbar = None
+
+from openpyxl.styles import PatternFill
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -43,748 +41,887 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from supabase import create_client, Client
 
-# =============================================================================
-# CONFIGURACIÓN Y CREDENCIALES DE SUPABASE
-# =============================================================================
-def load_env_credentials():
-    """Carga credenciales del archivo .env del proyecto"""
-    env = {}
-    possible_paths = [
-        os.path.join(os.path.dirname(__file__), '..', '.env'),
-        os.path.join(os.path.dirname(__file__), '.env'),
-        '.env'
-    ]
-    for env_path in possible_paths:
-        if os.path.exists(env_path):
-            with open(env_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, val = line.split('=', 1)
-                        env[key.strip()] = val.strip()
-            break
-    return env
+DB_NAME = "facturas_siat.db"
+SQL_DUMP_NAME = "facturas_dump.sql"
+EXCEL_NAME = "Reporte_Facturas_SIAT.xlsx"
 
-env_vars = load_env_credentials()
-SUPABASE_URL = os.environ.get("SUPABASE_URL") or env_vars.get("VITE_SUPABASE_URL") or env_vars.get("SUPABASE_URL") or "https://sfqpptquojlsbeheguff.supabase.co"
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or env_vars.get("VITE_SUPABASE_ANON_KEY") or env_vars.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek"
+SUPABASE_URL = os.environ.get("SUPABASE_URL") or "https://sfqpptquojlsbeheguff.supabase.co"
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDk3ODMsImV4cCI6MjA1NjgyNTc4M30.4qFstq4_k24kQyqNfS_b6QcM_G4S_Q0S1J3-2_S0t0t"
 
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-except Exception as e_sup:
-    print(f"⚠️ Error al conectar con Supabase: {e_sup}")
-    supabase = None
+print("🧠 Inicializando motor de Inteligencia Artificial EasyOCR...")
+lector_ia = easyocr.Reader(['es', 'en'], gpu=False)
 
-print("⏳ Cargando motor OCR de EasyOCR...")
-lector_ocr = easyocr.Reader(['es', 'en'], gpu=False)
 
-# =============================================================================
-# FUNCIONES AUXILIARES DE LECTURA Y CONVERSIÓN
-# =============================================================================
+# =====================================================================
+# 1. VISIÓN ARTIFICIAL Y PARSEO CON REINTENTOS PROGRESIVOS
+# =====================================================================
+def extraer_datos_nombre_archivo(nombre_archivo):
+    nombre_limpio = os.path.splitext(nombre_archivo)[0]
+    partes = nombre_limpio.split()
+    nom_upper = nombre_archivo.upper()
 
-def determinar_tipo(nombre_archivo):
-    nom = nombre_archivo.lower()
-    if "albo" in nom:
-        return "ALBO"
-    elif "dab" in nom:
-        return "DAB"
-    elif "guia" in nom or "guía" in nom or "dhl" in nom or "deze" in nom:
-        return "GUIA"
-    return "OTRO"
+    tipo_doc = "OTRO"
+    if "ALBO IP" in nom_upper or "ALBO-IP" in nom_upper or "ALBO_IP" in nom_upper or ("ALBO" in nom_upper and "IP" in nom_upper):
+        tipo_doc = "ALBO IP"
+    elif "ALBO" in nom_upper:
+        tipo_doc = "ALBO"
+    elif "DAB" in nom_upper:
+        tipo_doc = "DAB"
+    elif "GUIA" in nom_upper or "GUÍA" in nom_upper:
+        tipo_doc = "GUIA"
+    elif partes:
+        tipo_doc = partes[0].upper()
 
-def seleccionar_archivos_pdf():
-    # 1. Si se pasan archivos por línea de comandos (ej: en Linux / Codespaces / Node)
-    if len(sys.argv) > 1:
-        rutas_cli = [arg for arg in sys.argv[1:] if os.path.exists(arg)]
-        if rutas_cli:
-            return rutas_cli
+    match_interno = re.search(r'(\d+[A-Z]*-\d+)', nombre_limpio)
+    if match_interno:
+        nro_interno = match_interno.group(1)
+    elif len(partes) > 1:
+        nro_interno = partes[1]
+    else:
+        nro_interno = "N/D"
 
-    # 2. Si no hay argumentos CLI, intentar abrir diálogo con Tkinter (Windows GUI)
+    return tipo_doc, nro_interno
+
+
+def decodificar_qr_robusto(ruta_pdf, intento=1):
+    """
+    Decodifica el QR aplicando 5 niveles de tolerancia, rotaciones y escalas según el intento.
+    """
     try:
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
-        rutas = filedialog.askopenfilenames(
-            title="Selecciona una o varias facturas en PDF",
-            filetypes=[("Archivos PDF", "*.pdf"), ("Todos los archivos", "*.*")]
-        )
-        root.destroy()
-        return list(rutas)
-    except Exception as e_tk:
-        print(f"⚠️ Entorno sin pantalla interactiva (GUI): {e_tk}")
-        print("💡 Sugerencia: Pasa la ruta del archivo PDF como argumento, por ejemplo:")
-        print("   python python_processor/procesar_facturas_py.py mi_factura.pdf")
-        return []
+        doc = fitz.open(ruta_pdf)
+        detector_cv = cv2.QRCodeDetector()
 
-def convertir_pagina_a_cv2(pagina, dpi=300):
-    zoom = dpi / 72
-    mat = pymupdf.Matrix(zoom, zoom)
-    pix = pagina.get_pixmap(matrix=mat)
-    img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape((pix.h, pix.w, pix.n))
-    if pix.n >= 3:
-        return cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-    return cv2.cvtColor(img_array, cv2.COLOR_GRAY2BGR)
+        escalas_map = {
+            1: [2.5, 3.5, 4.0],
+            2: [3.0, 4.5, 5.0],
+            3: [2.0, 3.0, 6.0],
+            4: [3.5, 4.0, 5.5],
+            5: [2.0, 2.5, 3.0, 4.0, 5.0]
+        }
+        escalas = escalas_map.get(intento, [2.5, 3.5, 4.0])
 
-def leer_qr_avanzado(img_cv2):
-    """
-    Intenta leer el código QR aplicando múltiples filtros de OpenCV (Gris, Umbralización, CLAHE y Rotación).
-    Garantiza lectura aun en facturas con mala luz, escaneadas chuecas o con bajo contraste.
-    """
-    # 1. Intento Directo
-    codigos = decode(img_cv2)
-    if codigos:
-        return codigos[0].data.decode("utf-8")
+        for page in doc:
+            for escala in escalas:
+                matriz = fitz.Matrix(escala, escala)
+                pix = page.get_pixmap(matrix=matriz)
+                img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+                img_bgr = cv2.cvtColor(img_np, cv2.COLOR_BGRA2BGR) if pix.n == 4 else cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+                gris = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
-    # 2. Intento Escala de Grises
-    gris = cv2.cvtColor(img_cv2, cv2.COLOR_BGR2GRAY)
-    codigos = decode(gris)
-    if codigos:
-        return codigos[0].data.decode("utf-8")
+                filtros = [
+                    img_bgr,
+                    gris,
+                    cv2.createCLAHE(clipLimit=2.0 + (intento * 0.4), tileGridSize=(8, 8)).apply(gris),
+                    cv2.threshold(gris, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+                ]
 
-    # 3. Intento Umbralización Otsu
-    _, thresh = cv2.threshold(gris, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    codigos = decode(thresh)
-    if codigos:
-        return codigos[0].data.decode("utf-8")
+                if intento >= 3:
+                    for angulo in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]:
+                        filtros.append(cv2.rotate(gris, angulo))
 
-    # 4. Intento Mejora de Contraste (CLAHE)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    contrastada = clahe.apply(gris)
-    codigos = decode(contrastada)
-    if codigos:
-        return codigos[0].data.decode("utf-8")
+                for f in filtros:
+                    if decode_zbar:
+                        res_zbar = decode_zbar(f)
+                        for r in res_zbar:
+                            txt = r.data.decode("utf-8", errors="ignore")
+                            if "siat.impuestos.gob.bo" in txt:
+                                doc.close()
+                                return txt
 
-    # 5. Intento Rotaciones (90°, 180°, 270°) por si el PDF está rotado
-    for angulo in [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]:
-        rotada = cv2.rotate(gris, angulo)
-        codigos = decode(rotada)
-        if codigos:
-            return codigos[0].data.decode("utf-8")
+                    url_cv, _, _ = detector_cv.detectAndDecode(f)
+                    if url_cv and "siat.impuestos.gob.bo" in url_cv:
+                        doc.close()
+                        return url_cv
+        doc.close()
+    except Exception:
+        pass
+    return None
+
+
+def corregir_errores_ocr(cand):
+    if not cand:
+        return None
+    c = cand.upper().replace(' ', '').replace('.', '-').replace('_', '-')
+
+    m_split = re.search(r'([DO0][S5][\.\-][2Z][0O][2Z][0-9EGB][\.\-][0-9SOIB]+[\.\-][0-9SOIB]+)', c)
+    if m_split:
+        bloque = m_split.group(1).replace('.', '-')
+        partes = [p for p in bloque.split('-') if p]
+        if len(partes) >= 4:
+            p0 = "DS"
+            p1 = partes[1].replace('O', '0').replace('E', '6').replace('G', '6').replace('B', '8').replace('Z', '2')
+            p2 = partes[2].replace('O', '0').replace('S', '5').replace('I', '1').replace('B', '8')
+            p3 = partes[3].replace('O', '0').replace('S', '5').replace('I', '1').replace('B', '8')
+            return f"{p0}-{p1}-{p2}-{p3}"
+
+    m_num = re.search(r'\b(\d{13,16})\b', c)
+    if m_num:
+        val = m_num.group(1)
+        if val not in ["1020415021", "1020235024", "120585022", "1000899025", "1005549022"]:
+            return val
+
+    m_dim = re.search(r'\b(\d{6,8}[A-Z]\d{6,8})\b', c)
+    if m_dim:
+        return m_dim.group(1)
 
     return None
 
-def extraer_doc_aduanero_especifico(texto_completo, tipo):
-    texto_una_linea = " ".join(texto_completo.split())
 
-    if tipo == "DAB":
-        m_salida_exacta = re.search(r'\b(\d{3}C202\d{8,9})\b', texto_una_linea, re.IGNORECASE)
-        if m_salida_exacta:
-            return m_salida_exacta.group(1).upper()
-        m_salida = re.search(r'Doc\.?\s*Salida\s*[:\.]?\s*([A-Z0-9]+)', texto_una_linea, re.IGNORECASE)
-        if m_salida:
-            val = m_salida.group(1).strip().upper()
-            if len(val) >= 10 and not val.startswith("CC"):
-                return val
-
-    elif tipo == "GUIA":
-        m_mawb = re.search(r'MAWB\s*[:\.]?\s*([0-9]{3}[-\s]?[0-9]{8})', texto_una_linea, re.IGNORECASE)
-        if m_mawb:
-            return m_mawb.group(1).replace(" ", "-").strip()
-        m_dhl = re.search(r'(?:MAN|AWB)\s*[:\.]?\s*([0-9]{8,11})\b', texto_una_linea, re.IGNORECASE)
-        if m_dhl:
-            return m_dhl.group(1).strip()
-
-    elif tipo == "ALBO":
-        m_dim = re.search(r'\b(\d{3}\s*202\d\s*[A-Z]\s*\d{6,8})\b', texto_una_linea)
-        if m_dim:
-            return re.sub(r'\s+', '', m_dim.group(1)).upper()
-        m_ds = re.search(r'\b(?:DS|DUI|DIM|DUE)[-\s]?\d{4}[-\s]?\d{3}[-\s]?\d+\b', texto_una_linea, re.IGNORECASE)
-        if m_ds:
-            return re.sub(r'\s+', '-', m_ds.group(0)).upper()
-
-        lineas = [l.strip() for l in texto_completo.split("\n") if l.strip()]
-        for i, l in enumerate(lineas):
-            if any(h in l.upper() for h in ["DIM/DUI/DUE", "DIMIDUIIDUE", "NRO. REGISTRO"]):
-                for j in range(i + 1, min(i + 4, len(lineas))):
-                    limpio = re.sub(r'[^A-Z0-9]', '', lineas[j].upper())
-                    if len(limpio) >= 9 and any(c.isdigit() for c in limpio) and "DIM" not in limpio:
-                        return limpio
-
-    m_gen = re.search(r'\b(\d{3}202\d[A-Z]\d{7,8})\b', texto_una_linea)
-    if m_gen:
-        return m_gen.group(1).upper()
-
-def normalizar_fecha_iso(cadena_fecha):
-    if not cadena_fecha:
-        return ""
-    cadena = str(cadena_fecha).strip()
-    m_dmy = re.search(r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})', cadena)
-    if m_dmy:
-        d, m, y = m_dmy.group(1).zfill(2), m_dmy.group(2).zfill(2), m_dmy.group(3)
-        if int(m) <= 12 and int(d) <= 31:
-            return f"{y}-{m}-{d}"
-    m_ymd = re.search(r'(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})', cadena)
-    if m_ymd:
-        y, m, d = m_ymd.group(1), m_ymd.group(2).zfill(2), m_ymd.group(3).zfill(2)
-        return f"{y}-{m}-{d}"
-    return ""
-
-def limpiar_monto_boliviano(val_str):
-    if not val_str:
-        return 0.0
-    s = str(val_str).strip()
-    s = re.sub(r'[^0-9\.,]', '', s)
-    if not s:
-        return 0.0
-    if ',' in s and '.' in s:
-        if s.rfind(',') > s.rfind('.'):
-            s = s.replace('.', '').replace(',', '.')
-        else:
-            s = s.replace(',', '')
-    elif ',' in s:
-        parts = s.split(',')
-        if len(parts) == 2 and len(parts[1]) in (1, 2):
-            s = s.replace(',', '.')
-        else:
-            s = s.replace(',', '')
+def extraer_dato_especifico_con_ia(ruta_pdf, tipo_doc, emisor, intento=1):
     try:
-        return float(s)
+        doc = fitz.open(ruta_pdf)
+        page = doc[0]
+        escala_val = 3.0 + (intento - 1) * 0.5
+        matriz = fitz.Matrix(escala_val, escala_val)
+        pix = page.get_pixmap(matrix=matriz)
+        img_np = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+        img_bgr = cv2.cvtColor(img_np, cv2.COLOR_BGRA2BGR) if pix.n == 4 else cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        doc.close()
+    except Exception as e:
+        print(f"    [Error al renderizar]: {e}")
+        return "N/D", False
+
+    h, w, _ = img_bgr.shape
+    recorte_zona = img_bgr[int(h * 0.50):int(h * 0.95), 0:w]
+    gray_recorte = cv2.cvtColor(recorte_zona, cv2.COLOR_BGR2GRAY)
+
+    filtros_ia = [
+        recorte_zona,
+        gray_recorte,
+        cv2.createCLAHE(clipLimit=2.5 + (intento * 0.3), tileGridSize=(8, 8)).apply(gray_recorte),
+        cv2.threshold(gray_recorte, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1],
+        img_bgr
+    ]
+
+    es_dhl = True if ("DHL" in (emisor or "").upper() or "DHL" in ruta_pdf.upper()) else False
+
+    for nro_intento, img_tratada in enumerate(filtros_ia, 1):
+        resultados_ocr = lector_ia.readtext(img_tratada)
+        textos_leidos = [r[1].strip() for r in resultados_ocr if r[1].strip()]
+
+        if tipo_doc in ["ALBO", "ALBO IP"] or "ALMACENERA" in (emisor or "").upper():
+            for t in textos_leidos:
+                m_directo = re.search(r'\b(\d{13,16})\b', t.replace(" ", ""))
+                if m_directo:
+                    val = m_directo.group(1)
+                    if val not in ["1020415021", "1020235024", "120585022", "1000899025"]:
+                        return val, es_dhl
+
+                res_corregido = corregir_errores_ocr(t)
+                if res_corregido:
+                    return res_corregido, es_dhl
+
+        elif tipo_doc == "DAB" or "DEPÓSITOS" in (emisor or "").upper():
+            for t in textos_leidos:
+                m_sal = re.search(r'\b(\d{3}[A-Z]\d{10,12})\b', t.replace(" ", ""))
+                if m_sal:
+                    return m_sal.group(1), es_dhl
+
+        elif tipo_doc == "GUIA" or "DEZE" in (emisor or "").upper() or es_dhl:
+            for t in textos_leidos:
+                if es_dhl:
+                    m_man = re.search(r'(?:MAN|AWB)[:\s]*([0-9]{8,15})', t, re.IGNORECASE)
+                    if m_man:
+                        return m_man.group(1), es_dhl
+                else:
+                    m_hawb = re.search(r'HAWB[:\s]*([A-Z0-9]{6,16})', t, re.IGNORECASE)
+                    if m_hawb:
+                        return m_hawb.group(1), es_dhl
+
+        if nro_intento < 5:
+            print(f"    [Intento IA {nro_intento}/5] Analizando con realce óptico...")
+
+    return "N/D", es_dhl
+
+
+# =====================================================================
+# 2. BASE DE DATOS LOCAL Y EXPORTACIONES
+# =====================================================================
+def inicializar_base_datos():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS facturas_cabecera (
+        cuf TEXT PRIMARY KEY,
+        archivo_pdf TEXT,
+        tipo_documento TEXT,
+        nro_interno TEXT,
+        dato_especifico TEXT,
+        es_dhl INTEGER,
+        estado_extraccion TEXT,
+        numero_factura TEXT,
+        fecha_emision TEXT,
+        estado TEXT,
+        nit_emisor TEXT,
+        razon_social_emisor TEXT,
+        direccion_emisor TEXT,
+        cliente_nombre TEXT,
+        cliente_documento TEXT,
+        monto_total REAL,
+        suma_items REAL,
+        cuadra INTEGER,
+        detalle_items_texto TEXT,
+        detalle_items_json TEXT,
+        fecha_registro TEXT
+    )
+    """)
+
+    cursor.execute("PRAGMA table_info(facturas_cabecera)")
+    cols = [col[1] for col in cursor.fetchall()]
+    columnas_a_verificar = [
+        ("archivo_pdf", "TEXT"),
+        ("tipo_documento", "TEXT"),
+        ("nro_interno", "TEXT"),
+        ("dato_especifico", "TEXT"),
+        ("es_dhl", "INTEGER"),
+        ("estado_extraccion", "TEXT"),
+        ("detalle_items_texto", "TEXT"),
+        ("detalle_items_json", "TEXT")
+    ]
+    for nombre_col, tipo_col in columnas_a_verificar:
+        if nombre_col not in cols:
+            cursor.execute(f"ALTER TABLE facturas_cabecera ADD COLUMN {nombre_col} {tipo_col}")
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS facturas_detalle (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cuf_factura TEXT,
+        codigo_producto TEXT,
+        descripcion TEXT,
+        cantidad REAL,
+        precio_unitario REAL,
+        subtotal REAL,
+        FOREIGN KEY (cuf_factura) REFERENCES facturas_cabecera(cuf)
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def formatear_items_a_texto(items):
+    lineas = []
+    for idx, it in enumerate(items, 1):
+        lineas.append(
+            f"[{idx}] (Cod: {it['codigo']}) {it['descripcion']} | "
+            f"Cant: {it['cantidad']} | P.Unit: {it['precio_unitario']} | Subt: {it['subtotal']}"
+        )
+    return " \n".join(lineas)
+
+
+def guardar_factura_en_bd(datos, metadata_archivo):
+    det = datos["detalle_factura"]
+    emi = datos["datos_emisor"]
+    cli = datos["datos_cliente"]
+    items = datos["items"]
+    cuf = det["cuf"] or f"TEMP_{metadata_archivo['tipo_documento']}_{metadata_archivo['nro_interno']}_{int(time.time())}"
+    cuadra = 1 if abs(datos["suma_subtotales"] - datos["monto_total_num"]) < 0.01 else 0
+
+    items_texto = formatear_items_a_texto(items)
+    items_json = json.dumps(items, ensure_ascii=False)
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    INSERT OR REPLACE INTO facturas_cabecera (
+        cuf, archivo_pdf, tipo_documento, nro_interno, dato_especifico, es_dhl, estado_extraccion,
+        numero_factura, fecha_emision, estado, nit_emisor,
+        razon_social_emisor, direccion_emisor, cliente_nombre,
+        cliente_documento, monto_total, suma_items, cuadra,
+        detalle_items_texto, detalle_items_json, fecha_registro
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        cuf,
+        metadata_archivo["archivo_pdf"],
+        metadata_archivo["tipo_documento"],
+        metadata_archivo["nro_interno"],
+        metadata_archivo["dato_especifico"],
+        1 if metadata_archivo["es_dhl"] else 0,
+        metadata_archivo["estado_extraccion"],
+        det["numero_factura"],
+        det["fecha_emision"],
+        det["estado"],
+        emi["nit_emisor"],
+        emi["razon_social"],
+        emi["direccion"],
+        cli["nombre_razon_social"],
+        cli["numero_documento"],
+        datos["monto_total_num"],
+        datos["suma_subtotales"],
+        cuadra,
+        items_texto,
+        items_json,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ))
+
+    cursor.execute("DELETE FROM facturas_detalle WHERE cuf_factura = ?", (cuf,))
+
+    for it in items:
+        cursor.execute("""
+        INSERT INTO facturas_detalle (
+            cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            cuf,
+            it["codigo"],
+            it["descripcion"],
+            limpiar_monto(it["cantidad"]),
+            limpiar_monto(it["precio_unitario"]),
+            it["subtotal_num"]
+        ))
+
+    conn.commit()
+    conn.close()
+
+
+def escapar_sql(valor):
+    if valor is None:
+        return "NULL"
+    if isinstance(valor, (int, float)):
+        return str(valor)
+    texto = str(valor).replace("'", "''")
+    return "'" + texto + "'"
+
+
+def generar_archivo_dump_sql(archivo_salida=SQL_DUMP_NAME):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    lineas = [
+        "-- ========================================================",
+        "-- DUMP SQL: SISTEMA DE FACTURACIÓN ELECTRÓNICA SIAT",
+        f"-- Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "-- ========================================================\n",
+        "CREATE TABLE IF NOT EXISTS facturas_cabecera (",
+        "    cuf VARCHAR(100) PRIMARY KEY,",
+        "    archivo_pdf VARCHAR(255),",
+        "    tipo_documento VARCHAR(50),",
+        "    nro_interno VARCHAR(50),",
+        "    dato_especifico VARCHAR(100),",
+        "    es_dhl BOOLEAN,",
+        "    estado_extraccion VARCHAR(50),",
+        "    numero_factura VARCHAR(50) NOT NULL,",
+        "    fecha_emision VARCHAR(50),",
+        "    estado VARCHAR(20),",
+        "    nit_emisor VARCHAR(30),",
+        "    razon_social_emisor VARCHAR(255),",
+        "    direccion_emisor TEXT,",
+        "    cliente_nombre VARCHAR(255),",
+        "    cliente_documento VARCHAR(50),",
+        "    monto_total DECIMAL(12, 2) NOT NULL,",
+        "    suma_items DECIMAL(12, 2) NOT NULL,",
+        "    cuadra BOOLEAN NOT NULL,",
+        "    detalle_items_texto TEXT,",
+        "    detalle_items_json TEXT,",
+        "    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        ");\n",
+        "CREATE TABLE IF NOT EXISTS facturas_detalle (",
+        "    id INTEGER PRIMARY KEY AUTOINCREMENT,",
+        "    cuf_factura VARCHAR(100) NOT NULL,",
+        "    codigo_producto VARCHAR(50),",
+        "    descripcion TEXT,",
+        "    cantidad DECIMAL(10, 2),",
+        "    precio_unitario DECIMAL(12, 2),",
+        "    subtotal DECIMAL(12, 2),",
+        "    FOREIGN KEY (cuf_factura) REFERENCES facturas_cabecera(cuf) ON DELETE CASCADE",
+        ");\n"
+    ]
+
+    cursor.execute("SELECT * FROM facturas_cabecera")
+    for c in cursor.fetchall():
+        valores = [escapar_sql(item) for item in c]
+        lineas.append(f"INSERT OR REPLACE INTO facturas_cabecera VALUES ({', '.join(valores)});")
+
+    cursor.execute("SELECT cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal FROM facturas_detalle")
+    for d in cursor.fetchall():
+        cuf, cod, desc, cant, pu, sub = d
+        desc_escapada = str(desc).replace("'", "''")
+        lineas.append(
+            f"INSERT INTO facturas_detalle (cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal) "
+            f"VALUES ('{cuf}', '{cod}', '{desc_escapada}', {cant}, {pu}, {sub});"
+        )
+
+    conn.close()
+    with open(archivo_salida, "w", encoding="utf-8") as f:
+        f.write("\n".join(lineas))
+    print(f"\n Script SQL Dump actualizado: '{archivo_salida}'")
+
+
+def exportar_todo_a_excel(nombre_archivo=EXCEL_NAME):
+    conn = sqlite3.connect(DB_NAME)
+    df_cabecera = pd.read_sql_query("SELECT * FROM facturas_cabecera", conn)
+    df_detalle = pd.read_sql_query("SELECT * FROM facturas_detalle", conn)
+
+    if df_cabecera.empty:
+        conn.close()
+        return
+
+    df_unificado = pd.merge(df_detalle, df_cabecera, left_on="cuf_factura", right_on="cuf", how="inner")
+
+    with pd.ExcelWriter(nombre_archivo, engine="openpyxl") as writer:
+        df_cabecera.to_excel(writer, sheet_name="Cabecera (Items Juntos)", index=False)
+        df_detalle.to_excel(writer, sheet_name="Detalle Desglosado", index=False)
+        df_unificado.to_excel(writer, sheet_name="Sábana Plana Completa", index=False)
+
+        wb = writer.book
+        amarillo = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+        rojo_suave = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+
+        ws1 = wb["Cabecera (Items Juntos)"]
+        col_es_dhl = None
+        col_estado = None
+        for col_idx, cell in enumerate(ws1[1], 1):
+            if cell.value == "es_dhl":
+                col_es_dhl = col_idx
+            elif cell.value == "estado_extraccion":
+                col_estado = col_idx
+        
+        for row in range(2, ws1.max_row + 1):
+            if col_es_dhl and ws1.cell(row=row, column=col_es_dhl).value in (1, "1", True):
+                for col in range(1, ws1.max_column + 1):
+                    ws1.cell(row=row, column=col).fill = amarillo
+            elif col_estado and "ADVERTENCIA" in str(ws1.cell(row=row, column=col_estado).value):
+                ws1.cell(row=row, column=col_estado).fill = rojo_suave
+
+    conn.close()
+    print(f" Consolidado Excel generado: '{nombre_archivo}'")
+
+
+# =====================================================================
+# 3. INSPECTOR VISUAL EN CONSOLA (TABLA LIMPIA)
+# =====================================================================
+def mostrar_inspeccion_detallada(datos, metadata_archivo):
+    det = datos["detalle_factura"]
+    emi = datos["datos_emisor"]
+    cli = datos["datos_cliente"]
+    items = datos["items"]
+    total = datos["monto_total_num"]
+    suma = datos["suma_subtotales"]
+    cuadra = abs(suma - total) < 0.01
+
+    dhl_str = "SÍ [RESALTADO EN AMARILLO]" if metadata_archivo['es_dhl'] else "NO"
+
+    print("\n" + "╔" + "═" * 86 + "╗")
+    print(f"║ 📋 REPORTE DE EXTRACCIÓN INTEGRAL: {metadata_archivo['archivo_pdf'][:45]:<47} ║")
+    print("╠══════════════════════════════╦══════════════════════════════════════════════════════╣")
+    print("║ CAMPO DESTINO (TABLA BD)     ║ VALOR EXACTO EXTRAÍDO                                ║")
+    print("╠══════════════════════════════╬══════════════════════════════════════════════════════╣")
+    print(f"║ tipo_documento               ║ {metadata_archivo['tipo_documento']:<52} ║")
+    print(f"║ nro_interno                  ║ {metadata_archivo['nro_interno']:<52} ║")
+    print(f"║ dato_especifico (OCR/Tránsito)║ {metadata_archivo['dato_especifico']:<52} ║")
+    print(f"║ es_dhl                       ║ {dhl_str:<52} ║")
+    print(f"║ estado_extraccion            ║ {metadata_archivo['estado_extraccion']:<52} ║")
+    print("╠══════════════════════════════╬══════════════════════════════════════════════════════╣")
+    print(f"║ numero_factura               ║ {det['numero_factura']:<52} ║")
+    print(f"║ fecha_emision                ║ {det['fecha_emision']:<52} ║")
+    print(f"║ estado                       ║ {det['estado']:<52} ║")
+    print(f"║ cuf                          ║ {str(det['cuf'])[:50]:<52} ║")
+    print("╠══════════════════════════════╬══════════════════════════════════════════════════════╣")
+    print(f"║ nit_emisor                   ║ {emi['nit_emisor']:<52} ║")
+    print(f"║ razon_social_emisor          ║ {emi['razon_social'][:50]:<52} ║")
+    print(f"║ direccion_emisor             ║ {emi['direccion'][:50]:<52} ║")
+    print("╠══════════════════════════════╬══════════════════════════════════════════════════════╣")
+    print(f"║ cliente_nombre               ║ {cli['nombre_razon_social'][:50]:<52} ║")
+    print(f"║ cliente_documento            ║ {cli['numero_documento']:<52} ║")
+    print("╠══════════════════════════════╬══════════════════════════════════════════════════════╣")
+    print(f"║ monto_total (SIAT)           ║ {total:>12.2f} Bs.                                       ║")
+    print(f"║ suma_items (Suma Desglose)   ║ {suma:>12.2f} Bs.                                       ║")
+    print(f"║ cuadra                       ║ {'1 (SÍ - EXACTO)' if cuadra else '0 (NO - DISCREPANCIA)':<52} ║")
+    print("╠══════════════════════════════╩══════════════════════════════════════════════════════╣")
+    print("║ 📦 DESGLOSE DE PRODUCTOS / SERVICIOS (Tabla: facturas_detalle)                        ║")
+    print("╟──────┬────────┬──────────────────────────────────────────┬──────┬──────────┬─────────╢")
+    print("║ Nro  │ Código │ Descripción                              │ Cant │ P. Unit. │ Subtotal║")
+    print("╟──────┼────────┼──────────────────────────────────────────┼──────┼──────────┼─────────╢")
+    for idx, it in enumerate(items, 1):
+        cod = str(it['codigo'])[:6]
+        desc = str(it['descripcion'])[:40]
+        cant = str(it['cantidad'])[:4]
+        pu = str(it['precio_unitario'])[:8]
+        sub = it['subtotal_num']
+        print(f"║ {idx:<4} │ {cod:<6} │ {desc:<40} │ {cant:>4} │ {pu:>8} │ {sub:>8.2f}║")
+    print("╚══════╧════════╧══════════════════════════════════════════╧══════╧══════════╧═════════╝\n")
+
+
+def seleccionar_archivos_pdf():
+    carpeta_in = "facturas_in"
+    if os.path.exists(carpeta_in) and len(os.listdir(carpeta_in)) > 0:
+        archivos = [os.path.join(carpeta_in, f) for f in os.listdir(carpeta_in) if f.lower().endswith(".pdf")]
+        if archivos:
+            return archivos
+
+    if len(sys.argv) > 1:
+        rutas_cli = []
+        for arg in sys.argv[1:]:
+            if os.path.isdir(arg):
+                for root_dir, _, files in os.walk(arg):
+                    for file in sorted(files):
+                        if file.lower().endswith(".pdf"):
+                            rutas_cli.append(os.path.join(root_dir, file))
+            elif os.path.exists(arg) and arg.lower().endswith(".pdf"):
+                rutas_cli.append(arg)
+        if rutas_cli:
+            return rutas_cli
+
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        archivos = filedialog.askopenfilenames(
+            title="Selecciona las facturas en PDF a procesar",
+            filetypes=[("Archivos PDF", "*.pdf")]
+        )
+        arch_list = list(archivos)
+        if not arch_list:
+            carpeta = filedialog.askdirectory(title="Selecciona la Carpeta Completa con Facturas PDF")
+            if carpeta and os.path.exists(carpeta):
+                for root_dir, _, files in os.walk(carpeta):
+                    for file in sorted(files):
+                        if file.lower().endswith(".pdf"):
+                            arch_list.append(os.path.join(root_dir, file))
+        root.destroy()
+        return arch_list
+    except Exception:
+        return []
+
+
+def limpiar_monto(texto_monto):
+    if isinstance(texto_monto, (int, float)):
+        return float(texto_monto)
+    if not texto_monto:
+        return 0.0
+    limpio = str(texto_monto).replace('Bs.', '').replace('Bs', '').replace(',', '').strip()
+    try:
+        return float(limpio)
     except ValueError:
         return 0.0
 
-def extraer_monto_pdf(texto_pdf):
-    if not texto_pdf:
-        return 0.0
-    lines = [l.strip() for l in texto_pdf.split('\n') if l.strip()]
-    total_keywords = [
-        'MONTO A PAGAR', 'MONTO TOTAL', 'TOTAL FACTURA', 'TOTAL BS', 
-        'TOTAL BOB', 'TOTAL (BS)', 'TOTAL (BOB)', 'SUBTOTAL BS', 
-        'SUBTOTAL (BS)', 'IMPORTE TOTAL', 'IMPORTE BASE', 'TOTAL'
-    ]
 
-    for i, line in enumerate(lines):
-        upper = line.upper()
-        for kw in total_keywords:
-            if kw in upper:
-                for offset in [0, 1, 2]:
-                    if i + offset < len(lines):
-                        target_line = lines[i + offset]
-                        nums = re.findall(r'([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})', target_line)
-                        if nums:
-                            val = limpiar_monto_boliviano(nums[-1])
-                            if val > 0:
-                                return val
+# =====================================================================
+# 4. EXTRACCIÓN SELENIUM (PORTAL SIAT)
+# =====================================================================
+def configurar_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")
+    return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
-    pats = [
-        r'(?:MONTO|TOTAL|SUBTOTAL|IMPORTE)[^0-9\n\r]*[\r\n\s]*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})',
-        r'Bs\.?\s*([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2}|[0-9]+[\.,][0-9]{2})'
-    ]
-    for pat in pats:
-        m = re.search(pat, texto_pdf, re.IGNORECASE)
-        if m:
-            val = limpiar_monto_boliviano(m.group(1))
-            if val > 0:
-                return val
 
-    prods = extraer_productos_pdf(texto_pdf)
-    if prods:
-        sum_p = sum(p['subtotal'] for p in prods)
-        if sum_p > 0:
-            return sum_p
+def extraer_datos_siat(driver, url_factura):
+    driver.get(url_factura)
+    wait = WebDriverWait(driver, 15)
+    wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Detalle de la Factura') or contains(text(), 'Estado') or contains(text(), 'Bs')]")))
+    time.sleep(2)
 
-    return 0.0
+    def obtener_texto_campo(etiqueta):
+        xpath_intentos = [
+            f"//*[contains(text(), '{etiqueta}')]/following-sibling::*[1]",
+            f"//*[contains(text(), '{etiqueta}')]/..//following-sibling::*[1]",
+            f"//*[contains(text(), '{etiqueta}')]/parent::*"
+        ]
+        for xp in xpath_intentos:
+            elementos = driver.find_elements(By.XPATH, xp)
+            if elementos:
+                texto = elementos[0].text.strip()
+                if etiqueta in texto:
+                    texto = texto.replace(etiqueta, "").strip(" :\n\t")
+                if texto:
+                    return texto
+        return "No encontrado"
 
-def extraer_productos_pdf(texto_pdf):
-    prods = []
-    lineas = [l.strip() for l in texto_pdf.split("\n") if l.strip()]
-    ignorar = [
-        'CÓDIGO', 'CODIGO', 'CANTIDAD', 'UNIDAD DE MEDIDA', 'DESCRIPCIÓN', 'DESCRIPCION', 
-        'PRECIO UNITARIO', 'SUBTOTAL', 'MONTO GIFT CARD', 'MONTO A PAGAR', 'IMPORTE BASE', 
-        'CREDITO FISCAL', 'CRÉDITO FISCAL', 'TOTAL BS', 'DESCUENTO', 'VALOR CIF', 'GRAVAMEN',
-        'RAZÓN SOCIAL', 'RAZON SOCIAL', 'NIT/CI/CEX', 'CLIENTE'
-    ]
-    for line in lineas:
-        upper = line.upper()
-        if any(kw in upper for kw in ignorar):
-            continue
-        m_precio = re.search(r'([0-9]{1,3}(?:[\.,][0-9]{3})*[\.,][0-9]{2})\s*$', line)
-        if m_precio and any(k in upper for k in ["SERVICIO", "ALMACEN", "SEGURO", "LOGISTIC", "TRANSPORTE", "GASTO", "LIBERAC", "CUSTODIA"]):
-            sub_str = m_precio.group(1).replace('.', '').replace(',', '.')
-            try:
-                sub = float(sub_str)
-                desc = line[:m_precio.start()].strip()
-                desc = re.sub(r'^(?:[I0-9\.\-]+\s+)+', '', desc)
-                desc = re.sub(r'^(?:UNIDAD|\(SERVICIOS\)\s*)+', '', desc, flags=re.IGNORECASE).strip()
-                if len(desc) >= 4 and sub > 0:
-                    prods.append({"descripcion": desc, "cantidad": 1, "subtotal": sub})
-            except ValueError:
-                pass
-    return prods
-
-# =============================================================================
-# CONSULTA SIAT CON REINTENTOS AUTOMÁTICOS
-# =============================================================================
-
-def extraer_siat_con_navegador(url_qr, max_retries=3):
-    """
-    Conecta al portal SIAT con Selenium Headless. Si falla por red o tiempo de espera,
-    reintenta hasta `max_retries` veces para garantizar la obtención completa de datos.
-    """
-    params = parse_qs(urlparse(url_qr).query)
-    nit = params.get('nit', [''])[0]
-    cuf = params.get('cuf', [''])[0]
-    numero = params.get('numero', [''])[0]
-
-    datos = {
-        "fecha": "",
-        "nit": nit,
-        "nombre": "",
-        "n_factura": numero,
-        "monto": 0.0,
-        "cuf": cuf,
-        "productos": "",
-        "estado": ""
+    factura_data = {
+        "detalle_factura": {
+            "numero_factura": obtener_texto_campo("Número de Factura"),
+            "fecha_emision": obtener_texto_campo("Fecha Emisión"),
+            "estado": obtener_texto_campo("Estado de la Factura"),
+            "cuf": obtener_texto_campo("CUF"),
+            "monto_total_str": obtener_texto_campo("Monto Total")
+        },
+        "datos_emisor": {
+            "nit_emisor": obtener_texto_campo("NIT Emisor"),
+            "razon_social": obtener_texto_campo("Razón Social"),
+            "direccion": obtener_texto_campo("Dirección")
+        },
+        "datos_cliente": {
+            "nombre_razon_social": obtener_texto_campo("Nombre / Razón Social"),
+            "numero_documento": obtener_texto_campo("Número Documento")
+        },
+        "items": []
     }
+
+    filas = driver.find_elements(By.XPATH, "//table//tbody/tr")
+    if not filas:
+        filas = driver.find_elements(By.XPATH, "//*[contains(@class, 'row') or contains(@class, 'item-row')]")
+
+    suma_subtotales = 0.0
+    for fila in filas:
+        celdas = fila.find_elements(By.TAG_NAME, "td")
+        if len(celdas) >= 5:
+            cod = celdas[0].text.strip()
+            desc = celdas[1].text.strip()
+            cant = celdas[2].text.strip()
+            pu = celdas[3].text.strip()
+            sub_str = celdas[4].text.strip()
+            sub_val = limpiar_monto(sub_str)
+            suma_subtotales += sub_val
+
+            factura_data["items"].append({
+                "codigo": cod,
+                "descripcion": desc,
+                "cantidad": cant,
+                "precio_unitario": pu,
+                "subtotal": sub_str,
+                "subtotal_num": sub_val
+            })
+
+    factura_data["suma_subtotales"] = suma_subtotales
+    factura_data["monto_total_num"] = limpiar_monto(factura_data["detalle_factura"]["monto_total_str"])
+    return factura_data
+
+
+# =====================================================================
+# LÓGICA DE EXTRACCIÓN INDIVIDUAL CON HASTA 5 REINTENTOS PROGRESIVOS
+# =====================================================================
+def procesar_factura_con_reintentos(ruta_pdf, driver, max_retries=5):
+    """
+    Intenta leer la factura hasta 5 veces si falta algún dato (QR, SIAT o dato específico N/D).
+    """
+    nombre_archivo = os.path.basename(ruta_pdf)
+    tipo_doc, nro_interno = extraer_datos_nombre_archivo(nombre_archivo)
+
+    ultimo_datos = None
+    ultimo_metadata = None
 
     for intento in range(1, max_retries + 1):
-        print(f"🌐 Conectando con el portal SIAT... (Intento {intento}/{max_retries})")
-        
-        chrome_options = Options()
-        chrome_options.add_argument("--headless=new")
-        chrome_options.add_argument("--window-size=1920,1080")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        if intento > 1:
+            print(f"  🔄 [Reintento {intento}/{max_retries}] Re-escaneando factura '{nombre_archivo}' con realce avanzado...")
 
+        # 1. Decodificación de QR
+        enlace = decodificar_qr_robusto(ruta_pdf, intento)
+        if not enlace:
+            print(f"    ⚠️ [Intento {intento}/{max_retries}] No se detectó QR. Reintentando...")
+            time.sleep(1)
+            continue
+
+        print(f"    ✓ Enlace SIAT verificado: {enlace[:65]}...")
+
+        # 2. Extracción SIAT
         try:
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-            driver.get(url_qr)
-            wait = WebDriverWait(driver, 20)
-            wait.until(EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'Bs.') or contains(text(), 'Bs') or contains(text(), 'Estado')]")))
-            time.sleep(3)
+            datos = extraer_datos_siat(driver, enlace)
+        except Exception as ex:
+            print(f"    ⚠️ [Intento {intento}/{max_retries}] Error al consultar portal SIAT: {ex}")
+            time.sleep(2)
+            continue
 
-            texto_completo = driver.find_element(By.TAG_NAME, "body").text
-            lineas = [l.strip() for l in texto_completo.split("\n") if l.strip()]
+        if not datos or not datos["detalle_factura"]["numero_factura"] or datos["detalle_factura"]["numero_factura"] == "No encontrado":
+            print(f"    ⚠️ [Intento {intento}/{max_retries}] Respuesta incompleta de SIAT. Reintentando...")
+            time.sleep(2)
+            continue
 
-            # 1. Estado de la factura
-            for i, l in enumerate(lineas):
-                if "estado de la factura" in l.lower():
-                    if i + 1 < len(lineas):
-                        datos["estado"] = lineas[i + 1].strip().upper()
-                        break
+        razon_emisor = datos["datos_emisor"]["razon_social"]
 
-            # 2. Monto Total
-            try:
-                elem_monto = driver.find_element(By.XPATH, "//*[contains(text(), 'Monto Total')]/following::*[contains(text(), 'Bs')][1]")
-                txt_monto_dom = elem_monto.text.strip()
-                num_limpio = re.search(r'([0-9\.,]+)', txt_monto_dom).group(1)
-                num_limpio = num_limpio.replace(",", "")
-                datos["monto"] = float(num_limpio)
-            except Exception:
-                m_monto = re.search(r'Monto\s*Total:\s*[\r\n\s]*([0-9,]+\.[0-9]{2})', texto_completo, re.IGNORECASE)
-                if m_monto:
-                    datos["monto"] = float(m_monto.group(1).replace(",", ""))
+        # 3. Extracción de dato específico con IA (OCR)
+        dato_especifico, es_dhl = extraer_dato_especifico_con_ia(ruta_pdf, tipo_doc, razon_emisor, intento)
 
-            # 3. Fecha Emisión
-            m_fecha = re.search(r'Fecha\s*Emisi[oó]n:\s*[\r\n\s]*([0-9]{2}/[0-9]{2}/[0-9]{4}\s+[0-9]{2}:[0-9]{2}(?::[0-9]{2})?)', texto_completo, re.IGNORECASE)
-            if m_fecha:
-                datos["fecha"] = m_fecha.group(1).strip()
+        # Regla estricta: Si está ANULADA en el SIAT, dato_especifico = "ANULADO"
+        estado_siat = datos["detalle_factura"]["estado"]
+        if "ANULAD" in (estado_siat or "").upper():
+            dato_especifico = "ANULADO"
 
-            # 4. Razón Social Emisor
-            for i, l in enumerate(lineas):
-                if l.lower() == "razón social:" or l.lower() == "razon social:":
-                    if i + 1 < len(lineas) and not datos["nombre"]:
-                        datos["nombre"] = lineas[i + 1]
+        estado_extraccion = "COMPLETO" if (dato_especifico != "N/D" and datos["monto_total_num"] > 0) else "ADVERTENCIA: DATO ESPECÍFICO FALTANTE"
 
-            # 5. Detalle de Productos
-            productos_extraidos = []
-            elementos_tabla = driver.find_elements(By.XPATH, "//table//tbody//tr | //div[contains(@class, 'table')]//div[contains(@class, 'row')]")
-            for el in elementos_tabla:
-                txt_fila = el.text.strip()
-                if txt_fila and ("Bs" in txt_fila or any(c.isdigit() for c in txt_fila)):
-                    fila_limpia = " | ".join([p.strip() for p in txt_fila.split("\n") if p.strip()])
-                    if fila_limpia not in productos_extraidos and "Código" not in fila_limpia:
-                        productos_extraidos.append(fila_limpia)
+        metadata_archivo = {
+            "archivo_pdf": nombre_archivo,
+            "tipo_documento": tipo_doc,
+            "nro_interno": nro_interno,
+            "dato_especifico": dato_especifico,
+            "es_dhl": es_dhl,
+            "estado_extraccion": estado_extraccion
+        }
 
-            if productos_extraidos:
-                json_prods = []
-                for p in productos_extraidos:
-                    partes = p.split(" | ")
-                    desc = partes[1] if len(partes) > 1 else partes[0]
-                    cant = 1
-                    subtotal = datos["monto"]
-                    for pt in partes:
-                        m_cant = re.search(r'Cant:\s*(\d+)', pt)
-                        if m_cant:
-                            cant = int(m_cant.group(1))
-                        m_sub = re.search(r'(?:Subtotal:|Bs\.?)\s*([0-9\.,]+)', pt)
-                        if m_sub:
-                            try:
-                                subtotal = float(m_sub.group(1).replace(",", ""))
-                            except ValueError:
-                                pass
-                    json_prods.append({"descripcion": desc.strip(), "cantidad": cant, "subtotal": subtotal})
-                datos["productos"] = json.dumps(json_prods)
+        ultimo_datos = datos
+        ultimo_metadata = metadata_archivo
 
-            driver.quit()
-            
-            # Si obtuvimos estado y monto, la extracción fue exitosa
-            if datos["estado"] and datos["monto"] > 0:
-                print(f" Datos SIAT listos. Estado: {datos['estado']} | Monto: {datos['monto']}")
-                return datos
-            elif intento < max_retries:
-                print(f"⚠️ Datos incompletos en SIAT. Reintentando ({intento}/{max_retries})...")
-                time.sleep(2)
+        # Si se obtuvo todo exitosamente, romper el bucle de reintentos
+        if dato_especifico != "N/D" and datos["monto_total_num"] > 0:
+            print(f"  ✅ Extracción 100% exitosa lograda en el intento {intento}/{max_retries}.")
+            return datos, metadata_archivo
 
-        except Exception as e:
-            try:
-                driver.quit()
-            except Exception:
-                pass
-            print(f"⚠️ Error al conectar con portal SIAT (Intento {intento}/{max_retries}): {e}")
-            if intento < max_retries:
-                time.sleep(3)
+        print(f"    ⚠️ [Intento {intento}/{max_retries}] Dato específico N/D o monto cero. Reintentando...")
+        time.sleep(1)
 
-    return datos
+    return ultimo_datos, ultimo_metadata
 
-# =============================================================================
-# GUARDADO INTELIGENTE EN SUPABASE (UPSERT)
-# =============================================================================
 
-def guardar_factura_en_supabase(datos_guardar):
-    """
-    Guarda o actualiza el registro en Supabase sin fallar por uq_facturas_codigo_qr o clave duplicada.
-    """
-    if not supabase:
-        print("❌ Cliente Supabase no disponible. Revisa tus credenciales.")
-        return False
-
-    ref_interna = datos_guardar.get("ref_guia")
-    importacion_id = None
-    if ref_interna:
-        try:
-            res_imp = supabase.table("importaciones").select("id").eq("n_referencia", ref_interna).maybe_single().execute()
-            if res_imp and res_imp.data:
-                importacion_id = res_imp.data.get("id")
-        except Exception:
-            pass
-
-    payload_factura = {
-        "tipo": datos_guardar.get("tipo"),
-        "fecha": datos_guardar.get("fecha"),
-        "nit": datos_guardar.get("nit"),
-        "nombre": datos_guardar.get("nombre"),
-        "n_factura": datos_guardar.get("n_factura"),
-        "monto": datos_guardar.get("monto"),
-        "codigo_qr": datos_guardar.get("codigo_qr"),
-        "doc_aduanero": datos_guardar.get("doc_aduanero"),
-        "ref_guia": ref_interna if (ref_interna and re.search(r"\d{3,4}-\d{2}", str(ref_interna))) else None,
-        "importacion_id": importacion_id,
-        "registro_aduanero": datos_guardar.get("doc_aduanero"),
-        "productos": datos_guardar.get("productos"),
-        "cuf": datos_guardar.get("cuf")
-    }
-
-    # 1. Comprobar si ya existe por QR o CUF
-    existing_row = None
-    if datos_guardar.get("codigo_qr"):
-        try:
-            res_qr = supabase.table("facturas").select("id").eq("codigo_qr", datos_guardar.get("codigo_qr")).maybe_single().execute()
-            if res_qr and res_qr.data:
-                existing_row = res_qr.data
-        except Exception:
-            pass
-    if not existing_row and datos_guardar.get("cuf"):
-        try:
-            res_cuf = supabase.table("facturas").select("id").eq("cuf", datos_guardar.get("cuf")).maybe_single().execute()
-            if res_cuf and res_cuf.data:
-                existing_row = res_cuf.data
-        except Exception:
-            pass
-
-    if existing_row:
-        try:
-            supabase.table("facturas").update(payload_factura).eq("id", existing_row["id"]).execute()
-            print(f"ℹ️ La factura N° {datos_guardar.get('n_factura')} ya existía en Supabase. Registro actualizado con éxito.")
-            try:
-                supabase.table("estado_facturas").upsert({
-                    "factura_id": existing_row["id"], 
-                    "cuf": datos_guardar.get("cuf"), 
-                    "estado_siat": datos_guardar.get("estado")
-                }).execute()
-            except Exception:
-                pass
-            return True
-        except Exception as e_up:
-            print(f"⚠️ Aviso al actualizar factura existente: {e_up}")
-            return False
-    else:
-        try:
-            # Auto-calcular el número consecutivo máximo actual para garantizar secuencia estricta sin duplicados
-            try:
-                res_max = supabase.table("facturas").select("consecutivo").not_("consecutivo", "is", "null").order("consecutivo", desc=True).limit(1).execute()
-                if res_max and res_max.data and len(res_max.data) > 0 and res_max.data[0].get("consecutivo"):
-                    payload_factura["consecutivo"] = int(res_max.data[0]["consecutivo"]) + 1
-                else:
-                    payload_factura["consecutivo"] = 1
-            except Exception:
-                payload_factura["consecutivo"] = 1
-
-            res_fac = supabase.table("facturas").insert(payload_factura).execute()
-            print(f"✅ Factura insertada con éxito. (Consecutivo N° {payload_factura.get('consecutivo')})")
-
-            factura_id = None
-            if res_fac.data and len(res_fac.data) > 0:
-                factura_id = res_fac.data[0].get("id")
-
-            payload_estado = {
-                "factura_id": factura_id,
-                "cuf": datos_guardar.get("cuf"),
-                "estado_siat": datos_guardar.get("estado")
-            }
-            try:
-                supabase.table("estado_facturas").insert(payload_estado).execute()
-                print(" Estado registrado en tabla estado_facturas.")
-            except Exception as e_est:
-                print(f"⚠️ Aviso al registrar en estado_facturas: {e_est}")
-            return True
-
-        except Exception as e:
-            err_str = str(e)
-            if "23505" in err_str or "duplicate key" in err_str or "uq_facturas_codigo_qr" in err_str:
-                print(f"⚠️ [DUPLICADA] La factura N° {datos_guardar.get('n_factura')} ya existe en Supabase (QR duplicado).")
-                return True
-            else:
-def ventana_verificacion(datos, archivo_actual, total_archivos):
-    try:
-        ventana = tk.Tk()
-        ventana.title(f"Verificación de Factura ({archivo_actual} de {total_archivos})")
-        ventana.geometry("700x760")
-        ventana.attributes("-topmost", True)
-        
-        confirmado = {"accion": "descartar", "datos": {}}
-
-        tk.Label(
-            ventana, 
-            text=f"Revisión de Datos ({archivo_actual}/{total_archivos})", 
-            font=("Arial", 12, "bold")
-        ).pack(pady=10)
-
-        frame_campos = tk.Frame(ventana)
-        frame_campos.pack(fill="both", expand=True, padx=25, pady=5)
-
-        entradas = {}
-        campos_orden = [
-            ("tipo", "Tipo (ALBO / DAB / GUIA):"),
-            ("ref_guia", "Ref. Interna (XXXX-26):"),
-            ("estado", "Estado SIAT:"),
-            ("fecha", "Fecha Emisión (AAAA-MM-DD):"),
-            ("nit", "NIT Emisor:"),
-            ("nombre", "Razón Social Emisor:"),
-            ("n_factura", "N° Factura:"),
-            ("monto", "Monto Total (Bs.):"),
-            ("cuf", "CUF:"),
-            ("doc_aduanero", "Doc. Aduanero:"),
-            ("codigo_qr", "Enlace QR:")
-        ]
-
-        for idx, (clave, etiqueta) in enumerate(campos_orden):
-            tk.Label(frame_campos, text=etiqueta, anchor="w", font=("Arial", 9, "bold")).grid(row=idx, column=0, sticky="w", pady=4)
-            ent = tk.Entry(frame_campos, font=("Arial", 9))
-            ent.insert(0, str(datos.get(clave, "") or ""))
-            
-            if clave == "estado":
-                if "ANULAD" in ent.get():
-                    ent.config(fg="#c0392b", font=("Arial", 9, "bold"))
-                else:
-                    ent.config(fg="#27ae60", font=("Arial", 9, "bold"))
-
-            if clave == "doc_aduanero" and ent.get() == "ANULADO":
-                ent.config(fg="#c0392b", font=("Arial", 9, "bold"))
-                
-            ent.grid(row=idx, column=1, sticky="ew", padx=(10, 0), pady=4)
-            entradas[clave] = ent
-
-        idx_prod = len(campos_orden)
-        tk.Label(frame_campos, text="Detalle Productos:", anchor="w", font=("Arial", 9, "bold")).grid(row=idx_prod, column=0, sticky="nw", pady=6)
-        txt_productos = tk.Text(frame_campos, font=("Arial", 9), height=7, wrap="word")
-        txt_productos.insert("1.0", str(datos.get("productos", "") or ""))
-        txt_productos.grid(row=idx_prod, column=1, sticky="ew", padx=(10, 0), pady=6)
-
-        frame_campos.columnconfigure(1, weight=1)
-
-        def accion_guardar():
-            actualizados = {}
-            for clave, ent in entradas.items():
-                val = ent.get().strip()
-                if clave == "monto":
-                    val = limpiar_monto_boliviano(val)
-                actualizados[clave] = val
-            actualizados["productos"] = txt_productos.get("1.0", tk.END).strip()
-
-            confirmado["accion"] = "guardar"
-            confirmado["datos"] = actualizados
-            ventana.destroy()
-
-        def accion_saltar():
-            confirmado["accion"] = "saltar"
-            ventana.destroy()
-
-        def accion_cancelar_todo():
-            confirmado["accion"] = "cancelar_todo"
-            ventana.destroy()
-
-        frame_botones = tk.Frame(ventana)
-        frame_botones.pack(fill="x", padx=25, pady=15)
-        
-        tk.Button(frame_botones, text="⏹️ Detener Todo", bg="#7f8c8d", fg="white", font=("Arial", 9, "bold"), command=accion_cancelar_todo, padx=8, pady=6).pack(side="left")
-        tk.Button(frame_botones, text="⏭️ Omitir Factura", bg="#e67e22", fg="white", font=("Arial", 9, "bold"), command=accion_saltar, padx=8, pady=6).pack(side="left", padx=8)
-        tk.Button(frame_botones, text=" Confirmar y Guardar", bg="#27ae60", fg="white", font=("Arial", 9, "bold"), command=accion_guardar, padx=10, pady=6).pack(side="right")
-
-        ventana.mainloop()
-        return confirmado
-    except Exception as e_tk:
-        print(f"💡 GUI no disponible ({e_tk}). Guardando automáticamente datos extraídos...")
-        return {"accion": "guardar", "datos": datos}
-
-def procesar_lote_facturas():
-    rutas_pdf = seleccionar_archivos_pdf()
-    if not rutas_pdf:
-        print("❌ No se seleccionó ningún archivo.")
+# =====================================================================
+# PROCESAMIENTO EN LOTE DESDE SUPABASE STORAGE (GITHUB ACTIONS / SERVER)
+# =====================================================================
+def procesar_lote_supabase_bucket():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("❌ Credenciales Supabase no configuradas.")
         return
 
-    total = len(rutas_pdf)
-    print(f"\n📁 Se seleccionaron {total} factura(s) para procesar.")
+    print("\n📦 === PROCESADOR EN LOTE DESDE SUPABASE STORAGE ('facturas-pdf') ===")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    for i, ruta_pdf in enumerate(rutas_pdf, 1):
-        nombre_archivo = os.path.basename(ruta_pdf)
-        tipo_detectado = determinar_tipo(nombre_archivo)
-        print(f"\n------------------------------------------------------------")
-        print(f"📄 [{i}/{total}] Procesando: {nombre_archivo} | Tipo: {tipo_detectado}")
-        print(f"------------------------------------------------------------")
+    try:
+        try:
+            supabase.storage.create_bucket("facturas-pdf", options={"public": True})
+        except Exception:
+            pass
+        try:
+            supabase.storage.create_bucket("facturas-terminadas", options={"public": True})
+        except Exception:
+            pass
 
-        factura_procesada = False
-        intentos_lectura = 0
-        max_intentos_lectura = 3
+        res_files = supabase.storage.from_("facturas-pdf").list()
+        pdfs_encontrados = [f["name"] for f in res_files if f.get("name", "").lower().endswith(".pdf")]
 
-        while not factura_procesada and intentos_lectura < max_intentos_lectura:
-            intentos_lectura += 1
-            if intentos_lectura > 1:
-                print(f"🔄 Reintentando lectura completa de {nombre_archivo} (Intento {intentos_lectura}/{max_intentos_lectura})...")
+        if not pdfs_encontrados:
+            print("ℹ️ No hay facturas pendientes en 'facturas-pdf'.")
+            return
 
+        total_bucket = len(pdfs_encontrados)
+        print(f"🚀 Se encontraron {total_bucket} factura(s) PDF en Supabase Storage. Procesando lote completo en 1 solo ciclo...")
+
+        temp_dir = "temp_batch_pdfs"
+        os.makedirs(temp_dir, exist_ok=True)
+        driver = configurar_driver()
+
+        try:
+            for idx, file_name in enumerate(pdfs_encontrados, 1):
+                print(f"\n[{idx}/{total_bucket}] Descargando y procesando: {file_name}")
+                local_path = os.path.join(temp_dir, file_name)
+
+                pdf_bytes = supabase.storage.from_("facturas-pdf").download(file_name)
+                with open(local_path, "wb") as f_out:
+                    f_out.write(pdf_bytes)
+
+                datos, metadata = procesar_factura_con_reintentos(local_path, driver, max_retries=5)
+
+                if datos and metadata:
+                    mostrar_inspeccion_detallada(datos, metadata)
+                    guardar_factura_en_bd(datos, metadata)
+
+                    try:
+                        supabase.storage.from_("facturas-terminadas").upload(file_name, pdf_bytes, file_options={"upsert": "true"})
+                        supabase.storage.from_("facturas-pdf").remove([file_name])
+                        print(f"📁 PDF movido en Storage a carpeta 'facturas-terminadas/{file_name}'")
+                    except Exception as e_mov:
+                        print(f"⚠️ Aviso al mover PDF en Storage: {e_mov}")
+
+        finally:
+            driver.quit()
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        generar_archivo_dump_sql()
+        exportar_todo_a_excel()
+        sincronizar_a_supabase()
+
+        print("\n🏁 Procesamiento en lote finalizado exitosamente.")
+
+    except Exception as e_batch:
+        print(f"❌ Error durante el lote en Supabase Storage: {e_batch}")
+
+
+# =====================================================================
+# SINCRONIZACIÓN A SUPABASE
+# =====================================================================
+def sincronizar_a_supabase():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("⚠️ Variables SUPABASE_URL o SUPABASE_KEY no configuradas. Omitiendo subida a Supabase.")
+        return
+
+    print("\n🚀 Sincronizando datos hacia Supabase...")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM facturas_cabecera")
+    cols_cab = [col[0] for col in cursor.description]
+    filas_cab = cursor.fetchall()
+
+    for fila in filas_cab:
+        registro = dict(zip(cols_cab, fila))
+        if registro.get("detalle_items_json"):
             try:
-                doc = pymupdf.open(ruta_pdf)
-                img_cv2 = convertir_pagina_a_cv2(doc[0], dpi=300 if intentos_lectura == 1 else 400)
-                
-                # 1. Leer QR
-                url_qr = leer_qr(img_cv2)
-                if not url_qr:
-                    print(f"❌ No se detectó código QR en {nombre_archivo} (Intento {intentos_lectura}).")
-                    doc.close()
-                    time.sleep(1)
-                    continue
+                registro["detalle_items_json"] = json.loads(registro["detalle_items_json"])
+            except Exception:
+                pass
+        supabase.table("facturas_cabecera").upsert(registro).execute()
 
-                # 2. Extracción de Doc Aduanero y Ref Interna
-                texto_nativo = doc[0].get_text()
-                raw_text_full = texto_nativo
-                if len(texto_nativo.strip()) > 50:
-                    doc_aduanero_extraido = extraer_doc_aduanero_especifico(texto_nativo, tipo_detectado)
-                else:
-                    print("⏳ Escaneando texto con EasyOCR...")
-                    bloques = lector_ocr.readtext(img_cv2, detail=0, paragraph=True)
-                    raw_text_full = "\n".join(bloques)
-                    doc_aduanero_extraido = extraer_doc_aduanero_especifico(raw_text_full, tipo_detectado)
+    cursor.execute("SELECT cuf_factura, codigo_producto, descripcion, cantidad, precio_unitario, subtotal FROM facturas_detalle")
+    cols_det = ["cuf_factura", "codigo_producto", "descripcion", "cantidad", "precio_unitario", "subtotal"]
+    filas_det = cursor.fetchall()
 
-                doc.close()
+    for fila in filas_det:
+        item = dict(zip(cols_det, fila))
+        supabase.table("facturas_detalle").insert(item).execute()
 
-                ref_interna = None
-                m_ref_file = re.search(r"(\d{3,4}-\d{2})", nombre_archivo)
-                if m_ref_file:
-                    ref_interna = m_ref_file.group(1)
-                elif raw_text_full:
-                    m_ref_text = re.search(r"\b(\d{3,4}-\d{2})\b", raw_text_full)
-                    if m_ref_text:
-                        ref_interna = m_ref_text.group(1)
+    conn.close()
+    print("✅ ¡Sincronización con Supabase finalizada exitosamente!")
 
-                # 3. Consulta SIAT con reintentos
-                datos_siat = extraer_siat_con_navegador(url_qr, max_retries=3)
-                estado_siat = datos_siat.get("estado", "")
 
-                # 4. Regla estricta: Si está ANULADO en SIAT, doc_aduanero = "ANULADO"
-                if "ANULAD" in estado_siat:
-                    print("⚠️ Factura ANULADA detectada en SIAT. Asignando ANULADO a doc_aduanero.")
-                    doc_aduanero_final = "ANULADO"
-                else:
-                    doc_aduanero_final = doc_aduanero_extraido
-
-                monto_pdf = extraer_monto_pdf(raw_text_full)
-                monto_final = datos_siat.get("monto", 0.0)
-                if monto_final <= 0 or (monto_pdf > 0 and abs(monto_final - monto_pdf) > 1.0):
-                    monto_final = monto_pdf
-
-                prods_pdf = extraer_productos_pdf(raw_text_full)
-                json_prods = datos_siat.get("productos", "")
-                if prods_pdf:
-                    sum_prods = sum(p["subtotal"] for p in prods_pdf)
-                    if abs(sum_prods - monto_final) <= 1.0 or not json_prods:
-                        json_prods = json.dumps(prods_pdf)
-                        if monto_final <= 0 and sum_prods > 0:
-                            monto_final = sum_prods
-
-                fecha_final = normalizar_fecha_iso(datos_siat.get("fecha", ""))
-                if not fecha_final:
-                    m_f_raw = re.search(r'FECHA\s*[:\.]?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})', raw_text_full, re.IGNORECASE)
-                    if m_f_raw:
-                        fecha_final = normalizar_fecha_iso(m_f_raw.group(0))
-
-                nombre_final = datos_siat.get("nombre", "")
-                if not nombre_final or "NIT" in nombre_final.upper() or "CEX" in nombre_final.upper() or "1020415021" in nombre_final:
-                    if "MINERA SAN CRISTOBAL" in raw_text_full.upper():
-                        nombre_final = "MINERA SAN CRISTOBAL S.A."
-                    elif "ALMACENERA BOLIVIANA" in raw_text_full.upper():
-                        nombre_final = "ALMACENERA BOLIVIANA S.A. ALBO S.A."
-                    elif "DEPOSITOS ADUANEROS" in raw_text_full.upper() or "DAB" in raw_text_full.upper():
-                        nombre_final = "DEPÓSITOS ADUANEROS BOLIVIANOS - DAB"
-
-                factura_data = {
-                    "tipo": tipo_detectado,
-                    "estado": estado_siat,
-                    "fecha": fecha_final,
-                    "nit": datos_siat.get("nit", ""),
-                    "nombre": nombre_final,
-                    "n_factura": datos_siat.get("n_factura", ""),
-                    "monto": monto_final,
-                    "cuf": datos_siat.get("cuf", ""),
-                    "codigo_qr": url_qr,
-                    "doc_aduanero": doc_aduanero_final,
-                    "ref_guia": ref_interna,
-                    "productos": json_prods
-                }
-
-                print("\n📊 === DATOS EXTRAÍDOS ===")
-                print(f"Factura N°    : {factura_data['n_factura']}")
-                print(f"NIT Emisor    : {factura_data['nit']}")
-                print(f"Razón Social  : {factura_data['nombre']}")
-                print(f"Monto Total   : {factura_data['monto']} Bs")
-                print(f"Doc Aduanero  : {doc_aduanero_final}")
-                print(f"Estado SIAT   : {estado_siat}")
-                print("==========================\n")
-
-                # Ventana de verificación interactiva GUI
-                resultado = ventana_verificacion(factura_data, i, total)
-
-                if resultado["accion"] == "guardar":
-                    datos_guardar = resultado["datos"]
-                    print("🚀 Guardando en base de datos Supabase...")
-                    guardar_factura_en_supabase(datos_guardar)
-                    factura_procesada = True
-                elif resultado["accion"] == "saltar":
-                    print(f"⏭️ Factura {nombre_archivo} omitida.")
-                    factura_procesada = True
-                elif resultado["accion"] == "cancelar_todo":
-                    print("⏹️ Proceso en lote detenido por el usuario.")
-                    return
-
-            except Exception as err_proc:
-                print(f"❌ Error durante el procesamiento de {nombre_archivo}: {err_proc}")
-                time.sleep(2)
-
-        if not factura_procesada:
-            print(f"❌ No se pudieron extraer todos los datos de {nombre_archivo} tras {max_intentos_lectura} intentos.")
-
-    print("\n🏁 Procesamiento de todas las facturas finalizado exitosamente.")
-
+# =====================================================================
+# 5. FLUJO PRINCIPAL DE EJECUCIÓN
+# =====================================================================
 if __name__ == "__main__":
-    procesar_lote_facturas()
+    inicializar_base_datos()
+
+    if len(sys.argv) > 1 and "--batch-supabase" in sys.argv:
+        procesar_lote_supabase_bucket()
+    else:
+        print("=== PROCESADOR PROFESIONAL DE FACTURAS SIAT EN PDF ===")
+        print("\nAbriendo explorador para seleccionar facturas en PDF...")
+        archivos_pdf = seleccionar_archivos_pdf()
+
+        if not archivos_pdf:
+            print("⚠️ No se encontraron archivos PDF para procesar. Finalizando...")
+            sys.exit(0)
+
+        print(f"\nSe seleccionaron {len(archivos_pdf)} archivo(s) PDF.")
+        print("Iniciando navegador Chrome silencioso...")
+        driver = configurar_driver()
+
+        exitosas = 0
+        errores = 0
+
+        try:
+            for idx, ruta in enumerate(archivos_pdf, 1):
+                nombre_archivo = os.path.basename(ruta)
+                print(f"\n[{idx}/{len(archivos_pdf)}] Procesando: {nombre_archivo}")
+
+                datos, metadata_archivo = procesar_factura_con_reintentos(ruta, driver, max_retries=5)
+
+                if datos and metadata_archivo:
+                    mostrar_inspeccion_detallada(datos, metadata_archivo)
+                    guardar_factura_en_bd(datos, metadata_archivo)
+                    exitosas += 1
+                else:
+                    print(f"❌ Imposible extraer datos de '{nombre_archivo}' tras 5 reintentos.")
+                    errores += 1
+
+        finally:
+            driver.quit()
+            print("\nNavegador Chrome cerrado.")
+
+        if exitosas > 0:
+            generar_archivo_dump_sql()
+            exportar_todo_a_excel()
+            sincronizar_a_supabase()
+
+        print("\n" + "=" * 70)
+        print("                    RESUMEN DEL PROCESO")
+        print("=" * 70)
+        print(f"Total PDFs analizados    : {len(archivos_pdf)}")
+        print(f"Facturas registradas OK  : {exitosas}")
+        print(f"Facturas con error       : {errores}")
+        print(f"Base de datos SQLite     : {DB_NAME}")
+        print(f"Script de volcado SQL    : {SQL_DUMP_NAME}")
+        print(f"Libro consolidado Excel  : {EXCEL_NAME}")
+        print("=" * 70)
