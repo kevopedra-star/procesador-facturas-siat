@@ -266,7 +266,8 @@ def inicializar_base_datos():
         cuadra INTEGER,
         detalle_items_texto TEXT,
         detalle_items_json TEXT,
-        fecha_registro TEXT
+        fecha_registro TEXT,
+        enlace_qr TEXT
     )
     """)
 
@@ -280,7 +281,8 @@ def inicializar_base_datos():
         ("es_dhl", "INTEGER"),
         ("estado_extraccion", "TEXT"),
         ("detalle_items_texto", "TEXT"),
-        ("detalle_items_json", "TEXT")
+        ("detalle_items_json", "TEXT"),
+        ("enlace_qr", "TEXT")
     ]
     for nombre_col, tipo_col in columnas_a_verificar:
         if nombre_col not in cols:
@@ -326,14 +328,16 @@ def guardar_factura_en_bd(datos, metadata_archivo):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
+    enlace_qr = datos.get("enlace_qr") or f"https://siat.impuestos.gob.bo/consulta/QR?nit={emi['nit_emisor']}&cuf={cuf}&numero={det['numero_factura']}"
+
     cursor.execute("""
     INSERT OR REPLACE INTO facturas_cabecera (
         cuf, archivo_pdf, tipo_documento, nro_interno, dato_especifico, es_dhl, estado_extraccion,
         numero_factura, fecha_emision, estado, nit_emisor,
         razon_social_emisor, direccion_emisor, cliente_nombre,
         cliente_documento, monto_total, suma_items, cuadra,
-        detalle_items_texto, detalle_items_json, fecha_registro
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        detalle_items_texto, detalle_items_json, fecha_registro, enlace_qr
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         cuf,
         metadata_archivo["archivo_pdf"],
@@ -355,7 +359,8 @@ def guardar_factura_en_bd(datos, metadata_archivo):
         cuadra,
         items_texto,
         items_json,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        enlace_qr
     ))
 
     cursor.execute("DELETE FROM facturas_detalle WHERE cuf_factura = ?", (cuf,))
@@ -715,6 +720,8 @@ def procesar_factura_con_reintentos(ruta_pdf, driver, max_retries=5):
         # 2. Extracción SIAT
         try:
             datos = extraer_datos_siat(driver, enlace)
+            if datos:
+                datos["enlace_qr"] = enlace
         except Exception as ex:
             print(f"    ⚠️ [Intento {intento}/{max_retries}] Error al consultar portal SIAT: {ex}")
             time.sleep(2)
