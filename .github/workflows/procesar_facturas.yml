@@ -37,6 +37,6 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://sfqpptquojlsbeheguff.supabase.co' }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDk3ODMsImV4cCI6MjA1NjgyNTc4M30.4qFstq4_k24kQyqNfS_b6QcM_G4S_Q0S1J3-2_S0t0t' }}
           GITHUB_OWNER: "kevopedra-star"
-          GITHUB_REPO: "procesador-facturas-siat"
+          GITHUB_REPO: "sistema-facturas-python-ocr"
         run: |
           python procesador_siat.py --batch-supabase || python procesar_facturas_py.py --batch-supabase || python python_processor/procesar_facturas_py.py --batch-supabase

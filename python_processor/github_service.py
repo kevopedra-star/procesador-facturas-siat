@@ -35,7 +35,7 @@ if not logger.handlers:
     logger.setLevel(logging.INFO)
 
 DEFAULT_GITHUB_OWNER = os.environ.get("GITHUB_OWNER", "kevopedra-star")
-DEFAULT_GITHUB_REPO = os.environ.get("GITHUB_REPO", "procesador-facturas-siat")
+DEFAULT_GITHUB_REPO = os.environ.get("GITHUB_REPO", "sistema-facturas-python-ocr")
 DEFAULT_GITHUB_PAT = os.environ.get("GITHUB_PAT", "")
 
 def _cargar_env_local():
