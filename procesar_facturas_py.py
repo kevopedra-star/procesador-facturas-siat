@@ -762,25 +762,25 @@ def procesar_factura_con_reintentos(ruta_pdf, driver, max_retries=5):
 # PROCESAMIENTO EN LOTE DESDE SUPABASE STORAGE (GITHUB ACTIONS / SERVER)
 # =====================================================================
 def procesar_lote_supabase_bucket():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        print("❌ Credenciales Supabase no configuradas.")
-        return
-
     print("\n📦 === PROCESADOR EN LOTE DESDE SUPABASE STORAGE ('facturas-pdf') ===")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    
+    url = SUPABASE_URL
+    key = SUPABASE_KEY
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}"
+    }
 
     try:
-        try:
-            supabase.storage.create_bucket("facturas-pdf", options={"public": True})
-        except Exception:
-            pass
-        try:
-            supabase.storage.create_bucket("facturas-terminadas", options={"public": True})
-        except Exception:
-            pass
+        list_url = f"{url}/storage/v1/object/list/facturas-pdf"
+        resp_list = requests.post(list_url, headers=headers, json={"prefix": "", "limit": 1000})
 
-        res_files = supabase.storage.from_("facturas-pdf").list()
-        pdfs_encontrados = [f["name"] for f in res_files if f.get("name", "").lower().endswith(".pdf")]
+        if resp_list.status_code != 200:
+            print(f"❌ Error al consultar lista en Supabase Storage (HTTP {resp_list.status_code}): {resp_list.text}")
+            return
+
+        items = resp_list.json() if isinstance(resp_list.json(), list) else []
+        pdfs_encontrados = [f["name"] for f in items if isinstance(f, dict) and f.get("name", "").lower().endswith(".pdf") and not f.get("name", "").startswith("terminadas/")]
 
         if not pdfs_encontrados:
             print("ℹ️ No hay facturas pendientes en 'facturas-pdf'.")
@@ -798,7 +798,14 @@ def procesar_lote_supabase_bucket():
                 print(f"\n[{idx}/{total_bucket}] Descargando y procesando: {file_name}")
                 local_path = os.path.join(temp_dir, file_name)
 
-                pdf_bytes = supabase.storage.from_("facturas-pdf").download(file_name)
+                dl_url = f"{url}/storage/v1/object/public/facturas-pdf/{file_name}"
+                resp_dl = requests.get(dl_url)
+
+                if resp_dl.status_code != 200:
+                    print(f"⚠️ Error al descargar '{file_name}' (HTTP {resp_dl.status_code})")
+                    continue
+
+                pdf_bytes = resp_dl.content
                 with open(local_path, "wb") as f_out:
                     f_out.write(pdf_bytes)
 
@@ -809,9 +816,12 @@ def procesar_lote_supabase_bucket():
                     guardar_factura_en_bd(datos, metadata)
 
                     try:
-                        supabase.storage.from_("facturas-terminadas").upload(file_name, pdf_bytes, file_options={"upsert": "true"})
-                        supabase.storage.from_("facturas-pdf").remove([file_name])
-                        print(f"📁 PDF movido en Storage a carpeta 'facturas-terminadas/{file_name}'")
+                        up_url = f"{url}/storage/v1/object/facturas-pdf/terminadas/{file_name}"
+                        requests.post(up_url, headers=headers, files={'file': (file_name, pdf_bytes, 'application/pdf')})
+
+                        del_url = f"{url}/storage/v1/object/facturas-pdf"
+                        requests.delete(del_url, headers=headers, json={'prefixes': [file_name]})
+                        print(f"📁 PDF movido en Storage a carpeta terminadas/{file_name}")
                     except Exception as e_mov:
                         print(f"⚠️ Aviso al mover PDF en Storage: {e_mov}")
 
