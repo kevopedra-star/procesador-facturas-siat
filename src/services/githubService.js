@@ -17,17 +17,43 @@ const DEFAULT_GITHUB_PAT = (typeof import.meta !== "undefined" && import.meta.en
  * @param {string} nombreArchivo - Nombre original del archivo con convención (ej: "ALBO 12345-6.pdf").
  * @returns {Promise<{success: boolean, status: number, message: string}>} Resultado de la operación.
  */
+function obtenerGitHubPAT() {
+    let pat = "";
+    if (typeof localStorage !== "undefined") {
+        pat = localStorage.getItem("GITHUB_PAT") || "";
+    }
+    if (!pat && typeof import.meta !== "undefined" && import.meta.env) {
+        pat = import.meta.env.VITE_GITHUB_PAT || import.meta.env.GITHUB_PAT || "";
+    }
+    if (pat === "your_github_personal_access_token_here") {
+        pat = "";
+    }
+
+    if (!pat) {
+        pat = prompt("🔑 Ingrese su GitHub Personal Access Token (PAT) para comunicar con GitHub Actions:");
+        if (pat && pat.trim()) {
+            pat = pat.trim();
+            if (typeof localStorage !== "undefined") {
+                localStorage.setItem("GITHUB_PAT", pat);
+            }
+        } else {
+            pat = "";
+        }
+    }
+    return pat;
+}
+
 export async function enviarFacturaAGitHub(pdfUrl, nombreArchivo) {
     const owner = "kevopedra-star";
     const repo = "procesador-facturas-siat";
-    let pat = DEFAULT_GITHUB_PAT;
+    const pat = obtenerGitHubPAT();
 
-    try {
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-            pat = import.meta.env.VITE_GITHUB_PAT || import.meta.env.GITHUB_PAT || pat;
-        }
-    } catch (eEnv) {
-        // En caso de ejecutarse fuera de Vite/ESM
+    if (!pat) {
+        return {
+            success: false,
+            status: 401,
+            message: "No se proporcionó un GitHub PAT válido para autenticar la petición."
+        };
     }
 
     const endpointUrl = `https://api.github.com/repos/${owner}/${repo}/dispatches`;
@@ -93,14 +119,14 @@ export async function enviarFacturaAGitHub(pdfUrl, nombreArchivo) {
 export async function enviarLoteAGitHub(totalArchivos) {
     const owner = "kevopedra-star";
     const repo = "procesador-facturas-siat";
-    let pat = DEFAULT_GITHUB_PAT;
+    const pat = obtenerGitHubPAT();
 
-    try {
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-            pat = import.meta.env.VITE_GITHUB_PAT || import.meta.env.GITHUB_PAT || pat;
-        }
-    } catch (eEnv) {
-        // En caso de ejecutarse fuera de Vite/ESM
+    if (!pat) {
+        return {
+            success: false,
+            status: 401,
+            message: "No se proporcionó un GitHub PAT válido para autenticar la petición."
+        };
     }
 
     const endpointUrl = `https://api.github.com/repos/${owner}/${repo}/dispatches`;

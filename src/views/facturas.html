@@ -964,13 +964,29 @@
                 } catch (eB) {}
 
                 let uploadedCount = 0;
+                let dispatched = false;
+                const target90Pct = Math.max(1, Math.floor(totalFiles * 0.9));
+
                 const uploadPromises = fileArray.map(async (file, fIdx) => {
                     try {
-                        const { error: stErr } = await supabase.storage.from('facturas-pdf').upload(file.name, file, { contentType: 'application/pdf', upsert: true });
+                        await supabase.storage.from('facturas-pdf').upload(file.name, file, { contentType: 'application/pdf', upsert: true });
                         uploadedCount++;
-                        const pct = Math.round((uploadedCount / totalFiles) * 90);
                         updateLiveProgress(uploadedCount, totalFiles);
                         appendStreamLog(`<div class="text-emerald-400 font-medium">☁️ [${uploadedCount}/${totalFiles}] PDF subido a Storage: ${file.name}</div>`);
+
+                        // Disparar a GitHub Actions tan pronto como se alcance el 90% de la subida
+                        if (!dispatched && uploadedCount >= target90Pct) {
+                            dispatched = true;
+                            appendStreamLog(`<div class="text-sky-300 font-bold text-sm mt-3">⚡ Carga al 90% alcanzada (${uploadedCount}/${totalFiles}). Activando GitHub Actions de inmediato...</div>`);
+                            enviarLoteAGitHub(totalFiles).then(resGh => {
+                                if (resGh && resGh.success) {
+                                    appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Evento 'procesar_lote' activado con éxito en GitHub Actions (HTTP 204).</div>`);
+                                    appendStreamLog(`<div class="text-sky-300 font-medium"> El servidor en GitHub ha iniciado y procesará el lote completo de ${totalFiles} facturas.</div>`);
+                                } else {
+                                    appendStreamLog(`<div class="text-rose-400 font-bold">❌ Error al activar GitHub Actions: HTTP ${resGh ? resGh.status : 'ERR'} - ${resGh ? resGh.message : 'Error de autenticación/red'}</div>`);
+                                }
+                            });
+                        }
                     } catch (eUp) {
                         console.warn("Error subiendo PDF:", eUp);
                         uploadedCount++;
@@ -979,15 +995,17 @@
 
                 await Promise.all(uploadPromises);
 
-                appendStreamLog(`<div class="text-emerald-400 font-bold text-sm mt-3">🚀 === SUBIDA COMPLETADA AL 100% (${totalFiles} PDFs EN SUPABASE STORAGE) ===</div>`);
-                appendStreamLog(`<div class="text-sky-400 font-bold text-sm">⚡ Notificando a GitHub Actions para procesar el LOTE COMPLETO en 1 sola máquina virtual con Python OCR + SIAT...</div>`);
+                appendStreamLog(`<div class="text-emerald-400 font-bold text-sm mt-3">🚀 === SUBIDA DE ARCHIVOS COMPLETADA AL 100% (${totalFiles} PDFs EN SUPABASE STORAGE) ===</div>`);
 
-                const resGh = await enviarLoteAGitHub(totalFiles);
-                if (resGh && resGh.success) {
-                    appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Evento 'procesar_lote' enviado exitosamente a GitHub Actions (HTTP 204).</div>`);
-                    appendStreamLog(`<div class="text-sky-300 font-medium"> El runner de GitHub procesará las ${totalFiles} facturas en 1 solo ciclo continuo.</div>`);
-                } else {
-                    appendStreamLog(`<div class="text-amber-300 font-medium">ℹ️ Notificación a GitHub despachada. El runner completará el procesamiento del lote.</div>`);
+                if (!dispatched) {
+                    dispatched = true;
+                    appendStreamLog(`<div class="text-sky-400 font-bold text-sm">⚡ Notificando a GitHub Actions para procesar el LOTE COMPLETO...</div>`);
+                    const resGh = await enviarLoteAGitHub(totalFiles);
+                    if (resGh && resGh.success) {
+                        appendStreamLog(`<div class="text-emerald-400 font-bold">✅ Evento 'procesar_lote' activado con éxito en GitHub Actions (HTTP 204).</div>`);
+                    } else {
+                        appendStreamLog(`<div class="text-rose-400 font-bold">❌ Error al activar GitHub Actions: HTTP ${resGh ? resGh.status : 'ERR'} - ${resGh ? resGh.message : 'Error de autenticación/red'}</div>`);
+                    }
                 }
 
                 liveSuccessCount = totalFiles;
