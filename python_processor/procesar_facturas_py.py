@@ -820,11 +820,20 @@ def procesar_lote_supabase_bucket():
 
                     try:
                         up_url = f"{url}/storage/v1/object/facturas-pdf/terminadas/{file_name}"
-                        requests.post(up_url, headers=headers, files={'file': (file_name, pdf_bytes, 'application/pdf')})
+                        h_up = headers.copy()
+                        h_up["x-upsert"] = "true"
+                        h_up["Content-Type"] = "application/pdf"
+                        resp_up = requests.post(up_url, headers=h_up, data=pdf_bytes)
 
                         del_url = f"{url}/storage/v1/object/facturas-pdf"
-                        requests.delete(del_url, headers=headers, json={'prefixes': [file_name]})
-                        print(f"📁 PDF movido en Storage a carpeta terminadas/{file_name}")
+                        h_del = headers.copy()
+                        h_del["Content-Type"] = "application/json"
+                        resp_del = requests.delete(del_url, headers=h_del, json={'prefixes': [file_name]})
+
+                        if resp_up.status_code in (200, 201) and resp_del.status_code == 200:
+                            print(f"📁 PDF movido en Storage a carpeta terminadas/{file_name} y eliminado de raíz.")
+                        else:
+                            print(f"⚠️ Aviso Storage (Upload {resp_up.status_code} / Delete {resp_del.status_code}): Si la subida o borrado falló, ejecuta configurar_politicas_storage.sql en Supabase SQL Editor.")
                     except Exception as e_mov:
                         print(f"⚠️ Aviso al mover PDF en Storage: {e_mov}")
 
