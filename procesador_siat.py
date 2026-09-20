@@ -854,6 +854,35 @@ def procesar_lote_supabase_bucket():
 # =====================================================================
 # SINCRONIZACIÓN A SUPABASE
 # =====================================================================
+def construir_registro_factura(registro):
+    cuf_val = str(registro.get("cuf") or "").strip()
+    nit_val = str(registro.get("nit_emisor") or "").strip()
+    n_fac_val = str(registro.get("numero_factura") or "").strip()
+    monto_val = str(registro.get("monto_total") or "").strip()
+    fecha_val = str(registro.get("fecha_emision") or "").strip()
+
+    if cuf_val.startswith("http"):
+        qr_url = cuf_val
+    elif nit_val and cuf_val:
+        qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}&numero={n_fac_val}&monto={monto_val}&fecha={fecha_val}"
+    else:
+        qr_url = cuf_val
+
+    return {
+        "cuf": cuf_val,
+        "codigo_qr": qr_url,
+        "tipo": registro.get("tipo_documento"),
+        "fecha": registro.get("fecha_emision"),
+        "nit": registro.get("nit_emisor"),
+        "nombre": registro.get("razon_social_emisor"),
+        "n_factura": registro.get("numero_factura"),
+        "monto": registro.get("monto_total"),
+        "ref_guia": registro.get("dato_especifico"),
+        "doc_aduanero": registro.get("nro_interno"),
+        "productos": registro.get("detalle_items_texto")
+    }
+
+
 def sincronizar_registro_a_supabase(cuf):
     if not SUPABASE_URL or not SUPABASE_KEY or not cuf:
         return
@@ -878,18 +907,7 @@ def sincronizar_registro_a_supabase(cuf):
             except Exception as e_cab:
                 print(f"⚠️ Aviso al upsert en facturas_cabecera: {e_cab}")
 
-            reg_factura = {
-                "cuf": registro.get("cuf"),
-                "tipo": registro.get("tipo_documento"),
-                "fecha": registro.get("fecha_emision"),
-                "nit": registro.get("nit_emisor"),
-                "nombre": registro.get("razon_social_emisor"),
-                "n_factura": registro.get("numero_factura"),
-                "monto": registro.get("monto_total"),
-                "ref_guia": registro.get("dato_especifico"),
-                "doc_aduanero": registro.get("nro_interno"),
-                "productos": registro.get("detalle_items_texto")
-            }
+            reg_factura = construir_registro_factura(registro)
             try:
                 supabase.table("facturas").upsert(reg_factura).execute()
             except Exception:
@@ -941,18 +959,7 @@ def sincronizar_a_supabase():
         except Exception as e_cab:
             print(f"⚠️ Aviso al upsert en facturas_cabecera: {e_cab}")
 
-        reg_factura = {
-            "cuf": registro.get("cuf"),
-            "tipo": registro.get("tipo_documento"),
-            "fecha": registro.get("fecha_emision"),
-            "nit": registro.get("nit_emisor"),
-            "nombre": registro.get("razon_social_emisor"),
-            "n_factura": registro.get("numero_factura"),
-            "monto": registro.get("monto_total"),
-            "ref_guia": registro.get("dato_especifico"),
-            "doc_aduanero": registro.get("nro_interno"),
-            "productos": registro.get("detalle_items_texto")
-        }
+        reg_factura = construir_registro_factura(registro)
         try:
             supabase.table("facturas").upsert(reg_factura).execute()
         except Exception:
