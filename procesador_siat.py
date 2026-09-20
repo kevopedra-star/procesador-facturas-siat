@@ -13,6 +13,7 @@ no es detectado en la primera lectura.
 
 import os
 import sys
+import requests
 import cv2
 import time
 import re
