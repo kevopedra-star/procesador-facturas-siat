@@ -48,7 +48,7 @@ SQL_DUMP_NAME = "facturas_dump.sql"
 EXCEL_NAME = "Reporte_Facturas_SIAT.xlsx"
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or "https://sfqpptquojlsbeheguff.supabase.co"
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDk3ODMsImV4cCI6MjA1NjgyNTc4M30.4qFstq4_k24kQyqNfS_b6QcM_G4S_Q0S1J3-2_S0t0t"
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY") or "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek"
 
 print("🧠 Inicializando motor de Inteligencia Artificial EasyOCR...")
 lector_ia = easyocr.Reader(['es', 'en'], gpu=False)

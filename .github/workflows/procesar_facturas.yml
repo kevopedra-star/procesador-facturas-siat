@@ -35,7 +35,7 @@ jobs:
       - name: 🚀 Procesar TODAS las Facturas de Supabase Storage en 1 solo ciclo
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://sfqpptquojlsbeheguff.supabase.co' }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEyNDk3ODMsImV4cCI6MjA1NjgyNTc4M30.4qFstq4_k24kQyqNfS_b6QcM_G4S_Q0S1J3-2_S0t0t' }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmcXBwdHF1b2psc2JlaGVndWZmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMzgzNzAsImV4cCI6MjEwNDgxNDM3MH0.h-wOCnoz6KW8CdGBRowuWJIvknk_sEJ-_2HLx7SC1ek' }}
           GITHUB_OWNER: "kevopedra-star"
           GITHUB_REPO: "sistema-facturas-python-ocr"
         run: |
