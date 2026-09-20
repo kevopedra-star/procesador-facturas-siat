@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS public.facturas_cabecera (
   detalle_items_texto text NULL,
   detalle_items_json jsonb NULL,
   fecha_registro timestamp with time zone NULL DEFAULT now(),
+  enlace_qr text NULL,
   CONSTRAINT facturas_cabecera_pkey PRIMARY KEY (cuf)
 );
 
