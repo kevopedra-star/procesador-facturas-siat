@@ -858,13 +858,14 @@ def construir_registro_factura(registro):
     cuf_val = str(registro.get("cuf") or "").strip()
     nit_val = str(registro.get("nit_emisor") or "").strip()
     n_fac_val = str(registro.get("numero_factura") or "").strip()
-    monto_val = str(registro.get("monto_total") or "").strip()
-    fecha_val = str(registro.get("fecha_emision") or "").strip()
 
     if cuf_val.startswith("http"):
         qr_url = cuf_val
     elif nit_val and cuf_val:
-        qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}&numero={n_fac_val}&monto={monto_val}&fecha={fecha_val}"
+        if n_fac_val and n_fac_val != "No encontrado":
+            qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}&numero={n_fac_val}"
+        else:
+            qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}"
     else:
         qr_url = cuf_val
 

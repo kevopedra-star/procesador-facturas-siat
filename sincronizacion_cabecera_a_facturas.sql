@@ -80,15 +80,16 @@ BEGIN
         v_productos_str := NEW.detalle_items_texto;
     END IF;
 
-    -- Formatear codigo_qr a enlace URL SIAT completo
+    -- Formatear codigo_qr a enlace URL SIAT completo (nit, cuf, numero)
     IF NEW.cuf LIKE 'http%' THEN
         v_qr_url := NEW.cuf;
-    ELSE
+    ELSIF NEW.numero_factura IS NOT NULL AND NEW.numero_factura <> '' AND NEW.numero_factura <> 'No encontrado' THEN
         v_qr_url := 'https://siat.impuestos.gob.bo/consulta/QR?nit=' || COALESCE(NEW.nit_emisor, '') 
                  || '&cuf=' || NEW.cuf 
-                 || '&numero=' || COALESCE(NEW.numero_factura, '') 
-                 || '&monto=' || COALESCE(NEW.monto_total::text, '0') 
-                 || '&fecha=' || COALESCE(NEW.fecha_emision, '');
+                 || '&numero=' || NEW.numero_factura;
+    ELSE
+        v_qr_url := 'https://siat.impuestos.gob.bo/consulta/QR?nit=' || COALESCE(NEW.nit_emisor, '') 
+                 || '&cuf=' || NEW.cuf;
     END IF;
 
     -- Buscar si ya existe en 'facturas' por CUF, por QR o por N° Factura + NIT
