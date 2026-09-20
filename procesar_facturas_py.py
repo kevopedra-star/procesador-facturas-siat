@@ -866,19 +866,23 @@ def construir_registro_factura(registro):
     nit_val = str(registro.get("nit_emisor") or "").strip()
     n_fac_val = str(registro.get("numero_factura") or "").strip()
 
-    if cuf_val.startswith("http"):
-        qr_url = cuf_val
-    elif nit_val and cuf_val:
-        if n_fac_val and n_fac_val != "No encontrado":
-            qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}&numero={n_fac_val}"
+    # PRIORIDAD ABSOLUTA: Usar el enlace QR escaneado directamente del PDF sin modificar
+    qr_url = str(registro.get("enlace_qr") or "").strip()
+    if not qr_url or not qr_url.startswith("http"):
+        if cuf_val.startswith("http"):
+            qr_url = cuf_val
+        elif nit_val and cuf_val:
+            if n_fac_val and n_fac_val != "No encontrado":
+                qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}&numero={n_fac_val}"
+            else:
+                qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}"
         else:
-            qr_url = f"https://siat.impuestos.gob.bo/consulta/QR?nit={nit_val}&cuf={cuf_val}"
-    else:
-        qr_url = cuf_val
+            qr_url = cuf_val
 
     return {
         "cuf": cuf_val,
         "codigo_qr": qr_url,
+        "enlace_qr": qr_url,
         "tipo": registro.get("tipo_documento"),
         "fecha": registro.get("fecha_emision"),
         "nit": registro.get("nit_emisor"),
