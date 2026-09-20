@@ -7,7 +7,7 @@
 
 // Valores por defecto provistos en las especificaciones técnicas
 const DEFAULT_GITHUB_OWNER = "kevopedra-star";
-const DEFAULT_GITHUB_REPO = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GITHUB_REPO) || "sistema-facturas-python-ocr";
+const DEFAULT_GITHUB_REPO = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GITHUB_REPO) || "procesador-facturas-siat";
 const DEFAULT_GITHUB_PAT = (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_GITHUB_PAT) || (typeof localStorage !== "undefined" && localStorage.getItem("GITHUB_PAT")) || "";
 
 /**
