@@ -111,57 +111,79 @@ BEGIN
 
     -- SI YA EXISTE EN 'facturas', ACTUALIZAR
     IF v_existing_id IS NOT NULL THEN
-        UPDATE public.facturas
-        SET
-            tipo = COALESCE(NEW.tipo_documento, tipo, 'FACTURA'),
-            fecha = COALESCE(NEW.fecha_emision, fecha),
-            nit = COALESCE(NEW.nit_emisor, nit),
-            nombre = COALESCE(NEW.razon_social_emisor, NEW.cliente_nombre, nombre),
-            n_factura = COALESCE(NEW.numero_factura, n_factura),
-            monto = COALESCE(NEW.monto_total, monto),
-            codigo_qr = v_qr_url,
-            doc_aduanero = COALESCE(NEW.dato_especifico, doc_aduanero),
-            registro_aduanero = COALESCE(NEW.dato_especifico, registro_aduanero),
-            ref_guia = CASE WHEN NEW.nro_interno ~ '^\d{3,4}-\d{2}$' THEN NEW.nro_interno ELSE ref_guia END,
-            importacion_id = COALESCE(v_importacion_id, importacion_id),
-            productos = COALESCE(v_productos_str, productos),
-            cuf = v_cuf_key
-        WHERE id = v_existing_id;
+        BEGIN
+            UPDATE public.facturas
+            SET
+                tipo = COALESCE(NEW.tipo_documento, tipo, 'FACTURA'),
+                fecha = COALESCE(NEW.fecha_emision, fecha),
+                nit = COALESCE(NEW.nit_emisor, nit),
+                nombre = COALESCE(NEW.razon_social_emisor, NEW.cliente_nombre, nombre),
+                n_factura = COALESCE(NEW.numero_factura, n_factura),
+                monto = COALESCE(NEW.monto_total, monto),
+                codigo_qr = v_qr_url,
+                doc_aduanero = COALESCE(NEW.dato_especifico, doc_aduanero),
+                registro_aduanero = COALESCE(NEW.dato_especifico, registro_aduanero),
+                ref_guia = CASE WHEN NEW.nro_interno ~ '^\d{3,4}-\d{2}$' THEN NEW.nro_interno ELSE ref_guia END,
+                importacion_id = COALESCE(v_importacion_id, importacion_id),
+                productos = COALESCE(v_productos_str, productos),
+                cuf = v_cuf_key
+            WHERE id = v_existing_id;
+        EXCEPTION WHEN unique_violation THEN
+            UPDATE public.facturas
+            SET
+                tipo = COALESCE(NEW.tipo_documento, tipo, 'FACTURA'),
+                fecha = COALESCE(NEW.fecha_emision, fecha),
+                nit = COALESCE(NEW.nit_emisor, nit),
+                nombre = COALESCE(NEW.razon_social_emisor, NEW.cliente_nombre, nombre),
+                n_factura = COALESCE(NEW.numero_factura, n_factura),
+                monto = COALESCE(NEW.monto_total, monto),
+                doc_aduanero = COALESCE(NEW.dato_especifico, doc_aduanero),
+                registro_aduanero = COALESCE(NEW.dato_especifico, registro_aduanero),
+                ref_guia = CASE WHEN NEW.nro_interno ~ '^\d{3,4}-\d{2}$' THEN NEW.nro_interno ELSE ref_guia END,
+                importacion_id = COALESCE(v_importacion_id, importacion_id),
+                productos = COALESCE(v_productos_str, productos),
+                cuf = v_cuf_key
+            WHERE id = v_existing_id;
+        END;
     ELSE
         -- SI NO EXISTE, CALCULAR CONSECUTIVO E INSERTAR EN 'facturas'
         SELECT COALESCE(MAX(consecutivo), 0) + 1 INTO v_consecutivo FROM public.facturas;
 
-        INSERT INTO public.facturas (
-            consecutivo,
-            tipo,
-            fecha,
-            nit,
-            nombre,
-            n_factura,
-            monto,
-            codigo_qr,
-            ref_guia,
-            doc_aduanero,
-            registro_aduanero,
-            importacion_id,
-            productos,
-            cuf
-        ) VALUES (
-            v_consecutivo,
-            COALESCE(NEW.tipo_documento, 'FACTURA'),
-            COALESCE(NEW.fecha_emision, to_char(now(), 'YYYY-MM-DD')),
-            NEW.nit_emisor,
-            COALESCE(NEW.razon_social_emisor, NEW.cliente_nombre, 'DESCONOCIDO'),
-            NEW.numero_factura,
-            COALESCE(NEW.monto_total, 0),
-            v_qr_url,
-            CASE WHEN NEW.nro_interno ~ '^\d{3,4}-\d{2}$' THEN NEW.nro_interno ELSE NULL END,
-            NEW.dato_especifico,
-            NEW.dato_especifico,
-            v_importacion_id,
-            v_productos_str,
-            v_cuf_key
-        );
+        BEGIN
+            INSERT INTO public.facturas (
+                consecutivo,
+                tipo,
+                fecha,
+                nit,
+                nombre,
+                n_factura,
+                monto,
+                codigo_qr,
+                ref_guia,
+                doc_aduanero,
+                registro_aduanero,
+                importacion_id,
+                productos,
+                cuf
+            ) VALUES (
+                v_consecutivo,
+                COALESCE(NEW.tipo_documento, 'FACTURA'),
+                NEW.fecha_emision,
+                NEW.nit_emisor,
+                COALESCE(NEW.razon_social_emisor, NEW.cliente_nombre),
+                NEW.numero_factura,
+                NEW.monto_total,
+                v_qr_url,
+                CASE WHEN NEW.nro_interno ~ '^\d{3,4}-\d{2}$' THEN NEW.nro_interno ELSE NULL END,
+                NEW.dato_especifico,
+                NEW.dato_especifico,
+                v_importacion_id,
+                v_productos_str,
+                v_cuf_key
+            );
+        EXCEPTION WHEN unique_violation THEN
+            NULL;
+        END;
     END IF;
 
     -- REGISTRAR O ACTUALIZAR EN 'estado_facturas'
